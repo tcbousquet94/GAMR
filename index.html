@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hallway Heroes</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #a8dcff; }
+      #game { display: block; width: 100vw; height: 100vh; outline: none; }
+      #hud { position: fixed; inset: 0; pointer-events: none; user-select: none; }
+      #fps { position: fixed; left: 50%; top: 4px; transform: translateX(-50%); font: 11px monospace;
+             color: #2a1a2e; opacity: 0.55; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <canvas id="game" tabindex="0"></canvas>
+    <div id="hud"></div>
+    <div id="fps"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

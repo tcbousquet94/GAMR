@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Combat Sandbox</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #a8dcff; font-family: Arial, sans-serif; }
+      #game { display: block; width: 100vw; height: 100vh; }
+      .pop { position: fixed; transform: translate(-50%, -50%); font-weight: 900; color: #fff; pointer-events: none;
+             text-shadow: 0 2px 0 #2a1a2e, 2px 0 0 #2a1a2e, -2px 0 0 #2a1a2e, 0 -2px 0 #2a1a2e; white-space: nowrap; }
+      #log { position: fixed; left: 8px; top: 8px; font: 12px monospace; color: #2a1a2e; white-space: pre; }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="log"></div>
+    <script type="module" src="./combat.js"></script>
+  </body>
+</html>

@@ -27,6 +27,8 @@ export class Input {
     this.look = { dx: 0, dy: 0 };
     this.padPrev = [];
     this.pointerLocked = false;
+    this.lockUnavailable = false; // e.g. inside a sandboxed iframe: fall back to drag-to-look
+    this.dragging = false;
 
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Tab' || e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
@@ -48,28 +50,35 @@ export class Input {
 
     canvas.addEventListener('mousedown', (e) => {
       this.justPressed.add('start');
-      if (!this.pointerLocked) {
-        canvas.requestPointerLock?.();
+      if (!this.pointerLocked && !this.lockUnavailable) {
+        try {
+          const p = canvas.requestPointerLock?.();
+          p?.catch?.(() => { this.lockUnavailable = true; });
+        } catch {
+          this.lockUnavailable = true;
+        }
         return; // first click only grabs the mouse
       }
+      if (e.button === 2) this.dragging = true; // right-drag looks when pointer lock is unavailable
       if (e.button === 0) this.press('attack');
       if (e.button === 1) this.press('lock');
     });
     window.addEventListener('mouseup', (e) => {
+      this.dragging = false;
       if (e.button === 0) this.down.delete('attack');
       if (e.button === 1) this.down.delete('lock');
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    document.addEventListener('pointerlockerror', () => { this.lockUnavailable = true; });
     document.addEventListener('pointerlockchange', () => {
       this.pointerLocked = document.pointerLockElement === canvas;
     });
     window.addEventListener('mousemove', (e) => {
-      if (!this.pointerLocked) return;
+      if (!this.pointerLocked && !this.dragging) return;
       this.look.dx += e.movementX * MOUSE_SENS;
       this.look.dy += e.movementY * MOUSE_SENS;
     });
     window.addEventListener('wheel', (e) => {
-      if (!this.pointerLocked) return;
       this.press(e.deltaY > 0 ? 'menuDown' : 'menuUp');
       this.down.delete('menuDown');
       this.down.delete('menuUp');

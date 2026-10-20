@@ -107,9 +107,9 @@ export const PARTY = {
 };
 
 export const ENEMIES = {
-  locker: { name: 'Locker Mimic', maxHp: 60, speed: 3.2, damage: 14, aggroRange: 16 },
-  groupchat: { name: 'Group Chat (99+)', maxHp: 40, speed: 2.6, damage: 8, aggroRange: 20 },
-  hallmonitor: { name: 'Hall Monitor Hank', maxHp: 90, speed: 3.8, damage: 16, aggroRange: 18 },
+  locker: { name: 'Locker Mimic', maxHp: 60, speed: 3.2, damage: 14, aggroRange: 40 },
+  groupchat: { name: 'Group Chat (99+)', maxHp: 40, speed: 2.6, damage: 8, aggroRange: 42 },
+  hallmonitor: { name: 'Hall Monitor Hank', maxHp: 90, speed: 3.8, damage: 16, aggroRange: 40 },
 };
 
 export const STATUS = {

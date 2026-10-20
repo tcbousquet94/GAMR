@@ -409,6 +409,7 @@ export class Environment {
     this.colliders = [];
     this.bounds = { minX: -31.5, maxX: 31.5, minZ: -26.8, maxZ: 31.2 };
     this.playerSpawn = new THREE.Vector3(0, 0, 24);
+    this.playerSpawnYaw = Math.PI; // face north, toward the school and the fight
     this.partySpawns = [new THREE.Vector3(-2.2, 0, 25.6), new THREE.Vector3(2.2, 0, 25.6)];
     this.root = new THREE.Group();
     this.root.name = 'Environment';

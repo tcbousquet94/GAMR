@@ -35,8 +35,9 @@ export class EnemyManager {
     this.begun = false;
 
     game.events.on('defeat', ({ target }) => this.onDefeat(target));
-    game.events.on('game:start', () => this.begin());
-    if (game.started) this.begin();
+    // Endless waves are only for battle mode (the old arena); explore mode spawns encounters itself.
+    game.events.on('game:start', () => { if (game.mode === 'battle') this.begin(); });
+    if (game.started && game.mode === 'battle') this.begin();
   }
 
   begin() {

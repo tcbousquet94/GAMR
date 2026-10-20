@@ -10,6 +10,7 @@ import { createParty } from './party/Party.js';
 import { EnemyManager } from './enemies/EnemyManager.js';
 import { HUD } from './ui/HUD.js';
 import { Audio } from './audio/Audio.js';
+import { PartyTrail } from './explore/PartyTrail.js';
 
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -38,6 +39,9 @@ const game = {
   party: [],
   target: null,
   started: false,
+  // 'explore': walk around, party follows in a line, no waves.
+  // 'battle': the combat module runs (enemy AI, party combat AI).
+  mode: 'explore',
 };
 window.game = game; // handy for debugging in the console
 
@@ -49,6 +53,20 @@ game.party = createParty(game);
 game.enemies = new EnemyManager(game);
 game.hud = new HUD(game);
 game.audio = new Audio(game);
+game.partyTrail = new PartyTrail(game);
+
+const hudRoot = document.getElementById('hud');
+game.setMode = (mode) => {
+  game.mode = mode;
+  hudRoot.classList.toggle('mode-explore', mode === 'explore');
+  if (mode === 'explore') {
+    game.target = null;
+    game.partyTrail.reset();
+  }
+  game.events.emit('mode', { mode });
+};
+// ?mode=battle starts in the old wave arena (handy for testing combat on its own).
+game.setMode(new URLSearchParams(location.search).get('mode') === 'battle' ? 'battle' : 'explore');
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -75,8 +93,12 @@ function frame() {
 
   if (game.started) {
     game.player.update(dt);
-    for (const m of game.party) m.update(dt);
-    game.enemies.update(dt);
+    if (game.mode === 'battle') {
+      for (const m of game.party) m.update(dt);
+      game.enemies.update(dt);
+    } else {
+      game.partyTrail.update(dt);
+    }
     game.combat.update(dt, raw);
   }
   game.world.update(dt);

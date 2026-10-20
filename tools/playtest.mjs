@@ -1,8 +1,8 @@
 // End-to-end smoke test: drives the real game headlessly, captures screenshots and console errors.
-// Usage: node tools/playtest.mjs [url] [outDir]
+// Usage: node tools/playtest.mjs [url] [outDir]   (defaults to the battle-mode wave arena)
 import { chromium } from 'playwright-core';
 
-const url = process.argv[2] || 'http://localhost:5173/';
+const url = process.argv[2] || 'http://localhost:5173/?mode=battle';
 const outDir = process.argv[3] || '.';
 const browser = await chromium.launch({
   executablePath: '/opt/pw-browsers/chromium',

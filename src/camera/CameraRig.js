@@ -15,6 +15,11 @@ const TITLE_RADIUS = 24;
 const TITLE_HEIGHT = 10;
 const TITLE_SPEED = 0.07;   // rad/s
 const START_BLEND = 1.6;    // seconds of title -> gameplay blend
+const FOLLOW_DELAY = 0.8;   // explore: seconds after the last mouse look before the camera swings behind Pip
+const FOLLOW_RATE = 0.9;    // explore: how fast it swings (scaled by Pip's speed)
+const FOLLOW_MAX_ANGLE = 1.2; // only swing for forward/diagonal running, not strafing or running at the camera
+const EXPLORE_DIST = 8.5;   // explore: higher and further back, so we look over the party line
+const EXPLORE_PITCH = 0.6;
 
 const _focusGoal = new THREE.Vector3();
 const _camGoal = new THREE.Vector3();
@@ -34,7 +39,7 @@ export class CameraRig {
 
     const p = game.player?.object3d?.position;
     this.yaw = game.player ? game.player.object3d.rotation.y : 0;
-    this.pitch = PITCH_DEFAULT;
+    this.pitch = game.mode === 'explore' ? EXPLORE_PITCH : PITCH_DEFAULT;
     this.distance = DIST;      // desired orbit distance (grows a little while locked on)
     this.curDist = DIST;       // distance after collision, damped
     this.focus = new THREE.Vector3(p?.x ?? 0, (p?.y ?? 0) + FOCUS_H, p?.z ?? 0);
@@ -89,6 +94,7 @@ export class CameraRig {
     this.yaw = wrapAngle(this.yaw - look.dx);
     this.pitch = clamp(this.pitch + look.dy, PITCH_MIN, PITCH_MAX);
     this.idleLook = hasLook ? 0 : this.idleLook + dt;
+    if (game.mode === 'explore') this._followBehind(dt);
 
     this._computeGameplay(dt);
 
@@ -120,6 +126,19 @@ export class CameraRig {
 
     this.camera.lookAt(tgt);
     if (this.trauma > 0) this.camera.rotateZ(Math.sin(this.shakeTime * 1.9) * 0.04 * this.trauma * this.trauma);
+  }
+
+  // Explore mode: lazily swing the camera around behind Pip while he runs, unless the player
+  // is steering the camera with the mouse. Running toward the camera doesn't spin it around.
+  _followBehind(dt) {
+    const pl = this.game.player;
+    if (!pl?.vel || this.idleLook < FOLLOW_DELAY || this.game.target) return;
+    const speed01 = clamp(Math.hypot(pl.vel.x, pl.vel.z) / 7.5, 0, 1);
+    if (speed01 < 0.2) return;
+    const want = pl.object3d.rotation.y;
+    this.pitch = damp(this.pitch, EXPLORE_PITCH, 1.5, dt);
+    if (Math.abs(wrapAngle(want - this.yaw)) > FOLLOW_MAX_ANGLE) return;
+    this.yaw = dampAngle(this.yaw, want, FOLLOW_RATE * speed01, dt);
   }
 
   _titleFrame(outPos, outLook) {
@@ -156,7 +175,7 @@ export class CameraRig {
       this.distance = damp(this.distance, DIST + clamp(d * 0.18, 0, 3.5), 3, dt);
       if (this.idleLook > 0.6) this.pitch = damp(this.pitch, 0.38, 1.5, dt);
     } else {
-      this.distance = damp(this.distance, DIST, 3, dt);
+      this.distance = damp(this.distance, game.mode === 'explore' ? EXPLORE_DIST : DIST, 3, dt);
     }
 
     if (dt === 0) this.focus.copy(_focusGoal);

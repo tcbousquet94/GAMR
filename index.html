@@ -9,6 +9,8 @@
       html, body { margin: 0; height: 100%; overflow: hidden; background: #a8dcff; }
       #game { display: block; width: 100vw; height: 100vh; outline: none; }
       #hud { position: fixed; inset: 0; pointer-events: none; user-select: none; }
+      /* Combat-only HUD (command menu, lock-on) is hidden while exploring. */
+      #hud.mode-explore .hh-bl, #hud.mode-explore .hh-tl { opacity: 0 !important; }
       #fps { position: fixed; left: 50%; top: 4px; transform: translateX(-50%); font: 11px monospace;
              color: #2a1a2e; opacity: 0.55; pointer-events: none; }
     </style>

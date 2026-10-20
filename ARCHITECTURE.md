@@ -24,6 +24,7 @@ src/enemies/*.js           EnemyManager + 3 enemy types              [combat age
 src/party/Party.js         2 AI teammates                            [party agent]
 src/ui/HUD.js, hud.css     HUD, command menu, popups, dialogue box   [ui agent]
 src/audio/Audio.js         WebAudio synth SFX + tiny music loop      [ui agent]
+src/explore/PartyTrail.js  explore mode: EarthBound single-file party line
 ```
 
 Agents only write files they own. Shared/core files are read-only for agents.
@@ -50,13 +51,27 @@ game = {
 }
 ```
 
-Construction order: `world, combat, player, cameraRig, party, enemies, hud, audio`.
+Construction order: `world, combat, player, cameraRig, party, enemies, hud, audio, partyTrail`.
 Every system is `new X(game)` and exposes `update(dt)`. Constructors may read systems built earlier,
 and they must read later systems lazily (at update time).
-Update order per frame: `player, party, enemies, combat, world, cameraRig, hud`, then render, then `input.endFrame()`.
+Update order per frame: `player, (battle: party, enemies | explore: partyTrail), combat, world, cameraRig, hud`, then render, then `input.endFrame()`.
 Before `game.started` only `world`, `cameraRig` and `hud` update.
 `combat.update(dt, rawDt)` gets the unscaled dt too so it can end hitstop (it restores `game.timeScale = 1`).
 `cameraRig.update` and `hud.update` receive the unscaled dt.
+
+## Game modes
+
+`game.mode` is `'explore'` (the default) or `'battle'`. Switch it with `game.setMode(mode)`, which emits `mode { mode }`.
+
+| | explore | battle |
+|---|---|---|
+| Party | `game.partyTrail` (src/explore/PartyTrail.js) walks Dot and Moose in a single-file line on Pip's path, EarthBound style. When Pip stands still they sidestep so they don't hide him. | `PartyMember.update` (formation + combat AI) |
+| Enemies | `EnemyManager.update` not run | `EnemyManager.update` runs |
+| Camera | Higher and further back. Swings lazily behind Pip when he runs forward or diagonally, unless the mouse was used recently. | KH orbit + lock-on framing |
+| HUD | Command menu + lock-on hidden (`#hud.mode-explore`) | Full combat HUD |
+
+The combat module (combat/, enemies/, party/PartyMember.js) is unchanged. Exploration code lives in `src/explore/` and drives it from outside.
+`?mode=battle` in the URL starts in the original endless-wave arena.
 
 ## Combatant interface (Player, PartyMember, Enemy)
 

@@ -82,9 +82,21 @@ export class Batch {
   }
 }
 
+// Ground decals are stacked a hair apart (grass < sand < water < sidewalk < road < paint). The tiny
+// height gap alone z-fights at a distance, so each layer also gets a depth offset proportional to it.
+const decalMats = new Map();
+export function decalMaterial(color, y) {
+  const layer = Math.max(0, Math.round(y * 1000));
+  const key = `${color}|${layer}`;
+  if (!decalMats.has(key)) {
+    decalMats.set(key, new THREE.MeshBasicMaterial({ color, polygonOffset: true, polygonOffsetFactor: -layer / 4, polygonOffsetUnits: -layer }));
+  }
+  return decalMats.get(key);
+}
+
 // Flat painted rectangle on the ground (roads, paths, rugs). Unlit, so colors stay crisp.
 export function groundRect(parent, color, w, d, x, z, y = 0.01, ry = 0) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), basic(color));
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), decalMaterial(color, y));
   m.position.set(x, y, z);
   m.rotation.y = ry;
   m.updateMatrix();

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Town } from './areas/Town.js';
+import { Town } from './areas/town/Town.js';
 
 // Owns the explorable areas. Builds each one on first visit and keeps it cached, swaps
 // `game.world` to the active one, and handles door triggers + the fade between areas.

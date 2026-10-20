@@ -19,7 +19,10 @@ src/world/Environment.js   courtyard wave arena (battle mode only)   [environmen
 src/world/Area.js          base class for explorable areas (collision, spawns, doors)
 src/world/AreaManager.js   area registry, swap + fade, door triggers
 src/world/build.js         Batch (merged static geometry + outlines), signMesh, groundRect
-src/world/areas/Town.js    Maplewood: Pip's house, the street, the school entrance
+src/world/areas/town/      Maplewood, split by district (layout follows the reference map):
+  Town.js                    ground, road grid, river/bay/sea, horizon, wayfinding signposts
+  props.js                   frame() local building coords, building(), tree, palm, lamp, car, bench...
+  school.js park.js westside.js downtown.js fair.js neighborhood.js beach.js
 src/camera/CameraRig.js    third-person orbit + lock-on framing      [player agent]
 src/player/Player.js       controller, combo, commands, respawn      [player agent]
 src/combat/Combat.js       damage, melee sweeps, projectiles, AoE    [combat agent]
@@ -70,7 +73,9 @@ active one. Player, CameraRig, Combat and party code only talk to `game.world`. 
 
 ```
 AreaManager (game.areas)
- ├─ town     src/world/areas/Town.js   Pip's house · Elm-ish street · shops · school entrance
+ ├─ town     src/world/areas/town/     seven districts:
+ │            1 High School (NW) · 2 Town Park (N) · 3 Downtown (centre) · 4 Pip's street (SE)
+ │            5 Arcade & Mall (W, across the river) · 6 Fairground (NE) · 7 Beach (S)
  ├─ school   (step 3) hallway · classroom · cafeteria
  └─ ...      register new areas in AREAS in AreaManager.js
 Environment  the original courtyard; only built for ?mode=battle
@@ -91,6 +96,10 @@ Environment  the original courtyard; only built for ?mode=battle
 
 **Building areas.** `Batch` bakes boxes, cylinders, spheres and gable roofs into one merged mesh per color, plus one merged outline mesh,
 so a whole street is about 40 draw calls. Signs are canvas textures (`signMesh`).
+
+Ground decals (grass, sand, water, roads, paint) are flat planes a few millimetres apart. Each layer gets a
+polygon offset (`decalMaterial`) so they don't flicker at a distance. Walkable platforms (the pier) are listed in
+`town.raised`, which `getGroundHeight` reads.
 
 Coordinates: +X east, -Z north, y up. Pip's model faces +Z at rotation 0, and `yaw = atan2(dx, dz)`.
 

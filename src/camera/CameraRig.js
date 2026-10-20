@@ -187,15 +187,9 @@ export class CameraRig {
     const world = game.world;
     if (world && typeof world.segmentBlocked === 'function') {
       _camGoal.copy(this.focus).addScaledVector(_off, want);
-      if (world.segmentBlocked(this.focus, _camGoal)) {
-        let lo = 0.8, hi = want;
-        for (let i = 0; i < 6; i++) {
-          const mid = (lo + hi) * 0.5;
-          _probe.copy(this.focus).addScaledVector(_off, mid);
-          if (world.segmentBlocked(this.focus, _probe)) hi = mid; else lo = mid;
-        }
-        want = Math.max(0.8, lo - 0.3);
-      }
+      // segmentBlocked returns the fraction along the segment where it hits (1 = clear).
+      const t = world.segmentBlocked(this.focus, _camGoal);
+      if (t < 1) want = Math.max(0.8, want * t - 0.3);
     }
     // Snap in fast, ease back out slowly.
     if (dt === 0) this.curDist = want;

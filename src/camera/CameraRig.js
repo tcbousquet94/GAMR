@@ -18,8 +18,8 @@ const START_BLEND = 1.6;    // seconds of title -> gameplay blend
 const FOLLOW_DELAY = 0.8;   // explore: seconds after the last mouse look before the camera swings behind Pip
 const FOLLOW_RATE = 0.9;    // explore: how fast it swings (scaled by Pip's speed)
 const FOLLOW_MAX_ANGLE = 1.2; // only swing for forward/diagonal running, not strafing or running at the camera
-const EXPLORE_DIST = 8.5;   // explore: higher and further back, so we look over the party line
-const EXPLORE_PITCH = 0.6;
+const EXPLORE_DIST = 9;     // explore: higher and further back, so we look over the party line
+const EXPLORE_PITCH = 0.72;
 
 const _focusGoal = new THREE.Vector3();
 const _camGoal = new THREE.Vector3();

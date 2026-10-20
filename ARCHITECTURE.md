@@ -15,7 +15,11 @@ src/core/materials.js      toon(), basic(), blobShadow(), outline()   [core]
 src/core/math.js           damp(), clamp(), angle helpers             [core]
 src/characters/buildKid.js big-head kid model + procedural animator  [core]
 
-src/world/Environment.js   courtyard, colliders, spawn points        [environment agent]
+src/world/Environment.js   courtyard wave arena (battle mode only)   [environment agent]
+src/world/Area.js          base class for explorable areas (collision, spawns, doors)
+src/world/AreaManager.js   area registry, swap + fade, door triggers
+src/world/build.js         Batch (merged static geometry + outlines), signMesh, groundRect
+src/world/areas/Town.js    Maplewood: Pip's house, the street, the school entrance
 src/camera/CameraRig.js    third-person orbit + lock-on framing      [player agent]
 src/player/Player.js       controller, combo, commands, respawn      [player agent]
 src/combat/Combat.js       damage, melee sweeps, projectiles, AoE    [combat agent]
@@ -58,6 +62,37 @@ Update order per frame: `player, (battle: party, enemies | explore: partyTrail),
 Before `game.started` only `world`, `cameraRig` and `hud` update.
 `combat.update(dt, rawDt)` gets the unscaled dt too so it can end hitstop (it restores `game.timeScale = 1`).
 `cameraRig.update` and `hud.update` receive the unscaled dt.
+
+## World and scenes
+
+The game world is a set of **areas**. Only one is in the scene at a time, and `game.world` always points at the
+active one. Player, CameraRig, Combat and party code only talk to `game.world`. They don't know which area it is.
+
+```
+AreaManager (game.areas)
+ ├─ town     src/world/areas/Town.js   Pip's house · Elm-ish street · shops · school entrance
+ ├─ school   (step 3) hallway · classroom · cafeteria
+ └─ ...      register new areas in AREAS in AreaManager.js
+Environment  the original courtyard; only built for ?mode=battle
+```
+
+**Area API.** It's the same API the courtyard has, so nothing else needs to change.
+- `root` (THREE.Group), `getGroundHeight(x,z)`, `resolveCollision(pos, r)`, `segmentBlocked(a, b) -> 0..1`, `bounds`, `update(dt)`.
+- `colliders`: `{type:'box', minX,maxX,minZ,maxZ,h}` or `{type:'circle', x,z,r,h,camR}`. `camR` makes a circle block the camera (tree canopies).
+- `spawns`: `name -> {pos, yaw}`. `default` is used at startup.
+- `doors`: trigger boxes. A door with `{to, spawn}` changes area (if that area is registered). Otherwise it shows its `message` in the dialogue box. A door fires once each time you enter it.
+- `background`, `fog`, `center` (the title-screen orbit).
+- `enter()` / `exit()` hooks.
+
+**AreaManager.**
+- `load(id, spawn)` swaps instantly: it detaches the old root, attaches the new one, sets `game.world`, places Pip, re-lays the party line and snaps the camera.
+- `go(id, spawn)` does the same behind a 0.35s fade. Player input is frozen while `areas.busy`.
+- It emits `area {id, spawn}`.
+
+**Building areas.** `Batch` bakes boxes, cylinders, spheres and gable roofs into one merged mesh per color, plus one merged outline mesh,
+so a whole street is about 40 draw calls. Signs are canvas textures (`signMesh`).
+
+Coordinates: +X east, -Z north, y up. Pip's model faces +Z at rotation 0, and `yaw = atan2(dx, dz)`.
 
 ## Game modes
 

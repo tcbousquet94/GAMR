@@ -11,6 +11,7 @@ import { EnemyManager } from './enemies/EnemyManager.js';
 import { HUD } from './ui/HUD.js';
 import { Audio } from './audio/Audio.js';
 import { PartyTrail } from './explore/PartyTrail.js';
+import { AreaManager } from './world/AreaManager.js';
 
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -41,11 +42,17 @@ const game = {
   started: false,
   // 'explore': walk around, party follows in a line, no waves.
   // 'battle': the combat module runs (enemy AI, party combat AI).
-  mode: 'explore',
+  mode: new URLSearchParams(location.search).get('mode') === 'battle' ? 'battle' : 'explore',
 };
 window.game = game; // handy for debugging in the console
 
-game.world = new Environment(game);
+// Explore mode walks the town (and later the school); battle mode is the original wave arena.
+if (game.mode === 'battle') {
+  game.world = new Environment(game);
+} else {
+  game.areas = new AreaManager(game);
+  game.areas.load('town');
+}
 game.combat = new Combat(game);
 game.player = new Player(game);
 game.cameraRig = new CameraRig(game);
@@ -66,7 +73,7 @@ game.setMode = (mode) => {
   game.events.emit('mode', { mode });
 };
 // ?mode=battle starts in the old wave arena (handy for testing combat on its own).
-game.setMode(new URLSearchParams(location.search).get('mode') === 'battle' ? 'battle' : 'explore');
+game.setMode(game.mode);
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -91,7 +98,9 @@ function frame() {
     game.events.emit('game:start');
   }
 
-  if (game.started) {
+  game.areas?.update(raw);
+  const frozen = game.areas?.busy; // fading between areas
+  if (game.started && !frozen) {
     game.player.update(dt);
     if (game.mode === 'battle') {
       for (const m of game.party) m.update(dt);

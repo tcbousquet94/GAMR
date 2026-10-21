@@ -59,7 +59,7 @@ export class CreatorPreview {
       // Every few seconds: draw the revolver and hold it up for a beat.
       const c = (this.t % 6) / 6, up = c > 0.55 && c < 0.85 ? Math.min(1, (c - 0.55) * 20, (0.85 - c) * 20) : 0;
       pose.armR = [0.05 + (Math.PI / 2 - 0.05) * up, 0, 0.12 - 0.27 * up]; pose.foreR = [0.2 * (1 - up) + 0.08 * up, 0, 0];
-      if (up > 0) { pose.armL = [0.05 + 1.35 * up, 0, -0.12 + 0.52 * up]; pose.foreL = [0.2 + 0.05 * up, 0, 0]; pose.torso = [0, -0.18 * up, 0]; }
+      if (up > 0) pose.torso = [0, -0.18 * up, 0]; // one-handed: the off hand stays down
       pose.gun = { r: [0, 0, 0], s: Math.max(0.001, up) };
       pose.head = [0.04, Math.sin(this.t * 0.5) * 0.25, 0];
       this.rig.begin();

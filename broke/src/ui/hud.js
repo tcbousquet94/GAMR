@@ -135,15 +135,25 @@ export class Hud {
   update(dt) {
     const g = this.game, P = g.player, st = P.stats;
     const el = this.el;
+    const turf = g.mode === 'turf'; // turf war: no shop money, clock or train; district + seed instead
+    el.money.style.display = turf ? 'none' : '';
     el.money.textContent = formatMoney(g.economy.cents);
     if (this.popT > 0) { this.popT -= dt; el.pop.textContent = `+${formatMoney(this.popAmt)}`; el.pop.style.opacity = Math.min(1, this.popT * 2); if (this.popT <= 0) this.popAmt = 0; }
     else el.pop.style.opacity = 0;
-    el.tier.textContent = g.clock.label;
-    el.tier.dataset.tier = g.clock.tier;
-    el.clock.textContent = formatTime(g.clock.time);
-    const T = TIERS, i = g.clock.tier;
-    const span = i < T.length - 1 ? T[i + 1].at - T[i].at : 4;
-    el.tierfill.style.width = `${Math.min(100, ((g.clock.minutes - T[i].at) / span) * 100)}%`;
+    if (turf) {
+      el.tier.textContent = g.city.district.name;
+      el.tier.dataset.tier = 0;
+      el.clock.textContent = `Seed ${g.seed}`;
+      el.tierfill.parentElement.style.display = 'none';
+    } else {
+      el.tierfill.parentElement.style.display = '';
+      el.tier.textContent = g.clock.label;
+      el.tier.dataset.tier = g.clock.tier;
+      el.clock.textContent = formatTime(g.clock.time);
+      const T = TIERS, i = g.clock.tier;
+      const span = i < T.length - 1 ? T[i + 1].at - T[i].at : 4;
+      el.tierfill.style.width = `${Math.min(100, ((g.clock.minutes - T[i].at) / span) * 100)}%`;
+    }
     const frac = Math.max(0, P.hp / st.maxHp);
     el.hpfill.style.width = `${frac * 100}%`;
     el.hpfill.classList.toggle('low', frac < 0.3);
@@ -190,8 +200,8 @@ export class Hud {
     const boss = g.boss && g.boss.alive ? g.boss : null;
     const ex = g.exit;
     let top = '';
-    if (ex.state === 'called') top += `<div class="countdown">The train arrives in <b>${formatTime(ex.remaining)}</b></div>`;
-    if (ex.state === 'arrived') top += `<div class="countdown go">The train is here. <b>Board now</b></div>`;
+    if (!turf && ex.state === 'called') top += `<div class="countdown">The train arrives in <b>${formatTime(ex.remaining)}</b></div>`;
+    if (!turf && ex.state === 'arrived') top += `<div class="countdown go">The train is here. <b>Board now</b></div>`;
     const want = top + (boss ? '|boss' : '');
     if (want !== this._topHtml) {
       this._topHtml = want;
@@ -203,7 +213,7 @@ export class Hud {
     // Compass: heading strip + objective marker.
     const heading = (((-P.yaw * DEG) % 360) + 360) % 360;
     el.strip.style.transform = `translateX(${-heading * PX_PER_DEG}px)`;
-    const target = ex.state === 'idle' ? ex.data.panel : ex.state === 'arrived' ? { x: (ex.data.board.x0 + ex.data.board.x1) / 2, z: (ex.data.board.z0 + ex.data.board.z1) / 2 } : ex.data.panel;
+    const target = turf ? g.compassTarget() : ex.state === 'idle' ? ex.data.panel : ex.state === 'arrived' ? { x: (ex.data.board.x0 + ex.data.board.x1) / 2, z: (ex.data.board.z0 + ex.data.board.z1) / 2 } : ex.data.panel;
     const dx = target.x - P.pos.x, dz = target.z - P.pos.z;
     const dist = Math.hypot(dx, dz);
     let rel = Math.atan2(dx, -dz) * DEG - heading;
@@ -217,11 +227,12 @@ export class Hud {
     const edge = Math.abs(rel) > half;
     el.mark.classList.toggle('edge', edge);
     el.dist.textContent = edge ? (rel < 0 ? `‹ ${Math.round(dist)} m` : `${Math.round(dist)} m ›`) : `${Math.round(dist)} m`;
-    const objText = ex.state === 'idle' ? (dist < 12 ? 'Call the train at the panel' : 'Find the subway') : ex.state === 'called' ? 'Survive until the train arrives' : 'Board the train';
+    const objText = turf ? g.objective() : ex.state === 'idle' ? (dist < 12 ? 'Call the train at the panel' : 'Find the subway') : ex.state === 'called' ? 'Survive until the train arrives' : 'Board the train';
     if (objText !== this._obj) { this._obj = objText; el.obj.textContent = objText; }
     // Interact banner.
     let pr = null;
-    const it = g.state === 'playing' ? g.economy.focus(P) : null;
+    const it = !turf && g.state === 'playing' ? g.economy.focus(P) : null;
+    if (turf) { const b = g.businessNear(P.pos, 7); if (b) pr = { title: b.name, sub: `${b.label} \u00b7 Block ${b.block} \u00b7 ${b.hq != null ? `Gang ${b.hq + 1} HQ` : b.owner === 'neutral' ? 'Neutral' : `Gang ${+b.owner.slice(4) + 1}`}`, info: true }; }
     if (it) {
       if (it.type === 'callpanel') { if (ex.state === 'idle') pr = { title: 'Call the train', sub: 'The ride home is 75 seconds out. Hold the platform.' }; }
       else {

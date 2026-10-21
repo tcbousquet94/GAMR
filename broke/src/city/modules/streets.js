@@ -33,8 +33,9 @@ export function placeProp(kit, type, x, y, z, yaw = 0, color = null, solid = tru
   const rot = Math.abs(Math.sin(yaw)) > 0.5;
   const hx = rot ? s[2] : s[0], hz = rot ? s[0] : s[2];
   if (type === 'busshelter') {
-    // Roof you can stand on + back wall; open front.
+    // Roof you can stand on, carried by its corner posts; open front.
     kit.collider(x - hx, y + s[1] - 0.15, z - hz, x + hx, y + s[1], z + hz, TAG.PROP);
+    for (const [px, pz] of [[x - hx + 0.06, z - hz + 0.06], [x + hx - 0.06, z - hz + 0.06], [x - hx + 0.06, z + hz - 0.06], [x + hx - 0.06, z + hz - 0.06]]) kit.collider(px - 0.05, y, pz - 0.05, px + 0.05, y + s[1] - 0.15, pz + 0.05, TAG.PROP);
     return;
   }
   if (type === 'streetlight' || type === 'trafficlight') { kit.collider(x - 0.15, y, z - 0.15, x + 0.15, y + s[1], z + 0.15, TAG.PROP); return; }

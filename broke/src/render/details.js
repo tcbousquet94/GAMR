@@ -156,7 +156,16 @@ export function buildDetails(city, scene) {
   const clothMat = windMaterial(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, side: THREE.DoubleSide }), out.time, 0.18, 2.2, true);
   const laundry = [];
   const lines = [];
-  for (const bl of city.blocks) {
+  // Explicit spans from the generator (e.g. across each business's side alley).
+  const hang = (a, b) => {
+    const n = rng.int(3, 6), yaw = -Math.atan2(b.z - a.z, b.x - a.x);
+    for (let i = 0; i < n; i++) {
+      const t = (i + 0.5 + rng.range(-0.2, 0.2)) / n, sag = Math.sin(t * Math.PI) * 0.4;
+      laundry.push({ x: a.x + (b.x - a.x) * t, y: a.y - sag, z: a.z + (b.z - a.z) * t, yaw, w: rng.range(0.5, 0.9), h: rng.range(0.6, 1.0) });
+    }
+  };
+  for (const sp of city.laundrySpans || []) { lines.push(sp.a, sp.b); hang(sp.a, sp.b); }
+  for (const bl of city.A ? city.blocks : []) {
     const ls = (city.B - city.A) / 2;
     for (const axis of ['x', 'z']) {
       for (let k = 0; k < 4; k++) {

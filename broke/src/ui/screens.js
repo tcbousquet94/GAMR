@@ -2,6 +2,7 @@
 
 import { formatMoney, formatTime } from '../core/math.js';
 import { ITEMS } from '../sim/items.js';
+import { drawTownMap } from './townmap.js';
 
 export class Screens {
   constructor(root, handlers) {
@@ -49,8 +50,11 @@ export class Screens {
         <h2>Paused</h2>
         <p class="seed">Seed <b>${seed}</b></p>
         <button class="primary-btn" id="p-resume">Resume</button>
+        ${this.h.map ? '<button id="p-map">Town map</button>' : ''}
         <button id="p-replay">Replay this seed</button>
         <button id="p-new">New city</button>
+        <div class="seed-row"><label>Play seed <input id="p-seed" value="${seed}" spellcheck="false"></label><button id="p-go">Go</button></div>
+        <p class="controls">M town map · F1 free-fly camera · F2 debug overlay · F3 performance</p>
         <div class="opts">
           <label>Quality <select id="p-q">${['auto', 'high', 'medium', 'low'].map((q) => `<option ${q === quality ? 'selected' : ''}>${q}</option>`).join('')}</select></label>
           <label>Volume <input type="range" id="p-vol" min="0" max="1" step="0.05" value="${volume}"></label>
@@ -61,9 +65,24 @@ export class Screens {
     $('#p-resume').onclick = () => this.h.resume();
     $('#p-replay').onclick = () => this.h.restart(true);
     $('#p-new').onclick = () => this.h.restart(false);
+    $('#p-go').onclick = () => this.h.start($('#p-seed').value.trim() || seed);
+    if ($('#p-map')) $('#p-map').onclick = () => this.h.map();
     $('#p-q').onchange = (e) => this.h.quality(e.target.value);
     $('#p-vol').oninput = (e) => this.h.volume(+e.target.value);
     $('#p-sens').oninput = (e) => this.h.sens(+e.target.value);
+  }
+
+  // Town map (pause menu, M): drawn from the territory data, back returns to wherever you came from.
+  map({ turf, player, buildings, seed }) {
+    this.root.innerHTML = `
+      <div class="map-wrap">
+        <canvas class="townmap"></canvas>
+        <div class="map-bar"><span>Seed ${seed}</span><button class="primary-btn" id="m-back">Back</button></div>
+      </div>`;
+    const cv = this.root.querySelector('canvas');
+    const draw = () => drawTownMap(cv, turf, { player, buildings, subtitle: turf.district.personality });
+    requestAnimationFrame(draw);
+    this.root.querySelector('#m-back').onclick = () => this.h.mapBack();
   }
 
   dead({ cents }) {

@@ -97,7 +97,7 @@ export function generateCity(district, seed) {
 }
 
 // Each climb volume learns which side its wall is on: you climb by pushing toward it.
-function assignClimbWalls(world, kit) {
+export function assignClimbWalls(world, kit) {
   for (const { box: b } of kit.climbs) {
     const y0 = b.minY + 1.5, y1 = Math.min(b.maxY - 0.5, y0 + 3);
     const probes = [[1, 0], [-1, 0], [0, 1], [0, -1]];

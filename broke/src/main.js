@@ -3,6 +3,7 @@
 
 import { DT } from './core/config.js';
 import { Game } from './sim/game.js';
+import { TurfGame } from './sim/turf/turfGame.js';
 import { downtown } from './city/districts/downtown.js';
 import { DEE } from './sim/survivors/dee.js';
 import { View } from './render/view.js';
@@ -15,6 +16,8 @@ import { installDebug } from './debug/api.js';
 import { TouchControls } from './ui/touch.js';
 import { ABILITY_ICONS } from './ui/hud.js';
 import { icon } from './ui/icons.js';
+import { FlyCam } from './debug/flycam.js';
+import { buildDebugOverlay } from './render/debugOverlay.js';
 
 const params = new URLSearchParams(location.search);
 const canvas = document.getElementById('game');
@@ -46,16 +49,41 @@ const screens = new Screens(document.getElementById('screens'), {
   quality: (q) => { view.qualityName = q; if (q !== 'auto') view.setQuality(q); },
   volume: (v) => audio.setVolume(v),
   sens: (v) => { input.sens = v; },
+  map: () => showMap(),
+  mapBack: () => (app.mapFromPlay ? resume() : pause()),
 });
+app.fly = new FlyCam(input);
+
+// Town map (M or the pause menu). Only the turf game has one.
+function showMap() {
+  const g = app.game;
+  if (!g?.turf) return;
+  if (app.state === 'playing' && !app.paused) { app.mapFromPlay = true; pause(); } else app.mapFromPlay = false;
+  screens.show('map', { turf: g.turf, buildings: (g.city.buildings || []).map((b) => b.rect), player: { x: g.player.pos.x, z: g.player.pos.z, yaw: g.player.yaw }, seed: app.seed });
+}
+function toggleOverlay(on) {
+  const g = app.game;
+  if (!g?.turf) return false;
+  if (!app.overlay || app.overlay.game !== g) { app.overlay = { game: g, group: buildDebugOverlay(g.turf) }; view.scene.add(app.overlay.group); }
+  app.overlay.group.visible = on ?? !app.overlay.group.visible;
+  return app.overlay.group.visible;
+}
+app.toggleOverlay = toggleOverlay;
+app.showMap = showMap;
 
 export function startRun(seed, opts = {}) {
   app.seed = String(seed);
   const url = new URL(location.href);
   url.searchParams.set('seed', app.seed);
   history.replaceState(null, '', url);
-  // A fresh Game every run: no boss, wave, shop or clock state can carry over.
-  const g = (app.game = new Game({ seed: app.seed, district: downtown, survivor: DEE, startMinutes: opts.startMinutes ?? +(params.get('t') || 0) }));
+  // A fresh game every run so no state carries over. Default: the turf-war city. ?mode=classic keeps the retired
+  // roguelike reachable (disconnected from the main game, left in place so nothing breaks).
+  const startMinutes = opts.startMinutes ?? +(params.get('t') || 0);
+  const g = (app.game = params.get('mode') === 'classic'
+    ? new Game({ seed: app.seed, district: downtown, survivor: DEE, startMinutes })
+    : new TurfGame({ seed: app.seed, survivor: DEE, startMinutes }));
   if (params.get('god') === '1' || opts.god) g.godMode = true;
+  if (app.fly?.active) app.fly.toggle(view);
   view.load(g);
   hud.bind(g, DEE, touch);
   audio.bind(g);
@@ -91,7 +119,9 @@ function resume() {
 addEventListener('keydown', (e) => {
   if (e.code === 'Escape' || e.code === 'KeyP') { if (app.state === 'playing') (app.paused ? resume() : pause()); }
   if (e.code === 'F3') { perf.toggle(); e.preventDefault(); }
-  if (e.code === 'KeyM') audio.setVolume(audio.volume > 0 ? 0 : 0.8);
+  if (e.code === 'KeyM' && app.game?.turf) { if (screens.current === 'map') app.mapFromPlay ? resume() : pause(); else if (app.state === 'playing') showMap(); }
+  if (e.code === 'F1' && app.state === 'playing') { app.fly.toggle(view); e.preventDefault(); }
+  if (e.code === 'F2') { toggleOverlay(); e.preventDefault(); }
 });
 document.addEventListener('pointerlockchange', () => {
   // Losing pointer lock mid-run (Esc in most browsers) pauses.
@@ -118,7 +148,9 @@ function frame(now) {
     } else {
       app.acc += dt * g.timeScale;
       let n = 0;
-      while (app.acc >= DT && n < 8) { g.step(input.sample()); app.acc -= DT; n++; }
+      // Free-fly: the leader stands still (empty control) while the camera roams.
+      if (app.fly.active) app.fly.update(dt);
+      while (app.acc >= DT && n < 8) { g.step(app.fly.active ? { yaw: g.player.yaw, pitch: g.player.pitch } : input.sample()); app.acc -= DT; n++; }
       if (n === 8) app.acc = 0;
     }
   } else if (app.state !== 'playing' && g.state !== 'won') {

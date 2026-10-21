@@ -35,6 +35,14 @@ export function installDebug(app, { startRun }) {
       for (let i = 0; i < 40; i++) { app.game.step({ ...EMPTY_INPUT, yaw, pitch }); app.view.actors?.update(1 / 60); }
     },
     step(n = 1, input = {}) { for (let i = 0; i < n; i++) app.game.step({ ...EMPTY_INPUT, yaw: app.game.player.yaw, pitch: app.game.player.pitch, ...input }); },
+    // Turf debug: free-fly camera (optionally looking straight down at x,z from height), overlay, town map.
+    fly(on = true, at = null) {
+      if (app.fly.active !== on) app.fly.toggle(app.view);
+      if (on && at) { if (at.down) app.fly.overview(at.x, at.z, at.y); else { app.fly.pos = { x: at.x, y: at.y, z: at.z }; app.input.yaw = at.yaw ?? app.input.yaw; app.input.pitch = at.pitch ?? 0; } }
+      return app.fly.active;
+    },
+    overlay: (on = true) => app.toggleOverlay(on),
+    map: () => app.showMap(),
     setMinutes(m) { app.game.clock.time = m * 60; app.game.clock.update(0); },
   };
   window.__broke = api;

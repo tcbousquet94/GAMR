@@ -220,7 +220,7 @@ function roof(kit, r, h, opts) {
 
 function waterTower(kit, x, z, h) {
   const c = 0x5a4a3c;
-  for (const [ox, oz] of [[0, 0], [3, 0], [0, 3], [3, 3]]) kit.box(x + ox - 0.1, h, z + oz - 0.1, x + ox + 0.1, h + 3, z + oz + 0.1, kit.pal.metal, MAT.METAL);
+  for (const [ox, oz] of [[0, 0], [3, 0], [0, 3], [3, 3]]) kit.solid(x + ox - 0.1, h, z + oz - 0.1, x + ox + 0.1, h + 3, z + oz + 0.1, kit.pal.metal, MAT.METAL, TAG.PROP); // legs carry the tank
   kit.solid(x - 0.3, h + 3, z - 0.3, x + 3.3, h + 7, z + 3.3, c, MAT.STD, TAG.PROP);
   kit.boxC(x + 1.5, h + 7.6, z + 1.5, 3.2, 1.2, 3.2, shade(c, 0.8), MAT.STD, { ry: Math.PI / 4 });
 }

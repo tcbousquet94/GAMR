@@ -16,8 +16,9 @@ export class RigType {
     this.meshes = [];
     this.flash = [];
     this.world = def.parts.map(() => new THREE.Matrix4());
-    const mat = facetMaterial({ flash: true, roughness: 0.72, flat: false });
-    for (const p of def.parts) {
+    const mat = scene ? facetMaterial({ flash: true, roughness: 0.72, flat: false }) : null;
+    // scene = null: a pose solver only (compute()), no instanced meshes (used by the skinned close-up humans).
+    for (const p of scene ? def.parts : []) {
       const flash = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
       flash.setUsage(THREE.DynamicDrawUsage);
       p.geo.setAttribute('aFlash', flash);

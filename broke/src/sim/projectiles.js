@@ -35,6 +35,11 @@ export class Projectiles {
     const d = norm(sub(target ? target.point : aimPoint, from));
     return this.add({ kind: 'dart', team: 'player', pos: { ...from }, vel: mul(d, 90), speed: 90, turn: target ? 30 : 0, target: target?.enemy, part: target?.part, damage, proc: 1, life: 1.1, r: 0.3 });
   }
+  // Plain sidearm round: straight, fast, no homing.
+  bullet(owner, from, aimPoint, damage) {
+    const d = norm(sub(aimPoint, from));
+    return this.add({ kind: 'bullet', team: 'player', pos: { ...from }, vel: mul(d, 160), speed: 160, turn: 0, damage, proc: 1, life: 0.7, r: 0.2 });
+  }
   clipboard(owner, from, target, aimPoint, damage) {
     const d = norm(sub(target ? target.center() : aimPoint, from));
     return this.add({ kind: 'clipboard', team: 'player', pos: { ...from }, vel: mul(d, 48), speed: 48, turn: target ? 20 : 0, target, damage, proc: 1, life: 2.5, r: 0.6, bounces: 0, maxBounces: 6, hitSet: new Set() });

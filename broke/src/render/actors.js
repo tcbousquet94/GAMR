@@ -101,6 +101,7 @@ export class Actors {
     const glow = (c) => new THREE.MeshBasicMaterial({ color: c, fog: true });
     const defs = {
       dart: [merge([fbox(0.05, 0.05, 0.5, 0xd8fff8, at(0, 0, 0), { jitter: 0 })]), glow(new THREE.Color(0x7cf5e4).multiplyScalar(2))],
+      bullet: [merge([fbox(0.025, 0.025, 1.6, 0xfff0c8, at(0, 0, 0), { jitter: 0 })]), glow(new THREE.Color(0xffd9a0).multiplyScalar(2.5))], // tracer streak
       clipboard: [merge([fbox(0.36, 0.04, 0.48, 0x5a4434, at(0, 0, 0)), fbox(0.3, 0.05, 0.36, 0xe8e4d8, at(0, 0.01, 0.02), { jitter: 0 })]), facetMaterial()],
       textmissile: [merge([fball(0.32, 0xffffff, at(0, 0, 0), { detail: 1 }), fbox(0.12, 0.12, 0.2, 0xffffff, at(0.18, -0.22, 0.1, 0, 0, 0.6))]), glow(new THREE.Color(0x9fd8ff).multiplyScalar(1.6))],
       syringe: [merge([fcyl(0.04, 0.04, 0.5, 0xd8fff8, at(0, 0, 0)), fcyl(0.01, 0.01, 0.25, 0xffffff, at(0, -0.35, 0))]), glow(new THREE.Color(0x7cf5e4).multiplyScalar(2.2))],

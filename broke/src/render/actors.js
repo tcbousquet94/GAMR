@@ -51,8 +51,8 @@ export class Actors {
     const P = game.player;
     this.off = [
       E.on('ability', (a) => {
-        if (a.slot === 'primary') this.fireT = 0.3;
-        if (a.slot === 'secondary') this.throwT = 0.35;
+        if (a.slot === 'primary') { this.fireT = 0.3; this.deeAnim.onRecoil(1); this.view.rig.recoil(0.012); }
+        if (a.slot === 'secondary') { this.throwT = 0.35; this.deeAnim.onRecoil(1.6); this.view.rig.recoil(0.02); }
         if (a.slot === 'utility') this.spinT = 0.4;
       }),
       E.on('pivot', (d) => this.deeAnim.onPivot(Math.sign(d.from.x * d.to.z - d.from.z * d.to.x) || 1)),

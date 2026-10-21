@@ -15,6 +15,8 @@ export class CameraRig {
   }
 
   addShake(k) { this.shake = Math.min(1.2, this.shake + k); }
+  // Visual recoil: the view kicks up a little and springs back. Aim (player.pitch) is untouched.
+  recoil(k) { this.kickV = (this.kickV || 0) + k * 28; }
 
   update(dt, player, world, sprinting) {
     const p = player.pos;
@@ -36,7 +38,12 @@ export class CameraRig {
       this.shake = Math.max(0, this.shake - dt * 2.5);
     }
     this.camera.position.copy(this.pos);
-    this.camera.lookAt(this.pos.clone().add(fwd));
+    // Recoil spring (critically damped-ish): kickV is velocity, kick the pitch offset in radians.
+    this.kick = this.kick || 0; this.kickV = this.kickV || 0;
+    const kd = Math.min(dt, 1 / 30);
+    this.kickV += (-this.kick * 260 - this.kickV * 24) * kd;
+    this.kick = Math.min(0.06, this.kick + this.kickV * kd);
+    this.camera.lookAt(this.pos.clone().add(fwd).add(new THREE.Vector3(0, this.kick, 0)));
     this.fovKick += ((sprinting ? 7 : 0) - this.fovKick) * Math.min(1, dt * 5);
     const fov = this.baseFov + this.fovKick;
     if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }

@@ -500,3 +500,6 @@ Visual/readability audit:
   (`player.aimT`) is set while firing primary/secondary/special and relaxes 1 s after the last shot (user: 1.4 → 1.0 s). Only then
   does Dee face the camera direction, raise her throwing arm, show the dart in her hand, and show the crosshair
   (fades in/out). Otherwise she runs facing her travel direction with loose arms and no weapon in hand.
+- "A little recoil when Dee shoots": each dart kicks her throwing arm and shoulder back through the hit-reaction
+  springs (varied per shot, joints not stiffened) and rocks the torso; Rounds kicks harder. The camera view
+  kicks up ~0.6° per dart on a spring and settles; aim (player.pitch) is not changed, so recoil never costs accuracy.

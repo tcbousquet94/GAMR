@@ -74,6 +74,17 @@ export class Animator {
   onPivot(sign) { this.timers.pivot = 0.32; this.pivotSign = sign; }
   onSkid() { this.timers.skid = 0.4; }
   onLand(hard, v) { if (hard) this.timers.land = 0.55; this.landDip.dv -= Math.min(3.5, v * 0.12) * (hard ? 1.6 : 0.7); }
+  // Recoil from a throw: the throwing arm and shoulder kick back through the same springs as hit reactions
+  // (without stiffening the joints), and the torso rocks back a touch. Every shot varies slightly.
+  onRecoil(k = 1) {
+    const r = () => (Math.random() - 0.5) * 2;
+    this.hit.aR.dv += (7 + r() * 2) * k;
+    this.hit.tx.dv += (1.6 + r() * 0.5) * k;
+    this.hit.tz.dv += r() * 0.6 * k;
+    this.hit.tw = this.hit.tw || { v: 0, dv: 0 };
+    this.hit.tw.dv += (3 + r()) * k;
+  }
+
   // Partial ragdoll: push the body in the hit's direction; each hit gets its own random twist.
   onHit(dir, strength) {
     const s = clamp(strength, 0.15, 1.6);
@@ -321,6 +332,7 @@ export class Animator {
     const tx = wobble(H.tx, 13, 0.32, dt), tz = wobble(H.tz, 13, 0.32, dt), hx = wobble(H.hx, 15, 0.3, dt), hz = wobble(H.hz, 15, 0.3, dt);
     const aL = wobble(H.aL, 12, 0.35, dt), aR = wobble(H.aR, 12, 0.35, dt), hd = wobble(H.dip, 12, 0.4, dt);
     p.torso[0] += tx * 0.5; p.torso[2] += tz * 0.5;
+    if (H.tw) p.torso[1] += wobble(H.tw, 14, 0.4, dt) * 0.12; // recoil twist: throwing shoulder rocks back
     p.head[0] += hx * 0.55; p.head[2] += hz * 0.5;
     p.armL[0] += aL * 0.6; p.armL[2] -= Math.abs(aL) * 0.4; p.armR[0] += aR * 0.6; p.armR[2] += Math.abs(aR) * 0.4;
     p.hips[0] += tx * 0.15;

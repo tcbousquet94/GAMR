@@ -17,6 +17,7 @@ const MOTIONS = {
   vault: { steps: 90, every: 4, setup: 'vaultSpot', input: (i) => ({ moveZ: 1, sprint: true }) },
   stairs: { steps: 160, every: 11, setup: 'stairSpot', input: (i) => ({ moveZ: 1 }) },
   hits: { steps: 150, every: 5, setup: 'open', input: (i) => ({}), events: [[10, 'front'], [45, 'back'], [80, 'left'], [115, 'right']] },
+  shoot: { steps: 72, every: 3, setup: 'open', input: (i) => ({ primary: i < 40 }) },
   idle: { steps: 720, every: 48, setup: 'open', input: (i) => ({}) },
   death: { steps: 140, every: 6, zoom: 1.9, setup: 'deathSpot', input: (i) => ({}) },
 };

@@ -10,7 +10,7 @@ import { towerOnPodium, tree, planterTree, lowWall } from '../modules/common.js'
 import { R } from './raster.js';
 import { rectHitsDiag } from './layout.js';
 import { lotFill } from '../kitdata/modules.js';
-import { mergeKitData } from '../kitdata/data.js';
+import { mergeKitData, FRONT_YAW } from '../kitdata/data.js';
 
 const BUILD_AVOID = R.DIAG | R.RESERVED | R.BUILT | R.STREET;
 
@@ -185,9 +185,25 @@ export function perimeterBuildings(kit, city, b, raster) {
           if (ww < 7) break;
           const q = sideRect(r, side, u, u + ww, 0, dpt);
           if (!raster.test(q, R.BLOCK, BUILD_AVOID) || rectHitsDiag(city.layout.diag, q, 1)) continue;
-          // Kit look outside the core: real houses, walk-ups and workshops on the frontage instead of plain boxes.
+          // Kit look in the core: high-rises (some with setbacks) and mid-rise storefront blocks.
+          if (city.kitPending && core && b.zone !== 'civic') {
+            const KP = city.kitPending, along = side === 'n' || side === 's';
+            const Wf = along ? q.x1 - q.x0 : q.z1 - q.z0, Dd = along ? q.z1 - q.z0 : q.x1 - q.x0;
+            const cx = (q.x0 + q.x1) / 2, cz = (q.z0 + q.z1) / 2, yaw = FRONT_YAW[side];
+            const tower = rng.chance(Math.max(P.towerChance, 0.55)) && ww >= 16 && dpt >= 18;
+            const h = tower ? rng.range(P.towerHeight[0], P.towerHeight[1]) : rng.range(P.height[0], P.height[1]);
+            if (tower) KP.towers.push({ x: cx, z: cz, w: Wf - 1.2, d: Dd - 1.2, h, yaw, setback: rng.chance(0.5), color: rng.pick([0xc8c2b6, 0xb8b4ac, 0xd0c8b8, 0xa8a49c]), glassTint: rng.pick([0xd8e0e8, 0xc8d4dc, 0xe0dcd0]) });
+            else KP.blocks.push({ x: cx, z: cz, w: Wf - 0.6, d: Dd - 0.6, yaw, floors: Math.max(2, Math.min(6, Math.round(h / 3.3))), wall: rng.pick(['brick', 'stucco', 'stucco']), wallColor: rng.pick([0xd8c3a0, 0xcfc6b4, 0xb8b6ae, 0xc8b89c]), trim: rng.pick([0xd8d0c0, 0xc8c0b0]), roofColor: 0x6a6660, bars: rng.chance(0.4) });
+            raster.mark(q, R.BUILT);
+            (city.buildings = city.buildings || []).push({ rect: q, h, block: b.id, side });
+            u += ww + (rng.chance(0.22) ? rng.range(3.5, 5) : 0);
+            placed = true;
+            break;
+          }
+          // Kit look outside the core: real houses, walk-ups, shops and workshops on the frontage instead of plain boxes.
           if (city.kitPending && !core && (b.zone === 'residential' || b.zone === 'commercial' || b.zone === 'industrial')) {
-            const kind = b.zone === 'industrial' ? 'workshop' : b.zone === 'commercial' && ww >= 14 ? 'apartment' : 'house';
+            const r2 = rng.next();
+            const kind = b.zone === 'industrial' ? 'workshop' : b.zone === 'commercial' ? (ww >= 14 && r2 < 0.4 ? 'apartment' : ww >= 10 && r2 < 0.75 ? 'shop' : 'house') : 'house';
             const mb = lotFill(q, side, rng, kind);
             mergeKitData(city.kitPending, mb.D);
             city.kitCuts.push(...mb.cuts.map((x) => ({ ...x, cell: c })));

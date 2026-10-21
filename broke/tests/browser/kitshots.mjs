@@ -36,6 +36,16 @@ try {
     const info = await page.evaluate(SETUP);
     await page.waitForTimeout(2500);
     await page.screenshot({ path: `${OUT}seed${seed}.png`, timeout: 180000 });
+    // Second view: a taco stand / discount store from its street if this seed has one, else downtown looking up.
+    const b = await page.evaluate(`(() => { const B = __broke, D = B.game.city.kitData;
+      const s = D.stores.find((q) => q.kind === 'taco' || q.kind === 'discount') || D.stores[0];
+      if (s) { const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw), px = s.x + fx * 16 - fz * 7, pz = s.z + fz * 16 + fx * 7;
+        B.pose({ x: px, y: 0.3, z: pz, yaw: Math.atan2(-(s.x - px), -(s.z - pz)), pitch: 0.02 }); return s.kind + ':' + s.name; }
+      const t = D.towers.find((q) => !q.far); if (!t) return 'none';
+      const px = t.x + Math.sin(t.yaw) * 40, pz = t.z + Math.cos(t.yaw) * 40; B.pose({ x: px, y: 0.3, z: pz, yaw: Math.atan2(-(t.x - px), -(t.z - pz)), pitch: 0.35 }); return 'tower'; })()`);
+    await page.waitForTimeout(2500);
+    await page.screenshot({ path: `${OUT}seed${seed}b.png`, timeout: 180000 });
+    info.second = b;
     const perf = await page.evaluate(() => window.__broke.perf());
     console.log(`seed ${seed}`, JSON.stringify({ ...info, fps: perf.fps, calls: perf.calls, tris: perf.triangles }));
     errs.push(...errors.filter((e) => !/Pointer Lock|404/.test(e)).map((e) => `seed ${seed}: ${e}`));
@@ -44,11 +54,15 @@ try {
   // Grid: "h" first, then the seeds.
   const H = new URL('../../shots/hero/latest/hero.png', import.meta.url).pathname;
   const imgs = [existsSync(H) ? ['h (test scene)', H] : null, ...seeds.map((s) => [`seed ${s}`, `${OUT}seed${s}.png`])].filter(Boolean);
+  const imgsB = seeds.map((s) => [`seed ${s}: buildings`, `${OUT}seed${s}b.png`]);
   const b64 = (p) => `data:image/png;base64,${readFileSync(p).toString('base64')}`;
   const { browser, page } = await openGame(srv.url, 'scene=none&quality=low', { width: 1940, height: 1100 });
   await page.setContent(`<body style="margin:0;background:#111;display:grid;grid-template-columns:repeat(3,640px);gap:6px;padding:6px;font:600 18px sans-serif;color:#eee">${imgs.map(([t, p]) => `<div><img src="${b64(p)}" style="width:640px;display:block"><div style="padding:3px 0">${t}</div></div>`).join('')}</body>`);
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}grid.png`, fullPage: true });
+  await page.setContent(`<body style="margin:0;background:#111;display:grid;grid-template-columns:repeat(3,640px);gap:6px;padding:6px;font:600 18px sans-serif;color:#eee">${imgsB.map(([t, p]) => `<div><img src="${b64(p)}" style="width:640px;display:block"><div style="padding:3px 0">${t}</div></div>`).join('')}</body>`);
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}grid-buildings.png`, fullPage: true });
   await Promise.race([browser.close(), new Promise((r) => setTimeout(r, 3000))]);
 } finally { srv.stop(); }
 if (errs.length) console.log('PAGE ERRORS:\n' + errs.join('\n'));

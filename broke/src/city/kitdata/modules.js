@@ -190,7 +190,10 @@ export function cornerstore(rect, front, rng, sides) {
   mb.rect('asphalt', pu0, 0, pu1, 9, CURB - 0.02, CURB + 0.01, 0xb8b6b2);
   for (let u = pu0 + 2; u <= pu1 - 2; u += 2.8) { const p = mb.P(u, 5.5); mb.D.paint.push({ x: p.x, z: p.z, w: 0.12, d: 5, yaw: mb.Y(0), color: 0xe8e6e0, y: CURB + 0.012 }); mb.prop('wheelstop', u + 1.4, 7.6, 0); }
   mb.cut('front', pu0 + 3, pu1 - 3);
-  mb.store(su, 15, 19, 12, 0, { name: rng.pick(['PALMETTO MART', 'LUCKY 7 MARKET', 'SUNRISE LIQUOR', 'EZ STOP', 'CORNER KING']), wallColor: rng.pick([0xe0d6c0, 0xd8c8a8, 0xcfc8bc]), awning: rng.pick([0x2a5a3a, 0x8a2a24, 0x2a3a6a, 0xb8902a]) });
+  const kind = rng.pick(['market', 'market', 'taco', 'discount']);
+  const NAMES = { market: ['PALMETTO MART', 'LUCKY 7 MARKET', 'SUNRISE LIQUOR', 'EZ STOP', 'CORNER KING'], taco: ['TACOS LA PALMA', 'EL GALLO TACOS', 'TAQUERIA SOL', 'BURRITO HUT'], discount: ["MORALES DISCOUNT", "VEGA'S DISCOUNT", 'BIG SAVE', "RUIZ DISCOUNT"] };
+  const sw0 = kind === 'taco' ? 11 : 19, sd0 = kind === 'taco' ? 8 : 12;
+  mb.store(su, 15, sw0, sd0, 0, { kind, name: rng.pick(NAMES[kind]), wallColor: rng.pick([0xe0d6c0, 0xd8c8a8, 0xcfc8bc, 0xe6dcc6]), awning: rng.pick([0x2a5a3a, 0x8a2a24, 0x2a3a6a, 0xb8902a, 0xc83a2a]) });
   for (const [type, du, dv, yaw] of [['ice', 7.5, 8.4, 0], ['phone', -8.6, 8.5, 0], ['newsbox', 3.4, 8.6, 0], ['newsbox', 4.1, 8.6, 0], ['bench', -4, 8.7, 0], ['bollard', -2, 8.9, 0], ['bollard', 0, 8.9, 0], ['bollard', 2, 8.9, 0]]) mb.prop(type, su + du * (left ? 1 : -1), dv, yaw);
   mb.prop('dumpster', su + 6 * (left ? 1 : -1), 23.5, Math.PI);
   mb.car(su - 3 * sideDir, 4.5, Math.PI); mb.car(su + 5 * sideDir, 4.5, Math.PI);
@@ -298,6 +301,13 @@ export function lotFill(rect, side, rng, kind) {
     if (rng.chance(0.5)) mb.prop('pallets', 2.5, 3, 0);
     mb.fence('chain', 0.5, 0.5, W / 2 - 4, 0.5); mb.fence('chain', W / 2 + 4, 0.5, W - 0.5, 0.5);
     mb.cut('front', W / 2 - 4, W / 2 + 4);
+    return mb;
+  }
+  if (kind === 'shop') {
+    const sk = rng.pick(['taco', 'discount', 'market']), w = sk === 'taco' ? Math.min(W - 2, 11) : Math.min(W - 1.5, 16), d = Math.min(D - 5, sk === 'taco' ? 8 : 11);
+    mb.store(W / 2, 4 + d / 2, w, d, 0, { kind: sk, name: rng.pick({ taco: ['TACOS LA PALMA', 'EL GALLO TACOS', 'TAQUERIA SOL', 'BURRITO HUT'], discount: ["MORALES DISCOUNT", "VEGA'S DISCOUNT", 'BIG SAVE'], market: ['EZ STOP', 'CORNER KING', 'LUCKY 7 MARKET'] }[sk]), wallColor: rng.pick([0xe0d6c0, 0xd8c8a8, 0xe6dcc6]), awning: rng.pick([0x2a5a3a, 0x8a2a24, 0x2a3a6a, 0xc83a2a]) });
+    mb.rect('concrete', 0.5, 0, W - 0.5, 4, CURB - 0.02, CURB + 0.03, 0xd6d2ca);
+    if (rng.chance(0.5)) mb.prop('newsbox', 1.5, 1.5, 0);
     return mb;
   }
   if (kind === 'apartment' && W >= 14) {

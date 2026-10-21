@@ -129,6 +129,7 @@ export class KitView extends View {
     const M = heroMaterials();
     M.lamp.emissiveIntensity = 6 * k;
     M.window.emissive = new THREE.Color(0xffc890); M.window.emissiveMap = M.window.map; M.window.emissiveIntensity = 0.9 * k;
+    M.facade.emissive = new THREE.Color(0xffd8a0); M.facade.emissiveMap = M.facade.map; M.facade.emissiveIntensity = 0.7 * k;
     // Image-based ambient from the sky dome.
     this.envRT?.dispose();
     const envScene = new THREE.Scene();

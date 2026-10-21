@@ -332,6 +332,30 @@ const R = {
     });
     return t;
   },
+  // Tower facade: 4 window bays x 2 floors per tile (1.75 m x 3.5 m each): framed glass over a spandrel, a mullion,
+  // and per-window blinds, curtains or a dark room so the grid never reads as wallpaper.
+  facade(N = 512) {
+    const t = new Tex(N);
+    t.each((u, v, i) => {
+      const cu = u * 4, cv = v * 2, ci = Math.floor(cu), cj = Math.floor(cv), fu = cu - ci, fv = cv - cj;
+      const id = hash2(ci, cj, 7), id2 = hash2(ci, cj, 9);
+      const glass = fu > 0.1 && fu < 0.9 && fv > 0.26 && fv < 0.92;
+      const mull = Math.abs(fu - 0.5) < 0.018 || Math.abs(fv - 0.62) < 0.012;
+      const n = fbm(u, v, 16, 3, 3);
+      if (glass && !mull) {
+        let c = [0.1 + n * 0.04, 0.12 + n * 0.04, 0.15 + n * 0.05];
+        if (id < 0.35 && fv > 0.45) { const sl = (fv * 60) % 1; const k = 0.55 + 0.2 * smooth(0, 0.3, sl); c = [k * 0.85, k * 0.82, k * 0.75]; }
+        else if (id < 0.55 && Math.abs(fu - 0.5) > 0.22) { const k = 0.4 + Math.sin(fu * 80) * 0.06; c = [k * 0.9, k * 0.8, k * 0.62]; }
+        else if (id2 < 0.2) c = [0.22, 0.2, 0.16];
+        const refl = smooth(0.92, 0.3, fv) * 0.08; t.col(i, c[0] + refl, c[1] + refl, c[2] + refl);
+        t.H[i] = 0; t.R[i] = 0.08;
+      } else {
+        const k = (mull ? 0.5 : 0.72) + (n - 0.5) * 0.08 - (fv < 0.26 ? 0.04 : 0);
+        t.col(i, k, k * 0.98, k * 0.94); t.H[i] = mull ? 0.6 : 1; t.R[i] = mull ? 0.4 : 0.85;
+      }
+    });
+    return t;
+  },
   // Painted road line: white with wear holes showing through (alpha).
   roadPaint(N = 256) {
     const t = new Tex(N); t.A = new Float32Array(t.n);
@@ -351,7 +375,7 @@ const SPECS = {
   siding: { normal: 5 }, stucco: { normal: 0.6 }, brick: { normal: 4 }, shingles: { normal: 5 }, metal: { normal: 3 },
   garageDoor: { normal: 4 }, paint: { normal: 1 }, planks: { normal: 3 }, chainlink: { normal: 1, alpha: true },
   palmBark: { normal: 4 }, bark: { normal: 4 }, window: { normal: 1 }, frond: { normal: 1, alpha: true, wrap: false },
-  leaves: { normal: 2, alpha: true, wrap: false }, roadPaint: { normal: 1, alpha: true }, tuft: { normal: 1, alpha: true, wrap: false }, tarGravel: { normal: 3 },
+  leaves: { normal: 2, alpha: true, wrap: false }, facade: { normal: 2 }, roadPaint: { normal: 1, alpha: true }, tuft: { normal: 1, alpha: true, wrap: false }, tarGravel: { normal: 3 },
 };
 let cache = null;
 export function heroTextures() {

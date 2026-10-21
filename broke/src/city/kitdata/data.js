@@ -7,7 +7,7 @@
 //   ribbons   [{ surf, pts:[{x,z}], width, y, tint }]          curving walks and lanes
 //   kerbs     [{ pts:[{x,z}], red:[segment index...], y }]      kerb runs (raised concrete), some painted red
 //   paint     [{ x, z, w, d, yaw, color, y }]                   lane lines, stop bars, crosswalk stripes, stalls
-//   houses / apartments / stores / warehouses / sheds           buildings (see render/kit/*.js for the fields)
+//   houses / apartments / stores / warehouses / sheds / towers / blocks   buildings (see render/kit/*.js for fields)
 //   fences    [{ kind: chain|wood|block|barbed, a:{x,z}, b:{x,z}, h, y }]
 //   palms, trees, shrubs, hedges, poleLines, lights, cars, trucks, bins, hydrants, props, people
 
@@ -16,7 +16,7 @@ export const FH = 2.9, FL = 0.45; // floor height, foundation height (houses)
 
 export function emptyKitData() {
   return {
-    pads: [], ribbons: [], kerbs: [], paint: [], houses: [], apartments: [], stores: [], warehouses: [], sheds: [], fences: [],
+    pads: [], ribbons: [], kerbs: [], paint: [], houses: [], apartments: [], stores: [], warehouses: [], sheds: [], towers: [], blocks: [], fences: [],
     palms: [], trees: [], shrubs: [], hedges: [], poleLines: [], lights: [], cars: [], trucks: [], bins: [], hydrants: [], props: [], people: [], manholes: [],
   };
 }
@@ -63,6 +63,8 @@ export function kitColliders(D, add, TAG) {
   for (const a of D.apartments) rotRect(add, a.x, a.z, a.w, a.d, houseYaw(a), a.y ?? CURB, (a.y ?? CURB) + (a.floors || 2) * 3 + 1.2, TAG.BUILDING);
   for (const s of D.stores) rotRect(add, s.x, s.z, s.w, s.d, houseYaw(s), s.y ?? CURB, (s.y ?? CURB) + 4.6, TAG.BUILDING);
   for (const w of D.warehouses) rotRect(add, w.x, w.z, w.w, w.d, houseYaw(w), w.y ?? CURB, (w.y ?? CURB) + (w.h || 8), TAG.BUILDING);
+  for (const t of (D.towers || []).filter((q) => !q.far)) rotRect(add, t.x, t.z, t.w + 0.6, t.d + 0.6, houseYaw(t), t.y ?? CURB, (t.y ?? CURB) + t.h + 6, TAG.BUILDING);
+  for (const b of D.blocks || []) rotRect(add, b.x, b.z, b.w, b.d, houseYaw(b), b.y ?? CURB, (b.y ?? CURB) + (b.floors || 3) * 2.9 + 1.5, TAG.BUILDING);
   for (const s of D.sheds) rotRect(add, s.x, s.z, s.w, s.d, houseYaw(s), s.y ?? CURB, (s.y ?? CURB) + (s.h || 2.6), TAG.BUILDING);
   for (const f of D.fences) {
     const y = f.y ?? CURB, dx = f.b.x - f.a.x, dz = f.b.z - f.a.z, L = Math.hypot(dx, dz);

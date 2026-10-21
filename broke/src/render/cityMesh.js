@@ -174,6 +174,7 @@ export function buildCity(city, scene, opts = {}) {
   const signs = buildSigns(kit, scene);
   const lights = buildLights(kit, scene, nightMat);
   const skyline = buildSkyline(city, scene);
+  if (opts.kitBoxes) skyline.mesh.visible = false; // the kit look builds real distant towers instead
 
   return {
     group, props, signs, lights, skyline,

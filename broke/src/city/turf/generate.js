@@ -77,6 +77,12 @@ export function generateTurf(cfg, seed, opts = {}) {
     KD.pads.unshift({ surf: 'asphalt', poly: rectPoly(city.inner, 40), y0: -0.2, y1: 0, tint: 0xc4c2be });
     for (const c of cells) KD.pads.splice(1, 0, { surf: c.zone === 'residential' || c.zone === 'park' ? 'grass' : 'concrete', poly: rectPoly(c.rect, 0), y0: 0, y1: CURB - 0.004, tint: c.zone === 'industrial' ? 0xb8b4ac : 0xffffff });
     streetData(KD, { cells, segs: L.segs, sw: cfg.roads.sidewalk, rng, cuts });
+    // The rest of the city beyond the edges: a ring of real high-rises (the old flat skyline is not drawn in the kit look).
+    const I = city.inner, cxm = (I.x0 + I.x1) / 2, czm = (I.z0 + I.z1) / 2, R0 = Math.max(I.x1 - I.x0, I.z1 - I.z0) / 2;
+    for (let k = 0; k < 22; k++) {
+      const a = rng.range(0, Math.PI * 2), r = R0 + rng.range(140, 420);
+      KD.towers.push({ x: cxm + Math.cos(a) * r, z: czm + Math.sin(a) * r, y: 0, w: rng.range(18, 34), d: rng.range(18, 30), h: rng.range(35, 130), yaw: rng.range(0, Math.PI), setback: rng.chance(0.4), far: true, color: rng.pick([0xc8c2b6, 0xb8b4ac, 0xd0c8b8, 0xa8a49c, 0x9aa0a6]), glassTint: rng.pick([0xd8e0e8, 0xc8d4dc, 0xe0dcd0]) });
+    }
     kitColliders(KD, (x0, y0, z0, x1, y1, z1, tag) => kit.collider(x0, y0, z0, x1, y1, z1, tag), TAG);
     city.kitData = KD;
   } else {

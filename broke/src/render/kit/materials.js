@@ -26,6 +26,7 @@ const SURF = {
   chainlink: { tex: 'chainlink', tile: 0.5, wear: 0, alphaTest: 0.5, side: THREE.DoubleSide, metalness: 0.6 },
   palmBark: { tex: 'palmBark', tile: 1.6, wear: 0 },
   bark: { tex: 'bark', tile: 1.2, wear: 0 },
+  facade: { tex: 'facade', tile: 7, wear: 0.6, envMapIntensity: 1.2 },
   window: { tex: 'window', tile: 1, wear: 0, roughness: 0.06, envMapIntensity: 1.6 },
   frond: { tex: 'frond', tile: 1, wear: 0, alphaTest: 0.5, side: THREE.DoubleSide },
   tuft: { tex: 'tuft', tile: 1, wear: 0, alphaTest: 0.5, side: THREE.DoubleSide },

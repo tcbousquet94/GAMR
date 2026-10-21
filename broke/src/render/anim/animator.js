@@ -123,9 +123,17 @@ export class Animator {
     if (ctx.face === 'aim' && ctx.aimYaw != null) want = ctx.aimYaw;
     else if (ctx.climbWall) want = Math.atan2(-ctx.climbWall.x, -ctx.climbWall.z);
     else if (hs > 0.6) want = Math.atan2(-v.x, -v.z);
+    else if (ctx.aimYaw != null && this.yaw != null && ctx.onGround && o.turnInPlace !== false && o.fidgets.length) {
+      // Standing: the spine soaks up small camera turns; past ~60 degrees the feet step round to follow
+      // (turn in place), and keep turning until the body is nearly square to the view again.
+      const off = wrap(ctx.aimYaw - this.yaw);
+      if (Math.abs(off) > 1.05) this.turning = true;
+      if (this.turning) { want = ctx.aimYaw; if (Math.abs(off) < 0.12) this.turning = false; }
+    }
+    if (hs > 0.6 || ctx.face === 'aim') this.turning = false;
     if (this.yaw == null) { this.yaw = want; this.yawS.v = want; }
     const diff = wrap(want - this.yaw);
-    const omega = this.timers.pivot > 0 ? 22 : ctx.face === 'aim' ? 18 : 9 + 4 / (1 + sp);
+    const omega = this.timers.pivot > 0 ? 22 : ctx.face === 'aim' ? 18 : this.turning ? 7 : 9 + 4 / (1 + sp);
     const target = this.yaw + diff;
     this.yawS.v = this.yaw;
     const ny = cd(this.yawS, target, omega, dt);
@@ -157,9 +165,10 @@ export class Animator {
     // ---- gait ---------------------------------------------------------------------------------------------------
     const moving = ctx.onGround && !ctx.climbing && !ctx.vault && o.gait;
     const freq = (0.7 + 0.1 * sp / S) * o.freq; // gait cycles/s (2 steps each): ~2.8 steps/s at a run, ~3.5 at a sprint
-    if (moving && sp > 0.15) this.phase += TAU * freq * dt;
+    const turnStep = this.turning ? clamp(Math.abs(this.yawRate) / 4, 0.35, 1) : 0; // feet step while turning in place
+    if (moving && (sp > 0.15 || turnStep > 0)) this.phase += TAU * (turnStep > 0 && sp < 0.5 ? 1.2 : freq) * dt;
     else this.phase += wrap(Math.round(this.phase / Math.PI) * Math.PI - this.phase) * Math.min(1, 6 * dt); // settle to a neutral stance
-    const amp = clamp(sp / (3.2 * S), 0, 1) * (1 - air) * (1 - climb) * (1 - vault);
+    const amp = Math.max(clamp(sp / (3.2 * S), 0, 1), turnStep * 0.45) * (1 - air) * (1 - climb) * (1 - vault);
     const stepLen = clamp((sp / freq) * 0.5, 0, 2.1 * S); // metres per step
     const p = {};
     for (const n of JOINTS) p[n] = [0, 0, 0];
@@ -219,12 +228,19 @@ export class Animator {
     p.foreR = [bend + Math.max(0, sw) * 0.25 * amp, 0, 0];
     // Relaxed shoulders: arms hang slightly forward and out, never bolt upright.
     p.armL[0] += 0.08; p.armR[0] += 0.08; p.armL[2] -= 0.06; p.armR[2] += 0.06;
-    p.hips = [0, sw * 0.12 * amp, -sw * 0.04 * amp];
+    // Pelvis and chest turn together at a walk and only counter-rotate at a run (gait biomechanics), so the
+    // body reads as one piece instead of wringing at the waist.
+    const run01 = clamp((sp - 3 * S) / (5 * S), 0, 1);
+    p.hips = [0, sw * (0.05 + 0.05 * run01) * amp, -sw * 0.03 * amp];
+    const twistG = sw * amp * (0.02 * (1 - run01) - 0.09 * run01);
     const lean = clamp(-this.accF.v * 0.022 - spN * 0.16, -0.5, 0.35);
     const bank = clamp(this.yawRate * sp * 0.02 + this.accS.v * 0.009, -0.45, 0.45); // lean into turns like a body carrying momentum
-    p.torso = [lean, -sw * 0.16 * amp, bank];
-    p.head = [-lean * 0.6 + 0.04 * spN, sw * 0.06 * amp, -bank * 0.5];
-    hipsT[0] = bank * 0.12 * S; // hips swing out of the turn
+    // Most of the lean comes from the ankles (the whole body tilts as a unit, as in Red Dead); the spine adds a little.
+    this.rootRoll = cd(this.rootRollS || (this.rootRollS = { v: 0, dv: 0 }), bank * 0.65 * (1 - air) * (1 - climb), 12, dt);
+    this.rootPitch = cd(this.rootPitchS || (this.rootPitchS = { v: 0, dv: 0 }), lean * 0.4 * (1 - air) * (1 - climb), 12, dt);
+    p.torso = [lean * 0.6, twistG, bank * 0.35];
+    p.head = [-lean * 0.5 + 0.04 * spN, -twistG * 0.5, -bank * 0.5];
+    hipsT[0] = bank * 0.05 * S; // hips swing out of the turn a little
     // Idle life: breathing, weight shifts, fidgets.
     const breathe = Math.sin(t * 1.45 + this.seed) * (1 - spN * 0.7);
     p.torso[0] += breathe * 0.022;
@@ -311,10 +327,12 @@ export class Animator {
     const st = { t, speed: spN, windup: ctx.telegraph || 0, stun: ctx.stunned || 0, firing: ctx.firing, pitch: ctx.aimPitch || 0, ...ctx.extra };
     if (ctx.overlay) ctx.overlay(p, st, hipsT);
     // Aiming: torso turns toward the aim direction when the legs face elsewhere.
-    if (ctx.aimYaw != null && ctx.face !== 'aim' && ctx.firing) {
-      const off = clamp(wrap(ctx.aimYaw - this.yaw), -1.1, 1.1);
-      p.torso[1] += off * 0.55; p.head[1] += off * 0.35;
-    }
+    // Twist chain (aim offset): any turn of the upper body toward the view or a target is shared out
+    // pelvis 30% / chest 40% / head 30%, the way engines distribute aim offsets down the spine, so the
+    // shoulders never turn without the hips. Standing still, the chain follows the camera until the
+    // feet take over (turn in place, above).
+    let chainYaw = 0;
+    if (ctx.aimYaw != null && ctx.face !== 'aim' && (ctx.firing || (idle > 0.01 && o.fidgets.length))) chainYaw += clamp(wrap(ctx.aimYaw - this.yaw), -1.05, 1.05) * (ctx.firing ? 1 : idle);
     // ---- look-at: head (and eyes) track the target ----------------------------------------------------------------
     let ly = 0, lp = 0;
     if (ctx.lookAt) {
@@ -325,7 +343,11 @@ export class Animator {
       if (Math.abs(wrap(yawTo - this.yaw)) > 2.2) { ly = 0; lp = 0; } // behind: don't break the neck
     }
     const hly = cd(this.look.yaw, ly * (1 - climb), 7, dt), hlp = cd(this.look.pitch, lp * (1 - climb), 7, dt);
-    p.head[1] += hly * 0.7; p.torso[1] += hly * 0.25; p.head[0] += hlp * 0.6;
+    chainYaw += hly * 0.6; // looking at a target turns the body a bit, the head the rest
+    const chain = cd(this.chainS || (this.chainS = { v: 0, dv: 0 }), chainYaw, 9, dt);
+    p.hips[1] += chain * 0.3; p.torso[1] += chain * 0.4; p.head[1] += chain * 0.3 + hly * 0.4;
+    p.legL[1] -= chain * 0.3; p.legR[1] -= chain * 0.3; // thighs counter-rotate so planted feet don't spin with the pelvis
+    p.head[0] += hlp * 0.6;
     this.extra.eyes = { t: [clamp(-hly * 0.012, -0.012, 0.012), clamp(-hlp * 0.008, -0.006, 0.006), 0] };
     // ---- hit reactions (partial ragdoll springs, layered) -----------------------------------------------------------
     const H = this.hit;

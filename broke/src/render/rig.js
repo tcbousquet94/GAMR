@@ -97,8 +97,9 @@ function topo(parts) {
   return out;
 }
 
-export function rootMatrix(x, y, z, yaw, scale = 1, out = new THREE.Matrix4()) {
-  _e.set(0, yaw, 0);
+// roll / pitch tilt the whole body about the feet (lean into turns, lean into acceleration).
+export function rootMatrix(x, y, z, yaw, scale = 1, out = new THREE.Matrix4(), roll = 0, pitch = 0) {
+  _e.set(pitch, yaw, roll, 'YXZ');
   _q.setFromEuler(_e);
   return out.compose(_v.set(x, y, z), _q, _s.set(scale, scale, scale));
 }

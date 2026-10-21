@@ -18,6 +18,7 @@ const MOTIONS = {
   stairs: { steps: 160, every: 11, setup: 'stairSpot', input: (i) => ({ moveZ: 1 }) },
   hits: { steps: 150, every: 5, setup: 'open', input: (i) => ({}), events: [[10, 'front'], [45, 'back'], [80, 'left'], [115, 'right']] },
   shoot: { steps: 72, every: 3, setup: 'open', input: (i) => ({ primary: i < 40 }) },
+  lookaround: { steps: 240, every: 10, setup: 'open', input: (i) => ({ dyaw: i < 120 ? Math.min(1, i / 60) * 2.0 : Math.max(0, 2.0 - (i - 120) / 40 * 2.0) }) },
   idle: { steps: 720, every: 48, setup: 'open', input: (i) => ({}) },
   death: { steps: 140, every: 6, zoom: 1.9, setup: 'deathSpot', input: (i) => ({}) },
 };
@@ -55,7 +56,7 @@ window.__strip = async function (name, spec) {
           g.events.emit('playerHurt', { amount: 14, source: 'test', from: { x: P.pos.x + d.x * 3, z: P.pos.z + d.z * 3 } });
         }
         const inp = spec.inputFn(i);
-        g.step({ moveX: 0, moveZ: 0, yaw: spot.yaw, pitch: 0, sprint: false, jumpPressed: false, primary: false, secondary: false, utility: false, special: false, equipment: false, interact: false, ...inp });
+        g.step({ moveX: 0, moveZ: 0, yaw: spot.yaw + (inp.dyaw || 0), pitch: 0, sprint: false, jumpPressed: false, primary: false, secondary: false, utility: false, special: false, equipment: false, interact: false, ...inp });
         yield;
       }
     })();

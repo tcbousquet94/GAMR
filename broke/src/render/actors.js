@@ -232,7 +232,7 @@ export class Actors {
         cloth: M.CLOTH[e.type]?.length ? M.clothSpring(e, dt, e.body.vel, A.yaw ?? e.yaw, this.t + e.id, M.CLOTH[e.type]) : null,
       });
       const scale = (A.o.scale || 1) * (0.3 + 0.7 * grow);
-      rootMatrix(p.x, p.y, p.z, A.yaw, scale, m4);
+      rootMatrix(p.x, p.y, p.z, A.yaw, scale, m4, A.rootRoll || 0, A.rootPitch || 0);
       rig.add(m4, pose, this.flashOf(e));
       e._lastRoot = m4.clone(); e._lastPose = pose;
     }
@@ -317,7 +317,7 @@ export class Actors {
     this.dee.begin();
     const hidden = this.view.rig.cur < 1.1; // camera jammed against her: don't fill the screen with scrubs
     if (!P.dead && !hidden) {
-      rootMatrix(b.pos.x, b.pos.y + (P.cart > 0 ? 0.35 : 0), b.pos.z, A.yaw, 1, this.m4);
+      rootMatrix(b.pos.x, b.pos.y + (P.cart > 0 ? 0.35 : 0), b.pos.z, A.yaw, 1, this.m4, A.rootRoll || 0, A.rootPitch || 0);
       this.dee.add(this.m4, pose, P.invuln > 0 ? 0.25 : 0);
       this.deeLast = { root: this.m4.clone(), pose };
     }

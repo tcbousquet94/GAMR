@@ -503,3 +503,15 @@ Visual/readability audit:
 - "A little recoil when Dee shoots": each dart kicks her throwing arm and shoulder back through the hit-reaction
   springs (varied per shot, joints not stiffened) and rocks the torso; Rounds kicks harder. The camera view
   kicks up ~0.6° per dart on a spring and settles; aim (player.pitch) is not changed, so recoil never costs accuracy.
+- "Shoulders and waist look disconnected; the body should turn with the shoulders like Red Dead" (researched:
+  Rockstar GDC 2020 "Filling Marston's Boots" on RDR2 locomotion; Epic Lyra's root-yaw-offset / turn-in-place
+  and aim offsets distributed down the spine; gait studies showing pelvis and thorax rotate in phase at walking
+  speed and counter-rotate only when faster). Changes in `render/anim/animator.js`:
+  - Twist chain: any upper-body turn toward the view or a target is shared pelvis 30% / chest 40% / head 30%
+    (thighs counter-rotate so planted feet don't spin).
+  - Turn in place: standing, the chain absorbs camera turns up to ~60°; beyond that the feet step round
+    (shuffle steps driven by the turn rate) until the body is square to the view again.
+  - Gait: pelvis and chest turn together at a walk, counter-rotate only at a run (much smaller than before).
+  - Lean from the feet: 65% of the turn bank and 40% of the acceleration lean tilt the whole body about the
+    feet (root roll/pitch in `rootMatrix`), the spine adds the rest — no more side-bending at the waist.
+  - Frame strip `lookaround` added (standing while the camera sweeps 115° and back).

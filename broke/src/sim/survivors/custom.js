@@ -16,7 +16,7 @@ export function makeCustomHero(look) {
     aims: true, // hold-to-aim camera and stance
     hudAbilities: false,
     icons: { primary: 'revolver', secondary: 'aim', utility: 'salsa', special: 'reload', jump: 'jump', equipment: 'equip' },
-    touchLabels: { primary: 'Fire', secondary: 'Aim', utility: '-', special: 'Reload' },
+    touchLabels: { primary: 'Fire', secondary: 'Aim', utility: null, special: 'Reload' },
     base: { maxHp: 110, regen: 1.0, damage: 14, speed: 6.9, jumps: 2, crit: 0 },
     abilities: {
       primary: { name: 'Revolver', desc: 'Click per shot. Headshots hit hard.', cooldown: 0 },

@@ -7,6 +7,7 @@ import { G } from '../modules/building.js';
 import { placeProp } from '../modules/streets.js';
 import { R } from './raster.js';
 import { diagDist } from './layout.js';
+import { Rng } from '../../core/rng.js';
 import { beaterDressing, FADED } from './worn.js';
 
 const CAR_COLORS = [0x7a8090, 0x9a9ea6, 0xb8b6ba, 0x5d6478, 0x8a7a70, 0x6a7a8c, 0xc8c4bc, 0x8a3a3a];
@@ -36,6 +37,7 @@ export function ground(kit, city, raster) {
     kit.solid(m.x0, -1, m.z0, m.x1, G, m.z1, 0x7c7884, MAT.STD, TAG.GROUND);
     raster.mark(m, R.BLOCK | R.MEWS | R.RESERVED);
     mewsDressing(kit, m);
+    mewsSides(kit, m, L.diag);
   }
   // Diagonal band.
   const D = L.diag;
@@ -58,6 +60,47 @@ function mewsDressing(kit, m) {
     else if (r < 0.75) placeProp(kit, 'bench', x, G, z, alongZ ? 0 : Math.PI / 2);
     else placeProp(kit, 'streetlight', x, G, z, 0);
     if (r >= 0.75) kit.light(x, 6.3, z, pal.street, 8);
+  }
+}
+
+// Down both sides of the mews' middle row: benches facing in, raised flower beds, park lamps and bins, so it reads
+// as a little promenade. Its own random stream (the rest of the city is unchanged); clear of the diagonal.
+function mewsSides(kit, m, diag) {
+  const rng = new Rng(`mews:${m.x0},${m.z0}:${kit.rng.state}`);
+  const alongZ = m.axis === 'v';
+  const len = alongZ ? m.z1 - m.z0 : m.x1 - m.x0, c = alongZ ? (m.x0 + m.x1) / 2 : (m.z0 + m.z1) / 2;
+  const half = (alongZ ? m.x1 - m.x0 : m.z1 - m.z0) / 2, off = Math.min(3.4, half - 2.4);
+  if (off < 2) return;
+  const P = (u, o) => (alongZ ? { x: c + o, z: m.z0 + u } : { x: m.x0 + u, z: c + o });
+  const clear = (p, r) => diagDist(diag, p.x, p.z) > (diag ? diag.width / 2 + r : 0);
+  const FLOWERS = [0xc8443c, 0xe0b040, 0xd86a9a, 0xe8e4dc, 0x8a5ac0];
+  for (const side of [-1, 1]) {
+    for (let u = 8 + (side > 0 ? 3 : 0), i = 0; u < len - 7; u += 6, i++) {
+      const p = P(u, side * off);
+      if (!clear(p, 2)) continue;
+      const k = (i + (side > 0 ? 1 : 0)) % 3;
+      if (k === 0) {
+        // Bench, back to the edge (the model's back is its +x side).
+        placeProp(kit, 'bench', p.x, G, p.z, alongZ ? (side > 0 ? 0 : Math.PI) : -side * Math.PI / 2);
+        if (rng.chance(0.35)) { const b = P(u + 1.7, side * off); placeProp(kit, 'trashcan', b.x, G, b.z); }
+      } else if (k === 1) {
+        // Raised flower bed.
+        const hx = alongZ ? 0.8 : 1.6, hz = alongZ ? 1.6 : 0.8, col = rng.pick(FLOWERS);
+        kit.solid(p.x - hx, G, p.z - hz, p.x + hx, G + 0.45, p.z + hz, 0xb8b2a6, MAT.STD, TAG.PROP);
+        kit.box(p.x - hx + 0.15, G + 0.45, p.z - hz + 0.15, p.x + hx - 0.15, G + 0.5, p.z + hz - 0.15, 0x4a3a2e);
+        for (let j = 0; j < 6; j++) {
+          const a = (j % 2) - 0.5, b = Math.floor(j / 2) - 1, fx = alongZ ? a * 0.8 : b * 0.9, fz = alongZ ? b * 0.9 : a * 0.8;
+          kit.boxC(p.x + fx + rng.range(-0.1, 0.1), G + 0.62, p.z + fz + rng.range(-0.1, 0.1), 0.55, 0.28, 0.55, j % 2 ? col : 0x4f7a3a);
+        }
+      } else {
+        // Park lamp, every other one lit.
+        kit.solid(p.x - 0.09, G, p.z - 0.09, p.x + 0.09, G + 3.6, p.z + 0.09, 0x2a2c2e, MAT.METAL, TAG.PROP);
+        kit.box(p.x - 0.2, G, p.z - 0.2, p.x + 0.2, G + 0.35, p.z + 0.2, 0x2a2c2e, MAT.METAL);
+        kit.box(p.x - 0.22, G + 3.6, p.z - 0.22, p.x + 0.22, G + 4.1, p.z + 0.22, 0xffe2a8, MAT.GLOW, { night: 0xffd890 });
+        kit.box(p.x - 0.28, G + 4.1, p.z - 0.28, p.x + 0.28, G + 4.2, p.z + 0.28, 0x2a2c2e, MAT.METAL);
+        if (i % 2) kit.light(p.x, G + 3.9, p.z, 0xffd9a0, 9, 'plaza');
+      }
+    }
   }
 }
 

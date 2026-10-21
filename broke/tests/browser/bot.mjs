@@ -46,7 +46,7 @@ async function runNode(seed) {
 async function runBrowser(srv, seed) {
   const out = {};
   for (const name of NAMES) {
-    const { browser, page, errors } = await openGame(srv.url, `seed=${seed}&bot=1&quality=low`);
+    const { browser, page, errors } = await openGame(srv.url, `mode=turf&seed=${seed}&bot=1&quality=low`);
     try {
       await page.waitForTimeout(800);
       out[name] = await page.evaluate(async ([n]) => {

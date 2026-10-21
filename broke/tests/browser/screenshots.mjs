@@ -32,7 +32,7 @@ let errs = [];
 try {
   for (const [name, sh] of Object.entries(SHOTS)) {
     if (only && !only.includes(name)) continue;
-    const { browser, page, errors } = await openGame(srv.url, `seed=${seed}&shot=1&quality=high&t=${sh.min}`, { mobile: !!sh.mobile });
+    const { browser, page, errors } = await openGame(srv.url, `mode=turf&seed=${seed}&shot=1&quality=high&t=${sh.min}`, { mobile: !!sh.mobile });
     await page.waitForTimeout(1500);
     await page.evaluate(sh.js);
     await page.waitForTimeout(2500);

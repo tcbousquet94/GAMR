@@ -3,7 +3,7 @@
 import { startServer, openGame } from '../browser/lib.mjs';
 const seed = process.argv[2] || '1', label = process.argv[3] || 'fix';
 const srv = await startServer();
-const { browser, page } = await openGame(srv.url, `seed=${seed}&shot=1&quality=high`);
+const { browser, page } = await openGame(srv.url, `mode=turf&seed=${seed}&shot=1&quality=high`);
 await page.waitForFunction(() => window.__broke?.view?.composer, null, { timeout: 300000 });
 await page.waitForTimeout(1500);
 const views = {

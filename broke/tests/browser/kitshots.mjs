@@ -30,7 +30,7 @@ const srv = await startServer();
 const errs = [];
 try {
   for (const seed of seeds) {
-    const { browser, page, errors } = await openGame(srv.url, `seed=${seed}&shot=1&quality=high`);
+    const { browser, page, errors } = await openGame(srv.url, `mode=turf&seed=${seed}&shot=1&quality=high`);
     await page.waitForFunction(() => window.__broke?.view?.composer, null, { timeout: 300000 });
     await page.waitForTimeout(1500);
     const info = await page.evaluate(SETUP);

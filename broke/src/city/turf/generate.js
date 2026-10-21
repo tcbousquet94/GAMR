@@ -354,7 +354,7 @@ function segOf(L, cell, side) {
   const outer = (side === 'n' && j === 0) || (side === 's' && j === L.rows - 1) || (side === 'w' && i === 0) || (side === 'e' && i === L.cols - 1);
   return { seg, outer };
 }
-function sideOpen(L, cell, side) { return segOf(L, cell, side).seg.open; }
+export function sideOpen(L, cell, side) { return segOf(L, cell, side).seg.open; }
 
 // Points 5 m into the street from each intersection at the ends of the front segment.
 function streetEnds(L, spot) {

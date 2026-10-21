@@ -1,5 +1,5 @@
 // Packs the Vite build into one self-contained HTML page (CSS + JS inline) for publishing as a playable artifact.
-// Usage: npx vite build && node tools/artifact.mjs [out.html]
+// Usage: ARTIFACT=1 npx vite build && node tools/artifact.mjs [out.html]
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 
 const out = process.argv[2] || 'dist/broke-artifact.html';

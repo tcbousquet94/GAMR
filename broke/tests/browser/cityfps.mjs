@@ -16,7 +16,7 @@ const srv = await startServer();
 const rows = [];
 const failures = [];
 try {
-  const { browser, page, errors } = await openGame(srv.url, `seed=1&bot=1&quality=${QUALITY}`, { width: 960, height: 540 });
+  const { browser, page, errors } = await openGame(srv.url, `mode=turf&seed=1&bot=1&quality=${QUALITY}`, { width: 960, height: 540 });
   await page.waitForTimeout(1500);
   for (let seed = 1; seed <= COUNT; seed++) {
     const r = await page.evaluate(async (seed) => {

@@ -20,9 +20,10 @@ export function buildKitWorld(D, { chunk = 0, seed = 'kit', kit = null } = {}) {
   const batches = new Map();
   const B = (x, z) => {
     const k = chunk && x != null ? `${Math.floor(x / chunk)},${Math.floor(z / chunk)}` : 'g';
-    if (!batches.has(k)) batches.set(k, new Batch());
+    if (!batches.has(k)) batches.set(k, Object.assign(new Batch(), { center: x != null && chunk ? [(Math.floor(x / chunk) + 0.5) * chunk, (Math.floor(z / chunk) + 0.5) * chunk] : null }));
     return batches.get(k);
   };
+  const skyline = new Batch(); // towers: never distance-culled, they are the skyline
   const extras = [], lamps = [];
   for (const p of D.pads) {
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
@@ -39,7 +40,7 @@ export function buildKitWorld(D, { chunk = 0, seed = 'kit', kit = null } = {}) {
   for (const s of D.stores) store(B(s.x, s.z), s, rng, extras);
   for (const w of D.warehouses) warehouse(B(w.x, w.z), w, rng);
   for (const s of D.sheds) shed(B(s.x, s.z), s, rng);
-  for (const t of D.towers || []) tower(B(t.x, t.z), t, rng, extras);
+  for (const t of D.towers || []) tower(skyline, t, rng, extras);
   // Mid-rise storefront blocks: shops on the ground floor, flats above, flat roof with parapet.
   for (const b of D.blocks || []) { buildHouse(B(b.x, b.z), { ...b, roof: 'flat', storefront: true, fl: 0.15, door: 0x2a2a2a }, rng); blockExtras(B(b.x, b.z), b, rng, extras); }
   for (const f of D.fences) fence(B(f.a.x, f.a.z), f);
@@ -59,7 +60,12 @@ export function buildKitWorld(D, { chunk = 0, seed = 'kit', kit = null } = {}) {
   const group = new THREE.Group();
   group.name = 'kit-world';
   const M = kitMaterials();
-  for (const b of batches.values()) group.add(b.build(M, { noCast: ['roadPaint', 'grass', 'asphalt', 'tuft', 'curb', 'redCurb'] }));
+  const noCast = ['roadPaint', 'grass', 'asphalt', 'tuft', 'curb', 'redCurb'];
+  const chunks = [];
+  for (const b of batches.values()) { const g = b.build(M, { noCast }); group.add(g); if (b.center) chunks.push({ g, cx: b.center[0], cz: b.center[1] }); }
+  if (Object.keys(skyline.lists).length) group.add(skyline.build(M, { noCast }));
   for (const e of extras) group.add(e);
-  return { group, lamps };
+  // Hide street-level chunks far from the camera (the skyline stays); call every few frames.
+  const cull = (cam, far = 420) => { for (const c of chunks) c.g.visible = (c.cx - cam.x) ** 2 + (c.cz - cam.z) ** 2 < (far + chunk * 0.71) ** 2; };
+  return { group, lamps, cull };
 }

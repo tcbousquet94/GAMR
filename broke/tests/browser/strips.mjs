@@ -132,7 +132,7 @@ window.__spots = {
 function withTimeout(ms, p, name) { return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout ' + name)), ms))]); }
 const srv = await startServer();
 try {
-  const { browser, page, errors } = await openGame(srv.url, 'seed=1&shot=1&quality=low&t=0.3', { width: 1280, height: 720 });
+  const { browser, page, errors } = await openGame(srv.url, 'mode=turf&seed=1&shot=1&quality=low&t=0.3', { width: 1280, height: 720 });
   page.on('pageerror', (e) => console.log('PAGEERROR', String(e.stack || e).slice(0, 400)));
   await page.addScriptTag({ content: PAGE });
   await page.waitForTimeout(1500);

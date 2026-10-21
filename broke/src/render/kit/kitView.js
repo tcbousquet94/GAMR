@@ -60,6 +60,7 @@ export class KitView extends View {
     scene.add(built.group);
     this.world = built.group;
     this.lamps = built.lamps;
+    this.cull = built.cull;
     this.foliage = [];
     built.group.traverse((m) => { if (m.isMesh && ['leaves', 'frond', 'chainlink', 'tuft'].includes(m.name)) this.foliage.push(m); });
     this.points = [];
@@ -181,6 +182,7 @@ export class KitView extends View {
       this.indoorPts.forEach((p, i) => { const e = near[i]; if (!e) { p.intensity = 0; return; } p.position.set(e.l.x, e.l.y - 0.3, e.l.z); p.intensity = 14 + 10 * this.night; });
     }
     if (this.night > 0.1 && this.frame % 30 === 0) this.placeLamps();
+    if (this.frame % 20 === 0) this.cull?.(this.camera.position);
     if (this.cityMesh && this.frame % 30 === 0) this.cityMesh.updateLod(this.camera.position);
     this.cityMesh?.tick(g.time); this.edgeMesh?.update(g.time);
     this.actors.update(dt);

@@ -9,6 +9,9 @@ import { DEE } from './sim/survivors/dee.js';
 import { View } from './render/view.js';
 import { KitView } from './render/kit/kitView.js';
 import { HeroGame } from './sim/hero/heroGame.js';
+import { TownGame } from './sim/town/townGame.js';
+import { MAPS, DEFAULT_MAP } from './maps/index.js';
+import { loadMap } from './city/maps/load.js';
 import { Input } from './input/input.js';
 import { Hud } from './ui/hud.js';
 import { Screens } from './ui/screens.js';
@@ -28,6 +31,13 @@ const canvas = document.getElementById('game');
 const sceneFlag = () => { try { return sessionStorage.getItem('broke.scene'); } catch { return null; } };
 const HERO = params.get('scene') === 'hero' || (params.get('scene') == null && sceneFlag() === 'hero');
 const CLASSIC = params.get('mode') === 'classic'; // the retired roguelike keeps its old renderer
+// Modes: the town game on the handcrafted map (default; ?map=<name>), ?mode=turf (the turf war on a generated seed),
+// ?mode=classic (the roguelike), ?scene=hero ("h", the look test).
+const TURF = params.get('mode') === 'turf';
+const TOWN = !HERO && !CLASSIC && !TURF;
+let townMap = null;
+const loadTownMap = async () => { const name = MAPS[params.get('map')] ? params.get('map') : DEFAULT_MAP; const [base, edits] = await MAPS[name].load(); townMap = { name, base: base.default, edits: edits.default }; };
+const newTown = () => new TownGame({ city: loadMap(townMap.base, townMap.edits), survivor: DEE });
 const view = new (CLASSIC ? View : KitView)(canvas, { quality: params.get('quality') || 'auto', preserve: params.has('shot') || params.has('bot') });
 const input = new Input(canvas);
 const touch = new TouchControls(document.getElementById('touch'), Object.fromEntries(Object.entries(ABILITY_ICONS).map(([k, v]) => [k, icon(v, '#ffffff', 64, true)])));
@@ -87,7 +97,7 @@ export function startRun(seed, opts = {}) {
   // A fresh game every run so no state carries over. Default: the turf-war city. ?mode=classic keeps the retired
   // roguelike reachable (disconnected from the main game, left in place so nothing breaks).
   const startMinutes = opts.startMinutes ?? +(params.get('t') || 0);
-  const g = (app.game = HERO ? new HeroGame({ survivor: DEE }) : params.get('mode') === 'classic'
+  const g = (app.game = HERO ? new HeroGame({ survivor: DEE }) : TOWN ? newTown() : CLASSIC
     ? new Game({ seed: app.seed, district: downtown, survivor: DEE, startMinutes })
     : new TurfGame({ seed: app.seed, survivor: DEE, startMinutes }));
   if (params.get('god') === '1' || opts.god) g.godMode = true;
@@ -198,15 +208,15 @@ function steamNear(g) {
 }
 
 installDebug(app, { startRun });
-if (HERO || params.get('autostart') === '1' || params.has('bot') || params.has('shot')) startRun(app.seed);
-else {
+(TOWN ? loadTownMap() : Promise.resolve()).then(() => {
+  if (HERO || params.get('autostart') === '1' || params.has('bot') || params.has('shot')) { startRun(app.seed); return; }
   // Title screen over a live city backdrop.
-  const g = (app.game = CLASSIC ? new Game({ seed: app.seed, district: downtown, survivor: DEE }) : new TurfGame({ seed: app.seed, survivor: DEE }));
+  const g = (app.game = CLASSIC ? new Game({ seed: app.seed, district: downtown, survivor: DEE }) : TOWN ? newTown() : new TurfGame({ seed: app.seed, survivor: DEE }));
   g.director.enabled = false;
   view.load(g);
   hud.bind(g, DEE, touch);
   hud.setVisible(false);
   app.state = 'title';
   screens.show('title', { survivor: DEE, seed: app.seed });
-}
+});
 requestAnimationFrame(frame);

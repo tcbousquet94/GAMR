@@ -16,7 +16,7 @@ const SHOTS = [
 const srv = await startServer();
 let errs = [];
 try {
-  const { browser, page, errors } = await openGame(srv.url, `shot=1&quality=high`);
+  const { browser, page, errors } = await openGame(srv.url, `mode=town&shot=1&quality=high`);
   await page.waitForFunction(() => window.__broke?.view?.composer && window.__broke.game?.town, null, { timeout: 300000 });
   await page.waitForTimeout(2500);
   await page.evaluate(look);

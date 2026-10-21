@@ -32,10 +32,10 @@ const canvas = document.getElementById('game');
 const sceneFlag = () => { try { return sessionStorage.getItem('broke.scene'); } catch { return null; } };
 const HERO = params.get('scene') === 'hero' || (params.get('scene') == null && sceneFlag() === 'hero');
 const CLASSIC = params.get('mode') === 'classic'; // the retired roguelike keeps its old renderer
-// Modes: the town game on the handcrafted map (default; ?map=<name>), ?mode=turf (the turf war on a generated seed),
-// ?mode=classic (the roguelike), ?scene=hero ("h", the look test).
-const TURF = params.get('mode') === 'turf';
-const TOWN = !HERO && !CLASSIC && !TURF;
+// Modes: the turf war on a generated seed (default; ?mode=turf also works), ?mode=town (the superhero town game on
+// the handcrafted map; ?map=<name>), ?mode=classic (the roguelike), ?scene=hero ("h", the look test).
+const TOWN = !HERO && !CLASSIC && (params.get('mode') === 'town' || params.has('map'));
+const TURF = !HERO && !CLASSIC && !TOWN;
 const PC = TOWN ? BEACON : DEE; // the playable character for this mode
 let townMap = null;
 const loadTownMap = async () => { const name = MAPS[params.get('map')] ? params.get('map') : DEFAULT_MAP; const [base, edits] = await MAPS[name].load(); townMap = { name, base: base.default, edits: edits.default }; };

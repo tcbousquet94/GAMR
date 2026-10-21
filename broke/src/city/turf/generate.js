@@ -83,6 +83,7 @@ export function generateTurf(cfg, seed, opts = {}) {
       const a = rng.range(0, Math.PI * 2), r = R0 + rng.range(140, 420);
       KD.towers.push({ ...kitTower(rng, cxm + Math.cos(a) * r, czm + Math.sin(a) * r, rng.range(18, 34), rng.range(18, 30), rng.range(35, 130), rng.range(0, Math.PI)), y: 0, far: true });
     }
+    if (cfg.clutter) thinClutter(KD, kit, cfg.clutter, new Rng(`thin:${cfg.id}:${seed}`));
     kitColliders(KD, (x0, y0, z0, x1, y1, z1, tag) => kit.collider(x0, y0, z0, x1, y1, z1, tag), TAG);
     city.kitData = KD;
   } else {
@@ -491,3 +492,30 @@ function bfs(blocks, start) {
 function dcell(c, p) { return Math.hypot((c.rect.x0 + c.rect.x1) / 2 - p.x, (c.rect.z0 + c.rect.z1) / 2 - p.z); }
 function mostCommon(a) { const m = {}; for (const x of a) m[x] = (m[x] || 0) + 1; return Object.entries(m).sort((p, q) => q[1] - p[1])[0][0]; }
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+
+// Sparser streets for districts that ask for it (cfg.clutter): trees and palms kept at least `treeSpacing` metres
+// apart, and only a share of shrubs, parked cars, bins and loose props. Runs before the colliders are built.
+function thinClutter(KD, kit, c, rng) {
+  const kept = [];
+  const spaced = (list) => list.filter((t) => {
+    if (kept.some((k) => (k.x - t.x) ** 2 + (k.z - t.z) ** 2 < c.treeSpacing ** 2)) return false;
+    kept.push(t); return true;
+  });
+  KD.palms = spaced(rng.shuffle([...KD.palms]));
+  KD.trees = spaced(KD.trees);
+  const share = (list, f) => (f == null ? list : list.filter(() => rng.chance(f)));
+  KD.shrubs = share(KD.shrubs, c.shrubs);
+  KD.cars = share(KD.cars, c.cars);
+  KD.trucks = share(KD.trucks, c.cars);
+  KD.bins = share(KD.bins, c.bins);
+  KD.props = KD.props.filter((p) => !c.props || c.props.includes(p.type) || rng.chance(c.propShare ?? 0));
+  // The older generator props (park and plaza trees, benches, crates) carry their own small colliders: drop both.
+  const gone = [];
+  kit.props = kit.props.filter((p) => {
+    const keep = p.type === 'tree' ? spaced([p]).length > 0 : c.oldProps?.[p.type] == null || rng.chance(c.oldProps[p.type]);
+    if (!keep) gone.push(p);
+    return keep;
+  });
+  const near = (b) => gone.some((p) => Math.abs((b.minX + b.maxX) / 2 - p.x) < 0.4 && Math.abs((b.minZ + b.maxZ) / 2 - p.z) < 0.4);
+  kit.solids = kit.solids.filter((b) => b.tag !== TAG.PROP || b.maxX - b.minX > 2.5 || b.maxZ - b.minZ > 2.5 || !near(b));
+}

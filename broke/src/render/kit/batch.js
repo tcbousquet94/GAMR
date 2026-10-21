@@ -56,15 +56,20 @@ export class Batch {
     for (const [key, list] of Object.entries(this.lists)) {
       const geo = mergeGeometries(list, false);
       geo.computeBoundingSphere();
+      geo.computeBoundingBox();
+      // The GPU keeps its own copy: drop the JS-side arrays once uploaded (big towns otherwise use GBs on phones).
+      for (const a of Object.values(geo.attributes)) a.onUpload(releaseArray);
       const mesh = new THREE.Mesh(geo, materials[key]);
       mesh.name = key;
       mesh.castShadow = !noCast.includes(key);
       mesh.receiveShadow = true;
       group.add(mesh);
     }
+    this.lists = {};
     return group;
   }
 }
+function releaseArray() { this.array = null; }
 
 // A flat ribbon on the ground following a polyline (for curving paths, kerbs' tops etc.). pts: [{x,z}], width, y.
 export function ribbon(pts, width, y = 0, y1 = null) {

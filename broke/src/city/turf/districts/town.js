@@ -10,5 +10,5 @@ export const TOWN = {
   roads: { ...DOWNTOWN.roads, cols: 9, rows: 9, blockTarget: [44, 56] },
   zoning: { parks: [3, 5], civic: [2, 3] },
   warehouses: [8, 10],
-  businessMix: { bodega: 6, pawn: 4, laundromat: 2.5, boxing: 1.5, auto: 2.5, clinic: 2, diner: 1.5 },
+  clutter: { treeSpacing: 28, shrubs: 0.3, cars: 0.45, bins: 0.35, props: ['dumpster', 'hoop', 'bench', 'phone', 'wheelstop', 'bollard', 'ice', 'container'], propShare: 0.3, oldProps: { bench: 0.4, crate: 0.35, planter: 0.5 } }, businessMix: { bodega: 6, pawn: 4, laundromat: 2.5, boxing: 1.5, auto: 2.5, clinic: 2, diner: 1.5 },
 };

@@ -5,6 +5,7 @@
 // Generated in-house (no third-party assets). See assets/textures/CREDITS.md.
 
 import * as THREE from 'three';
+import { LITE } from '../device.js';
 
 // ---- tileable noise -------------------------------------------------------------------------------------------------
 function hash2(x, y, s) {
@@ -29,6 +30,19 @@ function fbm(u, v, p, oct, s, gain = 0.5) {
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 
+// Half-resolution copy (2x2 box filter) for the lite path: a quarter of the texture memory.
+function half(t) {
+  const o = new Tex(t.w >> 1, t.h >> 1);
+  if (t.A) o.A = new Float32Array(o.n);
+  for (let y = 0; y < o.h; y++) for (let x = 0; x < o.w; x++) {
+    const i = y * o.w + x, a = 2 * y * t.w + 2 * x, q = [a, a + 1, a + t.w, a + t.w + 1];
+    o.H[i] = q.reduce((s, k) => s + t.H[k], 0) / 4 * 2; o.R[i] = q.reduce((s, k) => s + t.R[k], 0) / 4; // (relief per texel doubles)
+    for (let c = 0; c < 3; c++) o.C[i * 3 + c] = q.reduce((s, k) => s + t.C[k * 3 + c], 0) / 4;
+    if (t.A) o.A[i] = q.reduce((s, k) => s + t.A[k], 0) / 4;
+  }
+  return o;
+}
+
 // ---- buffers and upload -------------------------------------------------------------------------------------------
 class Tex {
   constructor(w, h = w) { this.w = w; this.h = h; this.n = w * h; this.H = new Float32Array(this.n); this.C = new Float32Array(this.n * 3); this.R = new Float32Array(this.n).fill(0.8); this.A = null; }
@@ -37,6 +51,7 @@ class Tex {
 }
 
 function upload(t, { normal = 1, wrap = true, alpha = false } = {}) {
+  if (LITE && t.w >= 256) t = half(t);
   const { w, h, n } = t;
   const col = new Uint8Array(n * 4), nor = new Uint8Array(n * 4), rough = new Uint8Array(n * 4);
   for (let i = 0; i < n; i++) {

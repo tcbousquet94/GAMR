@@ -4,6 +4,7 @@
 // filmic tone mapping. No colour grade or vignette. At night the sun goes out and the streetlights and windows stay warm.
 
 import * as THREE from 'three';
+import { LITE } from '../device.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
@@ -61,8 +62,8 @@ export class KitView extends View {
     this.world = built.group;
     this.lamps = built.lamps;
     this.cull = built.cull;
-    this.foliage = [];
-    built.group.traverse((m) => { if (m.isMesh && ['leaves', 'frond', 'chainlink', 'tuft'].includes(m.name)) this.foliage.push(m); });
+    this.lastCull = null;
+    this.foliage = built.foliage;
     this.points = [];
     for (let i = 0; i < 5; i++) { const l = new THREE.PointLight(0xffb878, 0, 22, 1.8); scene.add(l); this.points.push(l); }
     // Interiors (shops, laundromats, gyms, garages) are lit by their own ceiling lights, day and night: real point
@@ -82,7 +83,7 @@ export class KitView extends View {
     this.fx = new Fx(scene, game, this);
     this.tele = new Telegraphs(scene, game);
     this.city = null; this.details = null; this.edges = null; // (View's own city mesh is not used here)
-    this.setQuality(this.qualityName === 'auto' ? 'high' : this.qualityName);
+    this.setQuality(this.qualityName === 'auto' ? (LITE ? 'low' : 'high') : this.qualityName);
     this.frame = 0;
     this.t = 0;
     this.setNight(0);
@@ -182,7 +183,10 @@ export class KitView extends View {
       this.indoorPts.forEach((p, i) => { const e = near[i]; if (!e) { p.intensity = 0; return; } p.position.set(e.l.x, e.l.y - 0.3, e.l.z); p.intensity = 14 + 10 * this.night; });
     }
     if (this.night > 0.1 && this.frame % 30 === 0) this.placeLamps();
-    if (this.frame % 20 === 0) this.cull?.(this.camera.position);
+    // Stream town chunks in around the camera: a couple per few frames while walking, all at once after a jump.
+    const cp = this.camera.position, lc = this.lastCull;
+    const jump = !lc || (cp.x - lc.x) ** 2 + (cp.z - lc.z) ** 2 > 80 * 80;
+    if (jump || this.frame % 8 === 0) { this.cull?.(cp, LITE ? 280 : 420, jump ? Infinity : 2); this.lastCull = { x: cp.x, z: cp.z }; }
     if (this.cityMesh && this.frame % 30 === 0) this.cityMesh.updateLod(this.camera.position);
     this.cityMesh?.tick(g.time); this.edgeMesh?.update(g.time);
     this.actors.update(dt);

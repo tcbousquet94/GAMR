@@ -20,6 +20,19 @@ ${css}</style>
 <div id="touch"></div>
 <div id="screens"></div>
 <div id="perf"></div>
+<div id="boot" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:#eee;font:600 20px Georgia,serif;text-align:center;padding:16px;pointer-events:none;z-index:50">Loading Palmetto Bay&hellip;<small style="font-weight:400;font-size:14px;opacity:.7">building the town can take a few seconds</small></div>
+<script>
+// Boot notice + visible error report (so a failed load says why instead of showing a blank page).
+(() => { const boot = document.getElementById('boot'); let shown = false;
+  const show = (msg) => { if (shown || /pointer ?lock|user gesture/i.test(String(msg))) return; shown = true; boot.style.pointerEvents = 'auto'; boot.style.background = '#1b1020';
+    boot.innerHTML = '<b>Something broke while loading.</b><pre style="white-space:pre-wrap;max-width:90vw;font:13px monospace;color:#f9c">' + String(msg).replace(/[<&]/g, (c) => c === '<' ? '&lt;' : '&amp;').slice(0, 1500) + '</pre><small>Send me a screenshot of this.</small>'; };
+  addEventListener('error', (e) => show((e.error && e.error.stack) || e.message));
+  addEventListener('unhandledrejection', (e) => show((e.reason && e.reason.stack) || e.reason));
+  const c = document.getElementById('game');
+  c.addEventListener('webglcontextlost', () => show('WebGL context lost (the GPU ran out of memory or reset).'));
+  const t = setInterval(() => { if (shown) return clearInterval(t); if (window.__broke && window.__broke.view && window.__broke.view.composer) { boot.remove(); clearInterval(t); } }, 300);
+})();
+</script>
 <script type="module">${js}</script>
 `;
 writeFileSync(out, html);

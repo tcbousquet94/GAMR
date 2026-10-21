@@ -79,7 +79,9 @@ export const DEE = {
     }
     // Special: Code Blue.
     if (input.special && p.cooldowns.special <= 0) {
-      const aim = g.aimPoint(p, 60, true);
+      // Target the enemy under the crosshair if there is one, else wherever the crosshair meets the ground.
+      const t = g.aimTarget(p, 0.25, 60);
+      const aim = t ? { x: t.point.x, y: t.enemy.pos.y, z: t.point.z } : g.aimPoint(p, 60, true);
       d.rain = { x: aim.x, y: aim.y, z: aim.z, t: 0, dur: 2.4, next: 0, leap: 0.9, count: 0 };
       p.body.vel.y = 15;
       p.body.onGround = false;

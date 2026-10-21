@@ -7,7 +7,7 @@ import { Kit, MAT, TAG } from './kit.js';
 import { World, Box } from '../sim/physics.js';
 
 export const INTERACT_SIZE = { vending: [0.55, 2.0, 0.45], newsbox: [0.32, 1.1, 0.3], locker: [1.2, 2.2, 0.35], lostfound: [0.6, 1.0, 0.45], callpanel: [0.3, 1.5, 0.2] };
-import { G } from './modules/building.js';
+import { G, buildFireEscapes } from './modules/building.js';
 import { streets } from './modules/streets.js';
 import { MODULES } from './modules/index.js';
 
@@ -59,6 +59,7 @@ export function generateCity(district, seed) {
     MODULES[lot.type](kit, lot, city);
   }
   kit.module = null;
+  buildFireEscapes(kit);
 
   boundary(kit, city);
 
@@ -66,6 +67,7 @@ export function generateCity(district, seed) {
   const world = new World();
   for (const b of kit.solids) world.addSolid(b);
   for (const c of kit.climbs) world.addClimb(c.box);
+  assignClimbWalls(world, kit);
   world.bounds = { minX: 1, minZ: 1, maxX: size - 1, maxZ: size - 1 };
   city.world = world;
 
@@ -80,6 +82,23 @@ export function generateCity(district, seed) {
   city.spawnPoints = kit.spawns.filter((s) => validStandPoint(world, s.x, s.y, s.z, 0.5, 1.9));
   city.exit = kit.exit;
   return city;
+}
+
+// Each climb volume learns which side its wall is on: you climb by pushing toward it.
+function assignClimbWalls(world, kit) {
+  for (const { box: b } of kit.climbs) {
+    const y0 = b.minY + 1.5, y1 = Math.min(b.maxY - 0.5, y0 + 3);
+    const probes = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    let best = null, bestScore = 0;
+    for (const [x, z] of probes) {
+      const r = { x0: x > 0 ? b.maxX : x < 0 ? b.minX - 0.4 : b.minX + 0.2, x1: x > 0 ? b.maxX + 0.4 : x < 0 ? b.minX : b.maxX - 0.2,
+        z0: z > 0 ? b.maxZ : z < 0 ? b.minZ - 0.4 : b.minZ + 0.2, z1: z > 0 ? b.maxZ + 0.4 : z < 0 ? b.minZ : b.maxZ - 0.2 };
+      let score = 0;
+      for (let y = y0; y <= y1; y += 0.5) if (world.overlapsSolid(r.x0, y, r.z0, r.x1, y + 0.4, r.z1)) score++;
+      if (score > bestScore) { bestScore = score; best = { x, z }; }
+    }
+    b.wall = best; // null: free-standing (climb from any side)
+  }
 }
 
 function assignModules(city, rng) {

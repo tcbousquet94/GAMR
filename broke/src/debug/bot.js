@@ -68,7 +68,12 @@ export class Bot {
       if (bestD < 1.6) this.i = Math.min(this.path.length - 1, bestK + 1);
       // Look ahead along plain walking segments to smooth corners.
       let j = this.i;
-      while (j + 1 < this.path.length && j - this.i < 5 && this.path[j + 1].type === EDGE.WALK && Math.abs(this.path[j + 1].y - p.y) < 0.7) j++;
+      while (j + 1 < this.path.length && j - this.i < 5 && this.path[j + 1].type === EDGE.WALK && Math.abs(this.path[j + 1].y - p.y) < 0.7) {
+        // Only smooth toward waypoints we can walk straight at (knee and chest height clear).
+        const q = this.path[j + 1];
+        if (!g.world.segmentClear({ x: p.x, y: p.y + 0.5, z: p.z }, { x: q.x, y: q.y + 0.5, z: q.z }) || !g.world.segmentClear({ x: p.x, y: p.y + 1.4, z: p.z }, { x: q.x, y: q.y + 1.4, z: q.z })) break;
+        j++;
+      }
       const w = this.path[j];
       const next = this.path[this.i];
       const dx = w.x - p.x, dz = w.z - p.z;
@@ -80,14 +85,15 @@ export class Bot {
       if (next.type === EDGE.CLIMB && next.y > p.y + 0.8) {
         // Face into the climb volume and start climbing.
         const c = g.world.climbAt(p.x, p.y, p.z, P.body.r, P.body.h, 1.5);
-        if (c) moveYaw = yawTo((c.minX + c.maxX) / 2 - p.x, (c.minZ + c.maxZ) / 2 - p.z);
-        if (!P.climbing && P.body.onGround) wantJump = true;
-        if (P.climbing) {
-          // Keep facing the wall the ladder is on so "forward" climbs; near the top, face the destination.
-          if (p.y > next.y - 1.4) moveYaw = yawTo(next.x - p.x, next.z - p.z);
+        if (c) {
+          const inside = g.world.climbAt(p.x, p.y, p.z, P.body.r, P.body.h, 0.2) === c;
+          // Walk into the ladder column, then push toward its wall.
+          moveYaw = inside && c.wall ? yawTo(c.wall.x, c.wall.z) : yawTo((c.minX + c.maxX) / 2 - p.x, (c.minZ + c.maxZ) / 2 - p.z);
         }
+        if (!P.climbing && P.body.onGround) wantJump = true;
       }
-      if (P.body.blocked && P.body.onGround && !P.climbing) wantJump = true;
+      // Hop over things we bump into, except next to a ladder we don't mean to climb (we'd grab it).
+      if (P.body.blocked && P.body.onGround && !P.climbing && (next.type === EDGE.CLIMB || !g.world.climbAt(p.x, p.y, p.z, P.body.r, P.body.h, 0.4))) wantJump = true;
       // Stuck detection -> replan.
       this.stuckT += dt;
       if (this.stuckT > 1.5) {
@@ -96,7 +102,7 @@ export class Bot {
         this.stuckT = 0;
       }
       // Off the path (knocked away / fell): replan.
-      if (Math.hypot(next.x - p.x, next.z - p.z) > 8 || p.y < next.y - 4) this.plan();
+      if (!P.climbing && next.type !== EDGE.CLIMB && (Math.hypot(next.x - p.x, next.z - p.z) > 8 || p.y < next.y - 4)) this.plan();
     }
     // Combat: aim at the nearest visible enemy (weak point first).
     let target = null;
@@ -135,7 +141,19 @@ export class Bot {
       inp.moveX = -Math.sin(rel);
       // Sprinting only works moving forward; when strafing while shooting we just run.
       inp.sprint = this.sprint && inp.moveZ > 0.3;
-      if (P.climbing) { inp.yaw = moveYaw; inp.moveZ = 1; inp.moveX = 0; this.lookYaw = moveYaw; }
+      if (P.climbing) {
+        // On a ladder: climb toward the next waypoint's height (down if it's below us).
+        const nx = this.path?.[this.i];
+        // Go down when the next waypoint is below us and isn't the ladder's top (where we top out instead).
+        const down = nx && nx.y < P.pos.y - 0.2 && nx.y < P.climbing.maxY - 1.6;
+        const w = P.climbing.wall;
+        const toward = w ? yawTo(w.x, w.z) : moveYaw;
+        inp.yaw = toward; inp.moveZ = down ? -1 : 1; inp.moveX = 0; this.lookYaw = toward;
+        // The next waypoint is level with us but off to the side (a landing or a neighbouring roof): kick off toward it.
+        if (nx && !down && nx.type !== EDGE.CLIMB && Math.abs(nx.y - P.pos.y) < 1.2 && P.pos.y < P.climbing.maxY - 1.0) {
+          this.lookYaw = inp.yaw = moveYaw; inp.moveZ = 1; wantJump = true;
+        }
+      }
     }
     // Dodge: Salsa Step away from any attack that is about to land, or to shake off a Canvasser.
     if (this.dodge && P.cooldowns.utility <= 0) {

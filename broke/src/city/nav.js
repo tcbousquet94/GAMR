@@ -48,7 +48,7 @@ export class NavGraph {
       for (const y of heights) {
         if (y - last < 0.3) continue;
         // Must be the actual top here (nothing solid in the body volume) and a narrow body must fit.
-        if (!world.fits(cx, y + 0.02, cz, 0.3, h)) continue;
+        if (!world.fits(cx, y + 0.02, cz, r, h)) continue;
         last = y;
         const id = this.x.length;
         this.x.push(cx); this.y.push(y); this.z.push(cz);
@@ -93,7 +93,7 @@ export class NavGraph {
             const dy = this.y[b] - this.y[a];
             if (dy > 0.8 || dy < -3) continue;
             if (this.y[a] < 1) continue; // street-level gaps are just walked around
-            if (!this.clearBetween(a, b)) continue;
+            if (!this.clearBetween(a, b) || !this.clearSweep(a, b)) continue;
             this.adj[a].push(b, EDGE.GAP, g * 1.5);
           }
         }
@@ -101,9 +101,13 @@ export class NavGraph {
     }
     // Climb volumes: nodes beside a climb connect to nodes near its top.
     for (const b of world.climbs.items) {
+      const cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+      // A node only links to the ladder if nothing solid stands between it and the ladder column.
+      const sees = (i) => world.segmentClear({ x: cx, y: this.y[i] + 0.9, z: cz }, { x: this.x[i], y: this.y[i] + 0.9, z: this.z[i] });
       const near = this.nodesInRect(b.minX - 1.2, b.minZ - 1.2, b.maxX + 1.2, b.maxZ + 1.2);
-      const bottoms = near.filter((i) => this.y[i] >= b.minY - 0.6 && this.y[i] <= b.maxY - 1.0);
-      const tops = this.nodesInRect(b.minX - 2.2, b.minZ - 2.2, b.maxX + 2.2, b.maxZ + 2.2).filter((i) => this.y[i] > b.minY + 1 && this.y[i] <= b.maxY + 0.6); // the top, or any landing on the way up
+      const bottoms = near.filter((i) => this.y[i] >= b.minY - 0.6 && this.y[i] <= b.maxY - 1.0 && sees(i));
+      const tops = this.nodesInRect(b.minX - 2.2, b.minZ - 2.2, b.maxX + 2.2, b.maxZ + 2.2)
+        .filter((i) => this.y[i] > b.minY + 1 && this.y[i] <= b.maxY + 0.6 && (sees(i) || this.y[i] > b.maxY - 1.6)); // the top, or any landing on the way up
       for (const a of bottoms) for (const t of tops) {
         if (this.y[t] - this.y[a] < 1) continue;
         this.adj[a].push(t, EDGE.CLIMB, (this.y[t] - this.y[a]) * 1.4 + 2);
@@ -120,10 +124,27 @@ export class NavGraph {
     return ids.some((i) => this.y[i] >= lo && this.y[i] <= hi);
   }
 
+  // For jumps and drops the whole vertical column must be open: at the low cell from its floor up to the high
+  // height (+ body), and the crossing point at the high height. Otherwise edges would pass through ceilings.
   clearBetween(a, b) {
-    const y = Math.max(this.y[a], this.y[b]) + 0.1;
+    const ya = this.y[a], yb = this.y[b];
+    const hi = Math.max(ya, yb), lo = Math.min(ya, yb);
+    const low = ya < yb ? a : b;
     const mx = (this.x[a] + this.x[b]) / 2, mz = (this.z[a] + this.z[b]) / 2;
-    return this.world.fits(mx, y, mz, 0.25, PHYS.playerHeight);
+    const r = 0.25, H = PHYS.playerHeight;
+    const w = this.world;
+    if (!w.fits(mx, hi + 0.1, mz, r, H)) return false;
+    const lx = this.x[low], lz = this.z[low];
+    return !w.overlapsSolid(lx - r, lo + 0.05, lz - r, lx + r, hi + H, lz + r);
+  }
+
+  // Rays along the jump at foot and head height (catches thin walls between gap ends).
+  clearSweep(a, b) {
+    const hi = Math.max(this.y[a], this.y[b]);
+    for (const dy of [0.4, 1.6]) {
+      if (!this.world.segmentClear({ x: this.x[a], y: hi + dy, z: this.z[a] }, { x: this.x[b], y: hi + dy, z: this.z[b] })) return false;
+    }
+    return true;
   }
 
   nodesInRect(x0, z0, x1, z1) {

@@ -125,6 +125,17 @@ export class Game {
   // Push overlapping ground enemies apart so crowds don't stack into one blob.
   separate() {
     const list = this.enemies;
+    // Enemies can't stand inside the survivor (latched Canvassers are the exception).
+    const P = this.player;
+    for (const e of list) {
+      if (!e.alive || e.def.flies || e.state === 'latched' || e.state === 'charge') continue;
+      const dx = e.pos.x - P.pos.x, dz = e.pos.z - P.pos.z;
+      const r = e.body.r + P.body.r;
+      const d2 = dx * dx + dz * dz;
+      if (d2 >= r * r || Math.abs(e.pos.y - P.pos.y) > 1.6) continue;
+      const d = Math.sqrt(d2) || 0.01;
+      tryShift(this.world, e, (dx / d) * (r - d), (dz / d) * (r - d));
+    }
     for (let i = 0; i < list.length; i++) {
       const a = list[i];
       if (!a.alive || a.def.flies || a.state === 'latched') continue;

@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test tests/unit/",
+    "test": "node --test tests/unit/*.test.js",
     "test:city": "node tests/city/city100.mjs",
     "test:bot": "node tests/browser/bot.mjs",
     "test:shots": "node tests/browser/screenshots.mjs",

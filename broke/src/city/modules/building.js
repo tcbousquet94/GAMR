@@ -104,14 +104,47 @@ function storefront(kit, r, f, opts) {
 }
 
 // Fire escape: landings every 4 m plus a ladder column beside them that runs from the street to the roof.
+// Requests are queued and built after every module, so each can be placed where it doesn't clip into a
+// neighbouring building or prop (see buildFireEscapes).
 export function fireEscape(kit, r, f, h, at) {
-  const { rng, pal } = kit;
-  const L = faceLine(r, f);
-  if (L.len < 10) return;
-  const w = 5.5;
-  const s0 = at ?? rng.range(2, L.len - w - 3);
+  (kit.pendingFE = kit.pendingFE || []).push({ r, f, h, at, module: kit.module });
+}
+
+export function buildFireEscapes(kit) {
+  const list = kit.pendingFE || [];
+  kit.pendingFE = [];
+  for (const q of list) {
+    kit.module = q.module;
+    const L = faceLine(q.r, q.f);
+    if (L.len < 10) continue;
+    const w = 5.5;
+    const tries = q.at != null ? [q.at] : [];
+    for (let k = 0; k < 6; k++) tries.push(kit.rng.range(2, L.len - w - 3));
+    for (const s0 of tries) {
+      const deck = faceRect(L, s0, s0 + w, 0, 1.6);
+      const ladder = faceRect(L, s0 + w + 0.5, s0 + w + 1.6, 0, 1.2);
+      if (clips(kit, deck, 0.3, q.h) || clips(kit, ladder, 0, q.h + 1)) continue;
+      buildFE(kit, q.r, q.f, q.h, s0, L, w);
+      break;
+    }
+  }
+  kit.module = null;
+}
+
+function clips(kit, R, y0, y1) {
+  const e = 0.02;
+  for (const b of kit.solids) {
+    if (b.tag & 1) continue; // ground slabs
+    if (R.x1 - e > b.minX && R.x0 + e < b.maxX && R.z1 - e > b.minZ && R.z0 + e < b.maxZ && y1 > b.minY && y0 + 0.3 < b.maxY) return true;
+  }
+  return false;
+}
+
+function buildFE(kit, r, f, h, s0, L, w) {
+  const { pal } = kit;
   const deck = faceRect(L, s0, s0 + w, 0, 1.5);
-  const ladder = faceRect(L, s0 + w, s0 + w + 1.1, 0, 1.1);
+  // A half-metre gap keeps the ladder column clear of the landings, so climbing never snags on them.
+  const ladder = faceRect(L, s0 + w + 0.5, s0 + w + 1.6, 0, 1.1);
   const c = pal.metal;
   let mid = false;
   for (let y = 4; y < h - 1.5; y += 4) {

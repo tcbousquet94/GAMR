@@ -89,6 +89,12 @@ export class Player {
 
     this.move(dt, input);
 
+    // Leftover Pizza: after a second standing still, a pizza box goes down and heals you while you hold that spot.
+    if (st.pizzaHealPct > 0 && this.stillTime > 1) {
+      if (!this.pizzaZone) { this.pizzaZone = { x: this.pos.x, y: this.pos.y, z: this.pos.z, r: st.pizzaRadius }; g.events.emit('pizza', { ...this.pizzaZone }); }
+    } else if (this.pizzaZone && Math.hypot(this.pos.x - this.pizzaZone.x, this.pos.z - this.pizzaZone.z) > this.pizzaZone.r) this.pizzaZone = null;
+    if (this.pizzaZone && Math.hypot(this.pos.x - this.pizzaZone.x, this.pos.z - this.pizzaZone.z) <= this.pizzaZone.r) this.heal(st.maxHp * st.pizzaHealPct * dt, true);
+
     // Abilities and equipment.
     if (this.cart <= 0) this.kit.update(this, dt, input, g);
     if (input.equipment && this.equipment && this.equipCd <= 0) g.useEquipment(this);
@@ -142,9 +148,11 @@ export class Player {
     else this.jumpBuf = Math.max(0, this.jumpBuf - dt);
     if (b.onGround) { this.coyote = MOVE.coyoteTime; this.jumpsUsed = 0; } else this.coyote = Math.max(0, this.coyote - dt);
 
-    // Climbing.
+    // Climbing: push toward the ladder's wall to grab it; pushing toward the wall climbs up, pulling away climbs down.
+    const wallDot = (c) => (c.wall ? (dx * c.wall.x + dz * c.wall.z) / Math.max(0.01, Math.hypot(dx, dz)) : mz > 0.2 ? 1 : mz < -0.2 ? -1 : 0);
+    const moving = Math.hypot(dx, dz) > 0.2;
     const climb = g.world.climbAt(b.pos.x, b.pos.y, b.pos.z, b.r, b.h, 0.25);
-    if (!this.climbing && climb && mz > 0.2 && (b.blocked || !b.onGround || this.jumpBuf > 0) && this.cart <= 0 && b.pos.y < climb.maxY - 0.9) {
+    if (!this.climbing && climb && moving && wallDot(climb) > 0.5 && (b.blocked || !b.onGround || this.jumpBuf > 0) && this.cart <= 0 && b.pos.y < climb.maxY - 0.9) {
       this.climbing = climb;
       this.jumpBuf = 0;
       g.events.emit('climbStart', {});
@@ -152,29 +160,35 @@ export class Player {
     if (this.climbing) {
       const c = this.climbing;
       const inside = g.world.climbAt(b.pos.x, b.pos.y, b.pos.z, b.r, b.h, 0.45) === c;
+      const wd = moving ? wallDot(c) : 0;
       if (!inside || this.stagger > 0) this.climbing = null;
       else if (this.jumpBuf > 0) {
-        // Kick off backwards.
+        // Kick off the wall.
         this.climbing = null;
         this.jumpBuf = 0;
         b.vel.y = MOVE.jumpSpeed;
-        b.vel.x = -f.x * 6; b.vel.z = -f.z * 6;
+        const ox = c.wall ? -c.wall.x : -f.x, oz = c.wall ? -c.wall.z : -f.z;
+        b.vel.x = ox * 6; b.vel.z = oz * 6;
         this.jumpsUsed = 1;
       } else {
-        b.vel.y = mz > 0.2 ? MOVE.climbSpeed * Math.min(1.6, st.moveMul) : mz < -0.2 ? -MOVE.climbSpeed : 0;
-        // Pull toward the volume centre so you stay on the ladder.
+        b.vel.y = wd > 0.3 ? MOVE.climbSpeed * Math.min(1.6, st.moveMul) : wd < -0.3 ? -MOVE.climbSpeed : 0;
+        // Hold onto the ladder column; sideways input slides you off it.
         const cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2;
-        b.vel.x = clamp((cx - b.pos.x) * 4, -2, 2) + f.x * 1.5 + r.x * mx * 2;
-        b.vel.z = clamp((cz - b.pos.z) * 4, -2, 2) + f.z * 1.5 + r.z * mx * 2;
-        if (b.pos.y >= c.maxY - 1.0 && mz > 0.2) {
-          // Top out: hop up and forward so the mantle carries you over the parapet.
+        const side = c.wall ? { x: -c.wall.z, z: c.wall.x } : r;
+        const sd = moving ? (dx * side.x + dz * side.z) / Math.hypot(dx, dz) : 0;
+        b.vel.x = clamp((cx - b.pos.x) * 5, -2.5, 2.5) + side.x * sd * 3;
+        b.vel.z = clamp((cz - b.pos.z) * 5, -2.5, 2.5) + side.z * sd * 3;
+        if (b.pos.y >= c.maxY - 1.0 && wd > 0.3) {
+          // Top out: hop up and over toward the wall so the mantle carries you onto the roof.
           this.climbing = null;
           b.vel.y = 7.5;
-          b.vel.x = f.x * 5; b.vel.z = f.z * 5;
+          const tx = c.wall ? c.wall.x : f.x, tz = c.wall ? c.wall.z : f.z;
+          b.vel.x = tx * 5; b.vel.z = tz * 5;
         }
-        if (mz < -0.2 && b.onGround) this.climbing = null;
         moveBody(b, g.world, dt);
-        b.onGround = false;
+        // Reaching the ground while not pushing up lets go of the ladder.
+        if (this.climbing && b.onGround && wd <= 0.3) this.climbing = null;
+        if (this.climbing) b.onGround = false;
         this.stillTime = 0;
         return;
       }
@@ -189,7 +203,7 @@ export class Player {
     const maxD = accel * dt;
     if (al > maxD) { b.vel.x += (ax / al) * maxD; b.vel.z += (az / al) * maxD; }
     else { b.vel.x = tx; b.vel.z = tz; }
-    if (b.onGround && len < 0.05 && this.stagger <= 0) {
+    if (b.onGround && len < 0.05 && this.stagger <= 0 && this.cart <= 0) {
       const k = Math.max(0, 1 - MOVE.frictionGround * dt);
       b.vel.x *= k; b.vel.z *= k;
     }
@@ -209,8 +223,8 @@ export class Player {
     moveBody(b, g.world, dt);
     if (b.mantled) g.events.emit('mantle', {});
     if (b.onGround) this.jumpsUsed = 0;
-    const moving = Math.hypot(b.vel.x, b.vel.z) > 0.3 || !b.onGround;
-    this.stillTime = moving ? 0 : this.stillTime + dt;
+    const drifting = Math.hypot(b.vel.x, b.vel.z) > 0.3 || !b.onGround;
+    this.stillTime = drifting ? 0 : this.stillTime + dt;
   }
 
   heal(amount, quiet = false) {

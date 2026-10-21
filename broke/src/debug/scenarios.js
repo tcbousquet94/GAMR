@@ -55,7 +55,7 @@ export function* movement(ctx) {
   R.doubleJumpHeight = +(peak - y0).toFixed(2);
   R.grounded = P.body.onGround;
   // Mantle: jump at a parked car / dumpster nearby and see if we end up on top.
-  const prop = g.world.solids.items.filter((b) => b.tag === 4 && b.maxY > 1.2 && b.maxY < 2.4 && Math.hypot((b.minX + b.maxX) / 2 - s.x, (b.minZ + b.maxZ) / 2 - s.z) < 90)[0];
+  const prop = g.world.solids.items.filter((b) => b.tag === 4 && b.maxY > 1.2 && b.maxY < 2.4 && b.maxX - b.minX >= 1.8 && b.maxZ - b.minZ >= 1.8 && Math.hypot((b.minX + b.maxX) / 2 - s.x, (b.minZ + b.maxZ) / 2 - s.z) < 90)[0];
   if (prop) {
     const cx = (prop.minX + prop.maxX) / 2, cz = (prop.minZ + prop.maxZ) / 2;
     // Stand 2.5 m off the prop's +x face, facing it.
@@ -63,8 +63,13 @@ export function* movement(ctx) {
     if (g.world.fits(sx, prop.minY + 0.05, cz, 0.4, 1.8)) {
       P.body.pos = { x: sx, y: prop.minY + 0.05, z: cz }; P.body.vel = { x: 0, y: 0, z: 0 };
       yield* runFor(ctx, 0.3, () => ({ ...EMPTY_INPUT, yaw: Math.PI / 2 }));
-      yield* runFor(ctx, 1.2, (i) => ({ ...EMPTY_INPUT, yaw: Math.PI / 2, moveZ: 1, jumpPressed: i === 6 }));
-      R.mantleOnto = P.pos.y > prop.maxY - 0.2 ? 1 : 0;
+      let onTop = 0;
+      yield* runFor(ctx, 1.2, (i) => {
+        const p = P.pos;
+        if (P.body.onGround && Math.abs(p.y - prop.maxY) < 0.15 && p.x > prop.minX - 0.4 && p.x < prop.maxX + 0.4) onTop = 1;
+        return { ...EMPTY_INPUT, yaw: Math.PI / 2, moveZ: 1, jumpPressed: i === 6 };
+      });
+      R.mantleOnto = onTop;
       R.mantlePropHeight = +(prop.maxY - prop.minY).toFixed(2);
     }
   }
@@ -150,7 +155,7 @@ export function* combat(ctx) {
   const before = { ...P.pos };
   let dodged = 0;
   const off3 = g.events.on('dodged', () => dodged++);
-  yield* runFor(ctx, 0.05, (i) => ({ ...EMPTY_INPUT, yaw: s.yaw, moveX: 1, utility: i === 0 }));
+  yield* runFor(ctx, 0.05, (i) => ({ ...EMPTY_INPUT, yaw: s.yaw, moveZ: -1, utility: i === 0 })); // dodge back along the street
   g.combat.hurtPlayer(P, 5, { source: 'test' });
   R.salsaDistance = +Math.hypot(P.pos.x - before.x, P.pos.z - before.z).toFixed(2);
   R.salsaDodgedHit = dodged;
@@ -162,10 +167,11 @@ export function* combat(ctx) {
   const off4 = g.events.on('impact', (e) => { if (e.kind === 'syringe') syr++; });
   const y0 = P.pos.y;
   let peak = y0;
-  yield* runFor(ctx, 3, (i) => { peak = Math.max(peak, P.pos.y); for (const e of cluster) e.stunned = 99; return { ...EMPTY_INPUT, ...aimAt(P, cluster[2]), special: i === 0 }; });
+  let slowed = 0;
+  yield* runFor(ctx, 3, (i) => { peak = Math.max(peak, P.pos.y); slowed = Math.max(slowed, cluster.filter((e) => e.alive && e.slowMul < 1).length); for (const e of cluster) e.stunned = 99; return { ...EMPTY_INPUT, ...aimAt(P, cluster[2]), special: i === 0 }; });
   R.codeBlueSyringes = syr;
   R.codeBlueLeap = +(peak - y0).toFixed(2);
-  R.codeBlueSlowed = cluster.filter((e) => e.slowMul < 1).length;
+  R.codeBlueSlowed = slowed;
   off4();
   for (const e of [dummy, ...cluster]) e.alive = false;
 }
@@ -196,7 +202,7 @@ export function* shopping(ctx) {
     const f = { x: it.x + Math.sin(it.yaw) * 1.3, y: it.y, z: it.z + Math.cos(it.yaw) * 1.3 };
     bot.goTo(f);
     yield* until(ctx, () => bot.arrived(1.6), 40, () => bot.input(DT));
-    if (!bot.arrived(1.6)) continue;
+    if (!bot.arrived(1.6)) { (R.unreached = R.unreached || []).push([it.type, +it.x.toFixed(1), +it.y.toFixed(1), +it.z.toFixed(1), +P.pos.x.toFixed(1), +P.pos.y.toFixed(1), +P.pos.z.toFixed(1)]); continue; }
     bot.face(it);
     const saved = g.economy.cents;
     if (tries === 1) {

@@ -29,6 +29,9 @@ export function humanoid(s) {
     ...face(s.face || {}, hs, skin),
     ...X('head'),
   ]);
+  if (!s.face?.shades) part('eyes', 'head', [0, 0.21 * hs, -0.128 * hs], [
+    sball(0.013, s.face?.eye ?? 0x1f1814, at(-0.047 * hs, -0.002, -0.004), 8), sball(0.013, s.face?.eye ?? 0x1f1814, at(0.047 * hs, -0.002, -0.004), 8),
+  ]);
   for (const side of [-1, 1]) {
     const L = side < 0 ? 'L' : 'R';
     part(`arm${L}`, 'torso', [side * sw, 0.47, 0], [sball(0.075 * k, s.sleeve ?? s.shirt, at(0, -0.01, 0), 12), scap(0.058 * k, 0.2, s.sleeve ?? s.shirt, at(0, -0.14, 0)), ...X(`arm${L}`)]);
@@ -40,11 +43,11 @@ export function humanoid(s) {
     const lr = (s.legWidth || 1) * k;
     part(`leg${L}`, 'hips', [side * 0.09 * k, -0.05, 0], [scap(0.08 * lr, 0.3, s.pants, at(0, -0.21, 0)), ...X(`leg${L}`)]);
     const ss = s.shoeScale || 1;
-    part(`shin${L}`, `leg${L}`, [0, -0.43, 0], [
-      scap(0.065 * lr * (s.flare || 1), 0.3, s.pantsLow ?? s.pants, at(0, -0.2, 0)),
-      sbox(0.13 * ss, 0.1, 0.28 * ss, s.shoes, at(0, -0.405, -0.05), 0.045),
-      s.sole ? sbox(0.135 * ss, 0.035, 0.29 * ss, s.sole, at(0, -0.455, -0.05), 0.015) : null,
-      ...X(`shin${L}`),
+    part(`shin${L}`, `leg${L}`, [0, -0.43, 0], [scap(0.065 * lr * (s.flare || 1), 0.3, s.pantsLow ?? s.pants, at(0, -0.2, 0)), ...X(`shin${L}`)]);
+    // Separate foot on an ankle pivot so the sole can sit flat on steps and slopes (leg IK counter-rotates it).
+    part(`foot${L}`, `shin${L}`, [0, -0.4, 0], [
+      sbox(0.13 * ss, 0.1, 0.28 * ss, s.shoes, at(0, -0.005, -0.05), 0.045),
+      s.sole ? sbox(0.135 * ss, 0.035, 0.29 * ss, s.sole, at(0, -0.055, -0.05), 0.015) : null,
     ]);
   }
   for (const c of s.cloth || []) part(c.name, c.parent, c.pivot, c.geos);
@@ -58,7 +61,6 @@ function face(f, hs, skin) {
   for (const sx of [-1, 1]) {
     if (!f.shades) {
       g.push(sball(0.022, f.white ?? 0xf4f0ea, at(sx * 0.047 * hs, y, z + 0.006, 0, 0, 0, 1, f.squint ? 0.5 : 1, 0.6), 10));
-      g.push(sball(0.013, f.eye ?? 0x1f1814, at(sx * 0.047 * hs, y - 0.002, z - 0.004), 8));
     }
     // Brows: angry slant down toward the nose, happy arch up, calm level.
     const tilt = f.brows === 'angry' ? sx * 0.5 : f.brows === 'happy' ? -sx * 0.25 : 0;

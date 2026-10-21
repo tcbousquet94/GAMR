@@ -105,6 +105,8 @@ function frame(now) {
   const g = app.game;
   let dt = Math.min(0.1, (now - app.last) / 1000);
   app.last = now;
+  // Recording: animate exactly the sim time that elapsed this frame.
+  if (app.driver && app.fixedRenderDt) dt = app.stepsPerFrame * DT;
   if (!g) return;
   if (app.state === 'playing' && !app.paused) {
     if (app.driver) {
@@ -125,6 +127,7 @@ function frame(now) {
     while (app.acc >= DT) { g.step(); app.acc -= DT; }
   }
   view.render(dt);
+  app.onFrame?.();
   hud.update(dt);
   audio.tick(dt, {
     intensity: Math.min(6, g.clock.tier + (g.exit.state === 'called' ? 1 : 0) + (g.boss?.alive ? 1 : 0)),

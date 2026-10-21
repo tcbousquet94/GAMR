@@ -121,6 +121,8 @@ export class View {
     this.applyLighting(L);
     // Camera.
     this.rig.update(dt, P, g.world, P.sprinting);
+    // Debug / recording camera: a function returning { pos, target } overrides the follow camera.
+    if (this.camOverride) { const c = this.camOverride(P); this.camera.position.set(c.pos.x, c.pos.y, c.pos.z); this.camera.lookAt(c.target.x, c.target.y, c.target.z); }
     const cam = this.camera.position;
     // Shadows follow the player; refresh the shadow map every 3rd frame.
     const sp = P.pos;

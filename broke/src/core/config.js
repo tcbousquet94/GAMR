@@ -14,7 +14,12 @@ export const PHYS = {
 };
 
 export const MOVE = {
-  accelGround: 70,
+  accelGround: 24, // speed builds over two or three strides
+  decelGround: 30,
+  pivotDecel: 55,
+  turnRate: 13, // rad/s at a standstill, lower at speed so turns arc
+  frictionSkid: 3.2,
+  hardLandSpeed: 19,
   accelAir: 22,
   frictionGround: 14,
   jumpSpeed: 10.5, // ~1.8m per jump

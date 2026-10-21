@@ -194,18 +194,76 @@ export class Player {
       }
     }
 
-    // Horizontal movement.
-    const control = this.stagger > 0 ? 0.15 : 1;
-    const accel = (b.onGround ? MOVE.accelGround : MOVE.accelAir) * control;
-    const tx = dx * speed, tz = dz * speed;
-    const ax = tx - b.vel.x, az = tz - b.vel.z;
-    const al = Math.hypot(ax, az);
-    const maxD = accel * dt;
-    if (al > maxD) { b.vel.x += (ax / al) * maxD; b.vel.z += (az / al) * maxD; }
-    else { b.vel.x = tx; b.vel.z = tz; }
-    if (b.onGround && len < 0.05 && this.stagger <= 0 && this.cart <= 0) {
-      const k = Math.max(0, 1 - MOVE.frictionGround * dt);
-      b.vel.x *= k; b.vel.z *= k;
+    // Vault in progress: a short kinematic arc over low cover.
+    if (this.vault) {
+      const v = this.vault;
+      v.t += dt;
+      const k = Math.min(1, v.t / v.dur);
+      const e = k * k * (3 - 2 * k);
+      b.pos.x = v.from.x + (v.to.x - v.from.x) * e;
+      b.pos.z = v.from.z + (v.to.z - v.from.z) * e;
+      const base = v.from.y + (v.to.y - v.from.y) * e;
+      b.pos.y = Math.max(base, v.from.y + (v.peak - v.from.y) * Math.sin(Math.min(1, k * 1.15) * Math.PI)) ;
+      if (k >= 1) {
+        this.vault = null;
+        b.pos.y = v.to.y + 0.02;
+        b.vel.x = v.dir.x * v.speed; b.vel.z = v.dir.z * v.speed; b.vel.y = 0;
+        b.onGround = true;
+      }
+      this.stillTime = 0;
+      return;
+    }
+
+    // Horizontal movement with momentum: on the ground, speed builds over a few strides and the direction of
+    // travel swings toward the stick instead of snapping, so turns arc. A sharp reversal at speed is a pivot
+    // (hard brake, then go); letting go from a sprint skids a little.
+    const control = this.stagger > 0 ? 0.15 : this.hardLand > 0 ? 0.35 : 1;
+    const hs = Math.hypot(b.vel.x, b.vel.z);
+    const want = len > 0.05 ? speed * Math.min(1, len) * (this.crouch ? 0.6 : 1) : 0;
+    if (b.onGround && this.cart <= 0) {
+      let hx = hs > 0.05 ? b.vel.x / hs : dx, hz = hs > 0.05 ? b.vel.z / hs : dz;
+      let sp = hs;
+      if (want > 0) {
+        const dl = Math.hypot(dx, dz) || 1;
+        const tx = dx / dl, tz = dz / dl;
+        const cross = hx * tz - hz * tx, dot = hx * tx + hz * tz;
+        const ang = Math.atan2(cross, dot);
+        if (Math.abs(ang) > 2.3 && hs > 5) {
+          // Pivot: brake hard first.
+          if (!this.pivoting) { this.pivoting = true; g.events.emit('pivot', { from: { x: hx, z: hz }, to: { x: tx, z: tz } }); }
+          sp = Math.max(0, hs - MOVE.pivotDecel * dt);
+          if (sp < 1.6) { hx = tx; hz = tz; this.pivoting = false; }
+        } else {
+          this.pivoting = false;
+          const rate = MOVE.turnRate / (1 + hs * 0.11) * control;
+          const turn = Math.max(-rate * dt, Math.min(rate * dt, ang));
+          const c = Math.cos(turn), s2 = Math.sin(turn);
+          const nhx = hx * c - hz * s2, nhz = hx * s2 + hz * c;
+          hx = nhx; hz = nhz;
+          if (hs < 1.2) { hx = tx; hz = tz; } // from (nearly) standing, just go
+          const acc = (sp < want ? MOVE.accelGround : MOVE.decelGround) * control;
+          sp = sp < want ? Math.min(want, sp + acc * dt) : Math.max(want, sp - acc * dt);
+        }
+        this.skid = 0; this.skidUsed = false;
+      } else {
+        this.pivoting = false;
+        // Letting go: a sprint stop slides a little before friction bites.
+        if (hs > 8.5 && !this.skidUsed) { this.skid = 0.28; this.skidUsed = true; g.events.emit('skid', {}); }
+        const fr = this.skid > 0 ? MOVE.frictionSkid : MOVE.frictionGround;
+        this.skid = Math.max(0, this.skid - dt);
+        sp = hs * Math.max(0, 1 - fr * dt);
+        if (sp < 0.05) sp = 0;
+      }
+      if (this.stagger > 0) { /* knockback keeps its own velocity */ } else { b.vel.x = hx * sp; b.vel.z = hz * sp; }
+    } else {
+      // Air (and cart): direct acceleration toward the target velocity, as before.
+      const accel = (b.onGround ? MOVE.accelGround * 2.5 : MOVE.accelAir) * control;
+      const tx = dx * (this.cart > 0 ? speed : want), tz = dz * (this.cart > 0 ? speed : want);
+      const ax = tx - b.vel.x, az = tz - b.vel.z;
+      const al = Math.hypot(ax, az);
+      const maxD = accel * dt;
+      if (al > maxD) { b.vel.x += (ax / al) * maxD; b.vel.z += (az / al) * maxD; }
+      else { b.vel.x = tx; b.vel.z = tz; }
     }
     // Jumping.
     if (this.jumpBuf > 0 && this.cart <= 0) {
@@ -220,11 +278,57 @@ export class Player {
     // Gravity.
     if (!this.lockY) b.vel.y = Math.max(-PHYS.maxFallSpeed, b.vel.y - PHYS.gravity * (this.kit.gravityMul?.(this) ?? 1) * dt);
     b.canMantle = true;
+    const wasGround = b.onGround, fallV = b.vel.y;
+    this.lastVel = { x: b.vel.x, z: b.vel.z };
     moveBody(b, g.world, dt);
     if (b.mantled) g.events.emit('mantle', {});
     if (b.onGround) this.jumpsUsed = 0;
+    // Landings: a big drop stumbles (brief loss of speed and control); smaller ones just dip.
+    if (!wasGround && b.onGround && fallV < -6) {
+      const hard = fallV < -MOVE.hardLandSpeed;
+      if (hard) { this.hardLand = 0.45; b.vel.x *= 0.5; b.vel.z *= 0.5; }
+      g.events.emit('land', { hard, v: -fallV });
+    }
+    this.hardLand = Math.max(0, (this.hardLand || 0) - dt);
+    this.tryVault(b, g, wasGround);
+    this.updateCrouch(b, g);
     const drifting = Math.hypot(b.vel.x, b.vel.z) > 0.3 || !b.onGround;
     this.stillTime = drifting ? 0 : this.stillTime + dt;
+  }
+
+  // Running into low cover (0.55-1.45 m, short enough to clear) vaults it instead of stopping dead.
+  tryVault(b, g, wasGround) {
+    if (!b.blocked || !wasGround || this.cart > 0 || this.climbing || this.latchedBy) return;
+    const box = b.blockBox;
+    const hs = Math.hypot(this.lastVel?.x || 0, this.lastVel?.z || 0);
+    if (!box || hs < 3.5) return;
+    const rise = box.maxY - b.pos.y;
+    if (rise < 0.55 || rise > 1.45) return;
+    const dir = { x: -b.blockNX, z: -b.blockNZ };
+    const depth = dir.x ? box.maxX - box.minX : box.maxZ - box.minZ;
+    if (depth > 2.4) return;
+    const far = dir.x > 0 ? box.maxX : dir.x < 0 ? box.minX : dir.z > 0 ? box.maxZ : box.minZ;
+    const tx = dir.x ? far + dir.x * (b.r + 0.35) : b.pos.x, tz = dir.z ? far + dir.z * (b.r + 0.35) : b.pos.z;
+    const gy = g.world.groundBelow(tx, box.maxY + 0.5, tz, b.r * 0.8, 6);
+    if (!Number.isFinite(gy) || gy > box.maxY - 0.3 || !g.world.fits(tx, gy + 0.03, tz, b.r, b.h)) return;
+    // Clear arc over the top.
+    if (!g.world.fits((b.pos.x + tx) / 2, box.maxY + 0.05, (b.pos.z + tz) / 2, b.r * 0.8, 1.0)) return;
+    this.vault = { t: 0, dur: 0.3 + depth * 0.08, from: { ...b.pos }, to: { x: tx, y: gy, z: tz }, peak: box.maxY + 0.2, dir, speed: Math.max(hs * 0.85, 5), height: rise };
+    g.events.emit('vault', { height: rise, depth });
+  }
+
+  // Ducking: an overhead obstacle we could fit under at crouch height lowers the body until it's clear.
+  updateCrouch(b, g) {
+    const p = b.pos;
+    if (this.crouch) {
+      if (g.world.fits(p.x, p.y + 0.02, p.z, b.r, PHYS.playerHeight)) { this.crouch = false; b.h = PHYS.playerHeight; }
+      return;
+    }
+    if (!b.blocked || !b.onGround) return;
+    const box = b.blockBox;
+    if (!box || box.minY < p.y + 0.95 || box.minY > p.y + PHYS.playerHeight) return;
+    const nx = p.x - b.blockNX * 0.3, nz = p.z - b.blockNZ * 0.3;
+    if (g.world.fits(nx, p.y + 0.02, nz, b.r, 1.1)) { this.crouch = true; b.h = 1.1; g.events.emit('duck', {}); }
   }
 
   heal(amount, quiet = false) {

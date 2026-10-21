@@ -3,7 +3,7 @@
 // Cloth parts (hems, jacket flaps, drawstrings) are separate rig parts the actor layer swings on springs.
 
 import { scap, sball, sbox, scyl, slathe, smoothMerge as fmergeSmooth, at } from '../facet.js';
-import { humanoid, humanPose } from './humanoid.js';
+import { humanoid } from './humanoid.js';
 
 // ---- DEE OKAFOR (teal scrubs, white sneakers, dark hair in a big high bun) ------------------------------------
 export function deeModel() {
@@ -36,12 +36,12 @@ export function deeModel() {
   });
 }
 
-export function deePose(st) {
-  const p = humanPose(st);
-  if (st.firing && !st.climb) { p.armR = [1.45 + st.pitch, 0, 0.1]; p.foreR = [0.05, 0, 0]; p.torso[1] = -0.15; }
-  if (st.throwT > 0) { p.armL = [2.6 * st.throwT, 0, -0.4]; }
-  if (st.spin > 0) { p.hips.r[1] = st.spin * Math.PI * 4; p.armL = [0.2, 0, -1.3]; p.armR = [0.2, 0, 1.3]; }
-  return p;
+// Overlays: character-specific upper-body actions layered on the animator's locomotion pose (p is mutated).
+export function deeOverlay(p, st) {
+  if (st.firing && !st.climb) { p.armR = [1.45 + st.pitch, 0, 0.1]; p.foreR = [0.05, 0, 0]; p.torso[1] -= 0.15; }
+  if (st.throwT > 0) { p.armL = [2.6 * st.throwT, 0, -0.4]; p.foreL = [0.3, 0, 0]; p.torso[1] += 0.3 * st.throwT; }
+  if (st.spin > 0) { p.hips[1] += st.spin * Math.PI * 4; p.armL = [0.2, 0, -1.3]; p.armR = [0.2, 0, 1.3]; }
+  if (st.cart) { p.armL = [1.3, 0, 0]; p.armR = [1.3, 0, 0]; p.foreL = [0.2, 0, 0]; p.foreR = [0.2, 0, 0]; p.torso[0] -= 0.3; }
 }
 
 // ---- SPEAKERPHONE GUY (muted: olive puffer vest, dusty maroon-brown shirt, phone held up to his mouth) ---------
@@ -63,14 +63,11 @@ export function speakerphoneModel() {
     },
   });
 }
-export function speakerphonePose(st) {
-  const p = humanPose(st);
+export function speakerphoneOverlay(p, st) {
   // Phone held up in front of his face, other fist clenched; leans in aggressively.
-  p.armR = [1.1, 0, 0.35]; p.foreR = [1.6, 0, 0];
-  p.torso = [-0.18 - st.speed * 0.1, 0, 0];
-  if (st.windup > 0) { p.armR = [1.3 + st.windup * 0.4, 0, 0.3]; p.torso = [0.1 * st.windup, 0, 0]; p.head = [-0.3 * st.windup, 0, 0]; }
-  if (st.stun > 0) { p.head = [0.4, 0, Math.sin(st.t * 12) * 0.3]; p.armR = [0.2, 0, 0.3]; p.foreR = [0.2, 0, 0]; }
-  return p;
+  if (st.stun <= 0) { p.armR = [1.1, 0, 0.35]; p.foreR = [1.6, 0, 0]; }
+  p.torso[0] -= 0.12;
+  if (st.windup > 0) { p.armR = [1.3 + st.windup * 0.4, 0, 0.3]; p.torso[0] += 0.3 * st.windup; p.head[0] -= 0.3 * st.windup; }
 }
 
 // ---- SCOOTER BRO (muted: slate hoodie, brown backwards cap, khaki cargos, sunglasses, e-scooter) ----------------
@@ -105,17 +102,17 @@ export function scooterModel() {
   });
   return m;
 }
-export function scooterPose(st) {
-  const p = humanPose({ ...st, speed: 0, phase: 0 });
-  p.hips.t = [0, 0.14, 0];
-  p.legL = [0.5, 0, 0]; p.shinL = [-0.8, 0, 0]; p.legR = [-0.15, 0, 0]; p.shinR = [-0.6, 0, 0];
-  p.torso = [-0.55, 0, 0];
+export function scooterOverlay(p, st, hipsT) {
+  // Crouched on the deck, hands on the bars, one foot forward. Leans into his own turns.
+  hipsT[1] += 0.14;
+  const bank = p.torso[2];
+  p.legL = [0.5, 0, 0]; p.shinL = [-0.8, 0, 0]; p.footL = [0.3, 0, 0]; p.legR = [-0.15, 0, 0]; p.shinR = [-0.6, 0, 0]; p.footR = [0.75, 0, 0];
+  p.torso = [-0.55 + p.torso[0] * 0.3, 0, bank * 1.6];
   p.armL = [1.0, 0, -0.15]; p.foreL = [0.3, 0, 0]; p.armR = [1.0, 0, 0.15]; p.foreR = [0.3, 0, 0];
-  p.head = [0.35, 0, 0];
+  p.head[0] += 0.35;
+  p.hips = [0, 0, bank * 0.8];
   if (st.windup > 0) { p.armR = [1.3, 0, 0.3]; p.foreR = [0.9 + Math.sin(st.t * 30) * 0.3, 0, 0]; } // ringing the bell
   if (st.crashed) { p.torso = [0.6, 0, 0.5]; p.head = [0.4, 0, 0.4]; p.armL = [2.4, 0, -0.6]; p.armR = [2.2, 0, 0.7]; p.scooter = { r: [0, 0.8, 1.4], t: [0.5, 0.15, 0.2] }; }
-  if (st.cloth) Object.assign(p, st.cloth);
-  return p;
 }
 
 // ---- THE CANVASSER (muted: dusty tan jacket, sage shirt, lanyard and ID, clipboard, huge grin) -----------------
@@ -141,13 +138,11 @@ export function canvasserModel() {
     ],
   });
 }
-export function canvasserPose(st) {
-  const p = humanPose(st);
-  p.armL = [0.9, 0, -0.1]; p.foreL = [0.9, 0, 0];
-  p.armR = [0.6 + Math.sin(st.t * 3) * 0.15, 0, 0.9]; p.foreR = [0.6, 0, 0];
-  if (st.windup > 0) { p.torso = [0.2 * st.windup, 0, 0]; p.armR = [1.8, 0, 0.5]; }
-  if (st.latched) { p.armL = [1.6, 0, -0.5]; p.armR = [1.6, 0, 0.5]; p.foreL = [1.0, 0, 0]; p.foreR = [1.0, 0, 0]; p.torso = [-0.3, 0, 0]; }
-  return p;
+export function canvasserOverlay(p, st) {
+  p.armL = [0.9, 0, -0.1]; p.foreL = [0.9, 0, 0]; // clipboard held up
+  p.armR = [0.6 + Math.sin(st.t * 3) * 0.15, 0, 0.9]; p.foreR = [0.6, 0, 0]; // open, welcoming hand
+  if (st.windup > 0) { p.torso[0] += 0.25 * st.windup; p.armR = [1.8, 0, 0.5]; }
+  if (st.latched) { p.armL = [1.6, 0, -0.5]; p.armR = [1.6, 0, 0.5]; p.foreL = [1.0, 0, 0]; p.foreR = [1.0, 0, 0]; p.torso[0] -= 0.3; }
 }
 
 // ---- THE HOA PRESIDENT (~5.5 m): khaki suit, argyle vest, gray bouffant, glasses on a chain, clipboard, gavel --
@@ -187,16 +182,12 @@ export function hoaModel() {
     ],
   });
 }
-export function hoaPose(st) {
-  const p = humanPose({ ...st, speed: st.speed * 0.6 });
+export function hoaOverlay(p, st) {
   p.armL = [0.85, 0, -0.2]; p.foreL = [0.6, 0, 0];
-  p.armR = [0.4, 0, 0.25]; p.foreR = [0.7, 0, 0];
-  p.torso = [-0.05, 0, 0];
-  if (st.attack === 'gavel') { const w = st.windup; p.armR = w < 1 ? [2.6 * w, 0, 0.3] : [0.3, 0, 0.2]; p.foreR = [w < 1 ? 0.6 : 1.2, 0, 0]; p.torso = [w < 1 ? 0.15 * w : -0.4, 0, 0]; }
-  if (st.attack === 'notices') { p.armL = [1.6, 0, -0.3]; p.foreL = [0.3, 0, 0]; p.head = [-0.1, 0, 0]; }
+  p.armR = [0.4 + p.armR[0] * 0.3, 0, 0.25]; p.foreR = [0.7, 0, 0];
+  if (st.attack === 'gavel') { const w = st.windup; p.armR = w < 1 ? [2.6 * w, 0, 0.3] : [0.3, 0, 0.2]; p.foreR = [w < 1 ? 0.6 : 1.2, 0, 0]; p.torso[0] += w < 1 ? 0.15 * w : -0.4; }
+  if (st.attack === 'notices') { p.armL = [1.6, 0, -0.3]; p.foreL = [0.3, 0, 0]; p.head[0] -= 0.1; }
   if (st.attack === 'drones') { p.armR = [2.8 * st.windup, 0, 0.6]; p.foreR = [0.2, 0, 0]; }
-  if (st.cloth) Object.assign(p, st.cloth);
-  return p;
 }
 
 // ---- Parking-enforcement drone (~1 m across): smooth shell, four rotors, a printed ticket hanging below ---------
@@ -235,3 +226,5 @@ export function clothSpring(state, dt, vel, yaw, t, names) {
 }
 
 export const CLOTH = { dee: ['hem'], scooter: ['stringL', 'stringR'], canvasser: ['flapL', 'flapR'], hoa: ['tailL', 'tailR'], speakerphone: [] };
+
+export const OVERLAY = { dee: deeOverlay, speakerphone: speakerphoneOverlay, scooter: scooterOverlay, canvasser: canvasserOverlay, hoa: hoaOverlay };

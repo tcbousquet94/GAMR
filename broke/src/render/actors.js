@@ -6,9 +6,24 @@ import { RigType, rootMatrix } from './rig.js';
 import { facetMaterial, fbox, fcyl, fball, merge, at } from './facet.js';
 import * as M from './models/characters.js';
 import { interactableGeometry } from './models/props.js';
-import { angleDiff } from '../core/math.js';
+import { Animator } from './anim/animator.js';
+import { Ragdoll } from './anim/ragdoll.js';
 
-const POSE = { speakerphone: M.speakerphonePose, scooter: M.scooterPose, canvasser: M.canvasserPose, hoa: M.hoaPose };
+const ANIM_OPTS = {
+  dee: { fidgets: ['watch'] },
+  speakerphone: { fidgets: ['gesture'], armSwing: 0.8 },
+  canvasser: { fidgets: ['fan'], freq: 1.08 },
+  scooter: { gait: false },
+  hoa: { scale: 3.05, freq: 0.9, armSwing: 0.6 },
+};
+
+// Big frame steps (recording, hitches) are split so the springs and gait integrate accurately.
+function animate(A, dt, ctx) {
+  const n = Math.max(1, Math.min(8, Math.ceil(dt / (1 / 40))));
+  let out;
+  for (let i = 0; i < n; i++) out = A.update(dt / n, ctx);
+  return out;
+}
 
 export class Actors {
   constructor(scene, game, view) {
@@ -29,11 +44,43 @@ export class Actors {
     this.deeYaw = game.player.yaw;
     this.deePhase = 0;
     this.fireT = 0; this.throwT = 0; this.spinT = 0;
+    this.deeAnim = new Animator(ANIM_OPTS.dee);
+    this.corpses = [];
+    const E = game.events;
+    const P = game.player;
     this.off = [
-      game.events.on('ability', (a) => {
+      E.on('ability', (a) => {
         if (a.slot === 'primary') this.fireT = 0.3;
         if (a.slot === 'secondary') this.throwT = 0.35;
         if (a.slot === 'utility') this.spinT = 0.4;
+      }),
+      E.on('pivot', (d) => this.deeAnim.onPivot(Math.sign(d.from.x * d.to.z - d.from.z * d.to.x) || 1)),
+      E.on('skid', () => this.deeAnim.onSkid()),
+      E.on('land', (d) => this.deeAnim.onLand(d.hard, d.v)),
+      // Hits push the body away from whoever landed them.
+      E.on('hit', (d) => {
+        const e = game.enemies.find((x) => x.id === d.id);
+        if (!e || !e._anim) { if (e && e.type === 'drone') e._tilt = 0.5; return; }
+        const dx = e.pos.x - P.pos.x, dz = e.pos.z - P.pos.z, l = Math.hypot(dx, dz) || 1;
+        e._anim.onHit({ x: dx / l, z: dz / l }, (d.amount / Math.max(20, e.maxHp * 0.25)) * (e.boss ? 0.25 : 1) + 0.2);
+      }),
+      E.on('playerHurt', (d) => {
+        const from = d.from || { x: P.pos.x - P.forward().x, z: P.pos.z - P.forward().z };
+        const dx = P.pos.x - from.x, dz = P.pos.z - from.z, l = Math.hypot(dx, dz) || 1;
+        this.deeAnim.onHit({ x: dx / l, z: dz / l }, 0.35 + d.amount / 18);
+      }),
+      E.on('kill', (d) => {
+        const e = game.enemies.find((x) => x.id === d.id);
+        if (!e || !e._lastPose || !this.rigs[e.type] || e.type === 'drone') return;
+        const dx = e.pos.x - P.pos.x, dz = e.pos.z - P.pos.z, l = Math.hypot(dx, dz) || 1;
+        const push = e.boss ? 3 : 4.5 + Math.random() * 3;
+        this.spawnRagdoll(this.rigs[e.type], e._lastRoot, e._lastPose, e.body.vel, { x: (dx / l) * push, y: 2.5 + Math.random() * 2, z: (dz / l) * push }, e._anim?.o.scale || 1);
+      }),
+      E.on('playerDeath', () => {
+        if (!this.deeLast) return;
+        const mats = this.dee.compute(this.deeLast.root, this.deeLast.pose).map((m) => m.clone());
+        const f = P.forward();
+        this.deeCorpse = new Ragdoll(game.world, this.dee, mats, P.body.vel, { x: -f.x * 3, y: 2, z: -f.z * 3 }, 1);
       }),
     ];
     this.buildProjectiles();
@@ -146,6 +193,8 @@ export class Actors {
     for (const r of Object.values(this.rigs)) r.begin();
     let nn = 0;
     const m4 = this.m4, q = new THREE.Quaternion(), v = new THREE.Vector3(), s = new THREE.Vector3(1, 1, 1);
+    const P = g.player;
+    const playerHead = { x: P.pos.x, y: P.pos.y + 1.6, z: P.pos.z };
     for (const e of g.enemies) {
       if (!e.alive) continue;
       if (e.type === 'notice') {
@@ -159,23 +208,36 @@ export class Actors {
       if (!rig) continue;
       const p = e.body.pos;
       const grow = Math.min(1, e.spawnT / 0.35);
-      const scale = (e.type === 'hoa' ? 3.05 : 1) * (0.3 + 0.7 * grow);
       if (e.type === 'drone') {
         rootMatrix(p.x, p.y + Math.sin(this.t * 3 + e.id) * 0.15, p.z, e.yaw, 1.3, m4);
-        rig.add(m4, { rotors: [0, this.t * 40, 0], body: [0.15, 0, Math.sin(this.t * 2 + e.id) * 0.1] }, this.flashOf(e));
+        rig.add(m4, { rotors: [0, this.t * 40, 0], body: [0.15 + (e._tilt || 0), 0, Math.sin(this.t * 2 + e.id) * 0.1] }, this.flashOf(e));
+        e._tilt = (e._tilt || 0) * Math.exp(-6 * dt);
         continue;
       }
-      // Smooth yaw for rendering.
-      e._ry = e._ry == null ? e.yaw : e._ry + angleDiff(e._ry, e.yaw) * Math.min(1, dt * 12);
+      const A = (e._anim = e._anim || new Animator(ANIM_OPTS[e.type] || {}));
       const sp = Math.hypot(e.body.vel.x, e.body.vel.z);
-      const st = {
-        phase: e.anim * (e.type === 'hoa' ? 0.9 : 2.6), speed: Math.min(1, sp / 7), air: !e.body.onGround && !e.climbing && e.type !== 'scooter',
-        climb: e.climbing, t: this.t + e.id, windup: e.telegraph, stun: e.stunned, crashed: e.state === 'crashed', latched: e.state === 'latched',
-        attack: e.state === 'notices' || e.state === 'drones' || e.state === 'gavel' ? e.state : null,
-        cloth: M.CLOTH[e.type]?.length ? M.clothSpring(e, dt, e.body.vel, e._ry, this.t + e.id, M.CLOTH[e.type]) : null,
-      };
-      rootMatrix(p.x, p.y, p.z, e._ry, scale, m4);
-      rig.add(m4, (POSE[e.type] || M.speakerphonePose)(st), this.flashOf(e));
+      const facePlayer = sp < 1.2 || e.telegraph > 0 || e.state === 'latched' || e.boss;
+      const pose = animate(A, dt, {
+        pos: p, vel: e.body.vel, onGround: e.body.onGround || e.type === 'scooter', climbing: e.climbing, world: g.world,
+        aimYaw: e.yaw, face: facePlayer ? 'aim' : 'move', telegraph: e.telegraph, stunned: e.stunned > 0 && e.state !== 'crashed',
+        lookAt: P.alive ? playerHead : null,
+        overlay: M.OVERLAY[e.type],
+        extra: { crashed: e.state === 'crashed', latched: e.state === 'latched', attack: e.state === 'notices' || e.state === 'drones' || e.state === 'gavel' ? e.state : null },
+        cloth: M.CLOTH[e.type]?.length ? M.clothSpring(e, dt, e.body.vel, A.yaw ?? e.yaw, this.t + e.id, M.CLOTH[e.type]) : null,
+      });
+      const scale = (A.o.scale || 1) * (0.3 + 0.7 * grow);
+      rootMatrix(p.x, p.y, p.z, A.yaw, scale, m4);
+      rig.add(m4, pose, this.flashOf(e));
+      e._lastRoot = m4.clone(); e._lastPose = pose;
+    }
+    // Ragdolls of the recently defeated.
+    this.corpses = this.corpses.filter((c) => c.age < 6.5);
+    for (const c of this.corpses) {
+      c.age += dt;
+      c.rd.step(dt);
+      const mats = c.rd.matrices();
+      if (c.age > 4.5) { const sink = (c.age - 4.5) * 0.45 * c.rd.scale; for (const m of mats) m.elements[13] -= sink; }
+      c.rig.addWorld(mats, Math.max(0, 0.5 - c.age * 2));
     }
     for (const r of Object.values(this.rigs)) r.end();
     this.notices.count = nn;
@@ -185,6 +247,14 @@ export class Actors {
     this.updateInteractables();
   }
 
+  // Full ragdoll from the entity's last rendered pose, pushed by the killing blow.
+  spawnRagdoll(rig, root, pose, vel, impulse, scale) {
+    if (!root || !pose) return;
+    const mats = rig.compute(root, pose).map((m) => m.clone());
+    this.corpses.push({ rig, rd: new Ragdoll(this.game.world, rig, mats, vel, impulse, scale), age: 0 });
+    if (this.corpses.length > 14) this.corpses.shift();
+  }
+
   // White flash: hits flash briefly; attack wind-ups pulse faster and brighter until the attack lands.
   flashOf(e) {
     const tele = e.telegraph > 0 ? e.telegraph * (0.45 + 0.55 * (0.5 + 0.5 * Math.sin(this.t * (12 + 28 * e.telegraph)))) : 0;
@@ -192,30 +262,40 @@ export class Actors {
   }
 
   updateDee(dt) {
-    const P = this.game.player;
+    const g = this.game;
+    const P = g.player;
     const b = P.body;
-    const hs = Math.hypot(b.vel.x, b.vel.z);
-    this.deePhase += hs * dt * 1.25;
-    // Face the camera direction when shooting or standing; otherwise face where she's running.
-    let want = P.yaw;
-    if (hs > 1 && this.fireT <= 0 && !P.climbing) want = Math.atan2(-b.vel.x, -b.vel.z);
-    if (P.climbing && P.climbing.wall) want = Math.atan2(-P.climbing.wall.x, -P.climbing.wall.z);
-    this.deeYaw += angleDiff(this.deeYaw, want) * Math.min(1, dt * 14);
-    const pose = M.deePose({
-      phase: this.deePhase, speed: Math.min(1, hs / 10), air: !b.onGround && !P.climbing, climb: !!P.climbing, t: this.t,
-      firing: this.fireT > 0, pitch: P.pitch, throwT: Math.max(0, this.throwT / 0.35), spin: Math.max(0, this.spinT / 0.4),
-      cloth: M.clothSpring(this, dt, b.vel, this.deeYaw, this.t, M.CLOTH.dee),
+    const A = this.deeAnim;
+    // Look at the nearest enemy in front, else whatever shop she's next to.
+    let look = null, bd = 22 * 22;
+    const f = P.forward();
+    for (const e of g.enemies) {
+      if (!e.alive || e.minion) continue;
+      const c = e.center();
+      const dx = c.x - b.pos.x, dz = c.z - b.pos.z, d2 = dx * dx + dz * dz;
+      if (d2 < bd && dx * f.x + dz * f.z > -0.3 * Math.sqrt(d2)) { bd = d2; look = c; }
+    }
+    if (!look) { const it = g.economy.focus(P); if (it) look = { x: it.x, y: it.y + 1.2, z: it.z }; }
+    const firing = this.fireT > 0;
+    const pose = animate(A, dt, {
+      pos: b.pos, vel: b.vel, onGround: b.onGround, climbing: !!P.climbing, climbWall: P.climbing?.wall, crouch: P.crouch, vault: P.vault,
+      aimYaw: P.yaw, aimPitch: P.pitch, face: firing || P.cart > 0 ? 'aim' : 'move', firing, world: g.world, lookAt: look,
+      overlay: M.deeOverlay,
+      extra: { throwT: Math.max(0, this.throwT / 0.35), spin: Math.max(0, this.spinT / 0.4), cart: P.cart > 0 },
+      cloth: M.clothSpring(this, dt, b.vel, A.yaw ?? P.yaw, this.t, M.CLOTH.dee),
     });
-    if (P.cart > 0) { pose.legL = [0.2, 0, 0]; pose.legR = [-0.1, 0, 0]; pose.armL = [1.3, 0, 0]; pose.armR = [1.3, 0, 0]; pose.foreL = [0.2, 0, 0]; pose.foreR = [0.2, 0, 0]; pose.torso = [-0.35, 0, 0]; }
     this.dee.begin();
     const hidden = this.view.rig.cur < 1.1; // camera jammed against her: don't fill the screen with scrubs
     if (!P.dead && !hidden) {
-      rootMatrix(b.pos.x, b.pos.y + (P.cart > 0 ? 0.35 : 0), b.pos.z, this.deeYaw, 1, this.m4);
+      rootMatrix(b.pos.x, b.pos.y + (P.cart > 0 ? 0.35 : 0), b.pos.z, A.yaw, 1, this.m4);
       this.dee.add(this.m4, pose, P.invuln > 0 ? 0.25 : 0);
+      this.deeLast = { root: this.m4.clone(), pose };
     }
+    this.deeYaw = A.yaw;
+    if (this.deeCorpse) { this.deeCorpse.step(dt); this.dee.addWorld(this.deeCorpse.matrices(), 0); }
     this.dee.end();
     this.cart.visible = P.cart > 0;
-    if (this.cart.visible) { this.cart.position.set(b.pos.x, b.pos.y - 0.05, b.pos.z); this.cart.rotation.y = this.deeYaw; }
+    if (this.cart.visible) { this.cart.position.set(b.pos.x, b.pos.y - 0.05, b.pos.z); this.cart.rotation.y = A.yaw; }
   }
 
   updateProjectiles() {

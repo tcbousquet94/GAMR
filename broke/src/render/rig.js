@@ -40,6 +40,12 @@ export class RigType {
   add(root, pose, flash = 0) {
     if (this.n >= this.capacity) return;
     const i = this.n++;
+    this.compute(root, pose);
+    for (let k = 0; k < this.meshes.length; k++) { this.meshes[k].setMatrixAt(i, this.world[k]); this.flash[k].array[i] = flash; }
+  }
+
+  // Fills this.world with each part's world matrix for a root + pose.
+  compute(root, pose) {
     for (const k of this.order) {
       const p = this.parts[k];
       const pp = pose[p.name];
@@ -57,10 +63,19 @@ export class RigType {
       _m.compose(_v, _q, _s);
       const parent = p.parentIndex >= 0 ? this.world[p.parentIndex] : root;
       this.world[k].multiplyMatrices(parent, _m);
-      this.meshes[k].setMatrixAt(i, this.world[k]);
-      this.flash[k].array[i] = flash;
     }
+    return this.world;
   }
+
+  // Ragdolls: add an instance from precomputed per-part world matrices.
+  addWorld(mats, flash = 0) {
+    if (this.n >= this.capacity) return;
+    const i = this.n++;
+    for (let k = 0; k < this.meshes.length; k++) { this.meshes[k].setMatrixAt(i, mats[k]); this.flash[k].array[i] = flash; }
+  }
+
+  // Copy of the per-part world matrices from the most recent add() (to seed a ragdoll).
+  snapshot() { return this.world.map((m) => m.clone()); }
 
   end() {
     for (let k = 0; k < this.meshes.length; k++) {

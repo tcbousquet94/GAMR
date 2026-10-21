@@ -454,3 +454,38 @@ Every decision that interprets or changes the spec is recorded here, newest last
 - Shops placed at ladder feet blocked the climb; construction frame shop on an unreachable deck.
 - Mid-ladder "landings" linked to neighbouring roofs 2 m sideways (bot stalled at a ladder top).
 - Debug `pose()` left the animator frozen mid-fall in screenshots.
+
+## Phase 1 audits (two parallel sub-agents) and what changed
+Gameplay audit, each finding reproduced with a script before fixing; regression tests in
+`tests/unit/audit.test.js`:
+- Elevated spots were nearly damage-free: melee enemies parked underneath forever (the stuck check used horizontal
+  distance only). Now enemies below the player head for a ladder that reaches them and climb it; the stuck
+  check counts vertical progress and the "parked below" case; relocation prefers the player's own surface.
+  Damage taken at y=8/16 went from 0 to ~150 per 3 min (street: ~95).
+- Relocation could silently delete the boss (spawn-point sampling missed in map corners). The boss is never
+  deleted; the fallback does a full scan; the receipt's "boss defeated" comes from the actual kill.
+- Knockback cap now applies to the resulting velocity (a 3-wave volley stacked to 51 m/s).
+- Speakerphone soundwaves passed through walls; they now stop on world geometry.
+- Leftover Pizza radius capped at 8 m, Gavel of Authority at 16 m (was 31 m / 204 m at 20 / 100 stacks).
+  Coupon, missile, explosion and coin multipliers stay uncapped and linear (RoR2-style, never NaN).
+- No shopping while on a ladder.
+- Checked fine: no crashes or NaN in 10 seeds × 240 s of random input; Jury Duty sim cost ~0.2–0.5 ms/step
+  with ≤69 enemies; 100× every item stays finite with caps holding; knockback/Salsa never leave the map;
+  no state carries between runs; every shop delivers and never oversells.
+
+Visual/readability audit:
+- Ground telegraphs while enemies wind up (`render/telegraphs.js`): scooter charge lane, speakerphone cone,
+  canvasser lunge, HOA slam ring (16 m — jump it).
+- Each enemy gets a colour identity: Speakerphone Guy red shirt / charcoal vest, Scooter Bro electric-blue hoodie,
+  Canvasser high-vis yellow jacket.
+- Contact shadows under all characters; streetlights and traffic lights cast shadows.
+- Compass marker stays inside the visible bar and shows a turn arrow at the edge; labels clear of the centre
+  tick; a soft dim band and stronger text shadow behind HUD text; info banners without a key pill; phone layout.
+- Stars only at real night; daytime lamp bulbs dimmed (no daylight bloom blobs).
+- Tower crowns no longer tilted (stepped caps / penthouse bands); smoother trees and wheels; Dee's bun smaller
+  and set back.
+- World-space wear on ground (oil stains, patches, cracks, grain) and wall bases (grime, rain streaks); more litter
+  in the roadway and more puddles.
+- SUBWAY signs: transit green, 1.5× larger, roundel + big arrow; a lit SUBWAY pylon at the station.
+- Viaduct moved 2 m further out (a streetlight clipped its deck); overhead barks stack instead of overlapping.
+- Hit reactions now stagger the hips and legs; idle weight shift is larger; the first fidget comes sooner.

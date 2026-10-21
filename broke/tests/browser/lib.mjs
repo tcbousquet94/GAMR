@@ -25,7 +25,8 @@ export async function openGame(url, query, { width = 1280, height = 720, mobile 
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e.stack || e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(`${url}?${query}`);
-  await page.waitForFunction(() => window.__broke && window.__broke.game, null, { timeout: 60000 });
+  // Heavy scenes build synchronously at startup (the load event waits for them), so don't block on it.
+  await page.goto(`${url}?${query}`, { waitUntil: 'commit', timeout: 120000 });
+  await page.waitForFunction(() => window.__broke && window.__broke.game, null, { timeout: 300000, polling: 500 });
   return { browser, page, errors };
 }

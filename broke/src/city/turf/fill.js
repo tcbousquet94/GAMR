@@ -9,6 +9,8 @@ import { placeProp } from '../modules/streets.js';
 import { towerOnPodium, tree, planterTree, lowWall } from '../modules/common.js';
 import { R } from './raster.js';
 import { rectHitsDiag } from './layout.js';
+import { lotFill } from '../kitdata/modules.js';
+import { mergeKitData } from '../kitdata/data.js';
 
 const BUILD_AVOID = R.DIAG | R.RESERVED | R.BUILT | R.STREET;
 
@@ -183,6 +185,18 @@ export function perimeterBuildings(kit, city, b, raster) {
           if (ww < 7) break;
           const q = sideRect(r, side, u, u + ww, 0, dpt);
           if (!raster.test(q, R.BLOCK, BUILD_AVOID) || rectHitsDiag(city.layout.diag, q, 1)) continue;
+          // Kit look outside the core: real houses, walk-ups and workshops on the frontage instead of plain boxes.
+          if (city.kitPending && !core && (b.zone === 'residential' || b.zone === 'commercial' || b.zone === 'industrial')) {
+            const kind = b.zone === 'industrial' ? 'workshop' : b.zone === 'commercial' && ww >= 14 ? 'apartment' : 'house';
+            const mb = lotFill(q, side, rng, kind);
+            mergeKitData(city.kitPending, mb.D);
+            city.kitCuts.push(...mb.cuts.map((x) => ({ ...x, cell: c })));
+            raster.mark(q, R.BUILT);
+            (city.buildings = city.buildings || []).push({ rect: q, h: kind === 'apartment' ? 8 : 5, block: b.id, side });
+            u += ww + (rng.chance(0.22) ? rng.range(3.5, 5) : 0);
+            placed = true;
+            break;
+          }
           const tower = rng.chance(P.towerChance) && ww >= 16 && dpt >= 18;
           const style = pickStyle(rng, P);
           const h = tower ? rng.range(P.towerHeight[0], P.towerHeight[1]) : rng.range(P.height[0], P.height[1]);

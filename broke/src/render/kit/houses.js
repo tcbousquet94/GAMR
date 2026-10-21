@@ -6,14 +6,17 @@
 
 import * as THREE from 'three';
 import { mat, tris } from './batch.js';
-import { CURB_H, houseHeight } from '../../hero/layout.js';
+import { CURB, houseHeight, houseYaw } from '../../city/kitdata/data.js';
 
-const YAW = { s: 0, e: Math.PI / 2, n: Math.PI, w: -Math.PI / 2 };
-const FL = 0.45, FH = 2.9, T = 0.24, E = 0.55, PITCH = 0.42;
+const FH = 2.9, T = 0.24, E = 0.55, PITCH = 0.42;
+let FL = 0.45; // foundation height of the building being built (sheds and warehouses sit lower)
 const _a = new THREE.Vector3(), _b = new THREE.Vector3();
 
+// Extra fields beyond a plain house: fl (foundation), height + floors for flat roofs, garage n with doorW / doorH /
+// doorKey (roll-up doors), storefront (wide glazing), units (apartment doors on every floor), industrial (high windows).
 export function buildHouse(B, h, rng) {
-  const M = mat(h.x, CURB_H, h.z, YAW[h.front]);
+  FL = h.fl ?? 0.45;
+  const M = mat(h.x, h.y ?? CURB, h.z, houseYaw(h));
   const W = h.w, D = h.d;
   // Axis-aligned box in house-local space.
   const box = (key, x0, y0, z0, x1, y1, z1, color = 0xffffff) => {
@@ -21,9 +24,9 @@ export function buildHouse(B, h, rng) {
     B.boxM(key, _b.x - _a.x, _b.y - _a.y, _b.z - _a.z, M.clone().multiply(mat((_a.x + _b.x) / 2, (_a.y + _b.y) / 2, (_a.z + _b.z) / 2)), color, key === 'window' ? { uv: 'native' } : undefined);
   };
   const boxR = (key, w, hh, d, m, color) => B.boxM(key, w, hh, d, M.clone().multiply(m), color);
-  const trim = h.trim, wallKey = h.wall, Yt = h.roof === 'flat' ? (h.height ?? 3.6) : houseHeight(h);
-  const floors = h.roof === 'flat' ? 1 : h.floors;
-  const floorH = h.roof === 'flat' ? Yt - FL : FH;
+  const trim = h.trim, wallKey = h.wall, floors = h.floors || 1;
+  const Yt = h.roof === 'flat' ? (h.height ?? FL + floors * FH) : houseHeight(h);
+  const floorH = h.roof === 'flat' ? (Yt - FL) / floors : FH;
 
   // Foundation plinth, a touch proud of the walls.
   box('concrete', -W / 2 - 0.06, 0, -D / 2 - 0.06, W / 2 + 0.06, FL, D / 2 + 0.06, 0xb0aca4);
@@ -106,7 +109,7 @@ export function buildHouse(B, h, rng) {
     for (const s of [-1, 1]) for (const t of [-1, 1]) {
       const len = Math.hypot(b, Yr - y), ang = Math.atan2(Yr - y, b);
       const c = sw([s * a, (y + Yr) / 2 - 0.05, t * b / 2]);
-      boxR('trim', front ? len : 0.05, 0.2, front ? 0.05 : len, mat(c[0], c[1], c[2], 0, front ? 0 : -t * ang, front ? t * ang : 0), trim);
+      boxR('trim', front ? len : 0.05, 0.2, front ? 0.05 : len, mat(c[0], c[1], c[2], 0, front ? 0 : t * ang, front ? -t * ang : 0), trim); // slopes down toward its eave
     }
     eaves(box, front ? b : a, front ? a : b, Yt, trim);
   } else {
@@ -136,11 +139,6 @@ export function buildHouse(B, h, rng) {
     const x = W / 2 - 1.6, z = -D / 2 + 1.2;
     box('brick', x - 0.5, 0, z - 0.4, x + 0.5, Yt + 2.6, z + 0.4, 0xffffff);
     box('concrete', x - 0.58, Yt + 2.6, z - 0.48, x + 0.58, Yt + 2.72, z + 0.48, 0x9a948c);
-  }
-  // Door path from the sidewalk and a mailbox.
-  if (!h.garage) {
-    const px = h.porch?.steps === 'left' ? -W / 2 + 2.2 : doorU(h, W) - W / 2;
-    box('concrete', px - 0.6, 0.0, D / 2 + (h.porch ? h.porch.depth + 0.9 : 0.1), px + 0.6, 0.035, D / 2 + 9, 0xc8c4bc);
   }
 }
 
@@ -173,11 +171,29 @@ const doorU = (h, W) => (h.porch?.steps === 'left' ? 2.2 : W / 2 + (h.w > 14 ? -
 function openings(h, w, floors, floorH) {
   const out = [];
   if (h.garage && w.front) {
-    const gw = 3.0, n = h.garage, gap = (w.L - n * gw) / (n + 1);
-    for (let i = 0; i < n; i++) out.push({ floor: 0, kind: 'garage', u0: gap + i * (gw + gap), u1: gap + i * (gw + gap) + gw, v0: 0, v1: 2.6 });
+    const gw = h.doorW ?? 3.0, n = h.garage, gap = (w.L - n * gw) / (n + 1);
+    for (let i = 0; i < n; i++) out.push({ floor: 0, kind: 'garage', u0: gap + i * (gw + gap), u1: gap + i * (gw + gap) + gw, v0: 0, v1: h.doorH ?? 2.6 });
     return out;
   }
-  if (h.garage) { if (!w.front && w.L < 12) out.push({ floor: 0, kind: 'door', u0: w.L / 2 - 0.45, u1: w.L / 2 + 0.45, v0: 0, v1: 2.1 }); return out; }
+  if (h.garage) {
+    if (!w.front && w.L < 12) out.push({ floor: 0, kind: 'door', u0: w.L / 2 - 0.45, u1: w.L / 2 + 0.45, v0: 0, v1: 2.1 });
+    if (h.industrial) for (let u = 3; u < w.L - 3; u += 6) out.push({ floor: 0, kind: 'window', u0: u, u1: u + 2.2, v0: floorH - 1.7, v1: floorH - 0.9 });
+    return out;
+  }
+  if (h.storefront && w.front) {
+    const dc = w.L / 2;
+    out.push({ floor: 0, kind: 'door', u0: dc - 0.9, u1: dc + 0.9, v0: 0, v1: 2.3, glass: true });
+    for (const [a, b] of [[0.7, dc - 1.3], [dc + 1.3, w.L - 0.7]]) { const n = Math.max(1, Math.round((b - a) / 2.6)), pw = (b - a) / n; for (let i = 0; i < n; i++) out.push({ floor: 0, kind: 'window', u0: a + i * pw + 0.06, u1: a + (i + 1) * pw - 0.06, v0: 0.45, v1: 2.75, shop: true }); }
+    return out;
+  }
+  if (h.units && w.front) {
+    const n = Math.max(1, Math.floor(w.L / 5.5)), uw = w.L / n;
+    for (let f = 0; f < floors; f++) for (let i = 0; i < n; i++) {
+      out.push({ floor: f, kind: 'door', u0: i * uw + 0.7, u1: i * uw + 1.62, v0: 0, v1: 2.15 });
+      out.push({ floor: f, kind: 'window', u0: i * uw + 2.4, u1: i * uw + uw - 0.8, v0: 0.95, v1: 2.25 });
+    }
+    return out;
+  }
   const door = w.front ? doorU(h, w.L) : null;
   for (let f = 0; f < floors; f++) {
     const n = Math.max(1, Math.floor(w.L / 3.4)), sp = w.L / n;
@@ -195,7 +211,7 @@ function openings(h, w, floors, floorH) {
 function opening(w, o, y0, piece, trim, h, rng, floor) {
   const { u0, u1 } = o, v0 = y0 + o.v0, v1 = y0 + o.v1;
   if (o.kind === 'garage') {
-    piece(w, 'garageDoor', u0, u1, v0, v1, 0xe8e6e0, -0.18, 0.05);
+    piece(w, h.doorKey ?? 'garageDoor', u0, u1, v0, v1, h.doorColor ?? 0xe8e6e0, -0.18, 0.05);
     piece(w, 'trim', u0 - 0.12, u0, v0, v1 + 0.12, trim, 0.03, 0.08); piece(w, 'trim', u1, u1 + 0.12, v0, v1 + 0.12, trim, 0.03, 0.08);
     piece(w, 'trim', u0, u1, v1, v1 + 0.12, trim, 0.03, 0.08);
     return;

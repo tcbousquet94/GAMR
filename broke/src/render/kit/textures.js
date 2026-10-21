@@ -164,9 +164,9 @@ const R = {
     const t = new Tex(N);
     t.each((u, v, i) => {
       const l = fbm(u, v, 32, 3, 4), f = hash2(u * N, v * N, 2), m = fbm(u, v, 4, 3, 12);
-      const k = 0.78 + (l - 0.5) * 0.12 + (m - 0.5) * 0.1 + (f - 0.5) * 0.05;
+      const k = 0.78 + (l - 0.5) * 0.08 + (m - 0.5) * 0.1 + (f - 0.5) * 0.04;
       t.col(i, k, k * 0.99, k * 0.96);
-      t.H[i] = l * 1.0 + f * 0.25;
+      t.H[i] = l * 0.6 + f * 0.2;
       t.R[i] = 0.88;
     });
     return t;
@@ -348,7 +348,7 @@ const R = {
 // Build (once) and return every texture set. opts per name: normal strength, alpha.
 const SPECS = {
   asphalt: { normal: 0.45 }, concrete: { normal: 2 }, redPaint: { normal: 2 }, grass: { normal: 2 }, dirt: { normal: 2 },
-  siding: { normal: 5 }, stucco: { normal: 1.4 }, brick: { normal: 4 }, shingles: { normal: 5 }, metal: { normal: 3 },
+  siding: { normal: 5 }, stucco: { normal: 0.6 }, brick: { normal: 4 }, shingles: { normal: 5 }, metal: { normal: 3 },
   garageDoor: { normal: 4 }, paint: { normal: 1 }, planks: { normal: 3 }, chainlink: { normal: 1, alpha: true },
   palmBark: { normal: 4 }, bark: { normal: 4 }, window: { normal: 1 }, frond: { normal: 1, alpha: true, wrap: false },
   leaves: { normal: 2, alpha: true, wrap: false }, roadPaint: { normal: 1, alpha: true }, tuft: { normal: 1, alpha: true, wrap: false }, tarGravel: { normal: 3 },

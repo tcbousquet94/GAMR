@@ -132,6 +132,7 @@ export function buildCity(city, scene, opts = {}) {
     return c;
   };
   for (const b of kit.boxes) {
+    if (opts.kitBoxes && b.mat !== MAT.GLOW) continue; // drawn by the kit (render/kit/classify.js)
     const c = chunk(b.cx, b.cz);
     if (b.mat === MAT.GLASS) writeBox(c.glass, b);
     else if (b.mat === MAT.GLOW) writeBox(c.glow, b, true);

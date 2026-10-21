@@ -1,4 +1,4 @@
-// Surface materials for the remastered look. Each surface is a MeshStandardMaterial with colour, roughness and
+// Surface materials for the remastered look (the kit's material library; heroMaterials is the original name). Each surface is a MeshStandardMaterial with colour, roughness and
 // normal maps (textures.js) in world-space metres (geometry UVs are metres; `tile` is the texture's world size),
 // tinted per vertex, plus procedural wear in the shader so repetition never reads: large-scale grime drift, rising
 // damp and dirt at the foot of walls, drip streaks, and darkening where walls meet the ground (cheap corner AO on top
@@ -94,3 +94,5 @@ export function heroMaterials() {
   mats.wire = new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 0.6 });
   return mats;
 }
+
+export const kitMaterials = heroMaterials;

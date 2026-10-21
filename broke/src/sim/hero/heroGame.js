@@ -1,14 +1,14 @@
-// The hero scene's simulation: the kept player movement and physics on the hand-made street from hero/layout.js.
-// No turf, waves or exit; it exists to walk the look-development street.
+// The "h" test neighbourhood's simulation: the kept player movement and physics on the fixed module neighbourhood
+// (city/kitdata/hood.js). No turf, waves or exit; it exists to walk and compare the remastered look.
 
 import { DT } from '../../core/config.js';
 import { Game, EMPTY_INPUT } from '../game.js';
-import { heroCity } from '../../hero/layout.js';
+import { hoodCity } from '../../city/kitdata/hood.js';
 import { DOWNTOWN } from '../../city/turf/districts/downtown.js';
 
 export class HeroGame extends Game {
   constructor({ survivor }) {
-    super({ seed: 'hero', district: DOWNTOWN, survivor, city: heroCity() });
+    super({ seed: 'hero', district: DOWNTOWN, survivor, city: hoodCity() });
     this.mode = 'hero';
     this.director.enabled = false;
   }

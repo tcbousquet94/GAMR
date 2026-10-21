@@ -60,16 +60,94 @@ The city map works both as a 3D world and as strategy data (the territory graph)
 
 ---
 
-# ART DIRECTION (current: v3, PS2-era crime-game look)
+# ART DIRECTION (current: remastered early-2000s open-world look, built as THE KIT)
 
-Target: PlayStation 2 era open-world crime games (style reference only; no assets, names or designs copied).
-Realistic human proportions; low-poly models with the detail in procedural textures (cracked asphalt, stained
-concrete, graffiti, faded paint, rust, grime); heavy atmospheric haze with a warm smoggy tint by day, distance fading
-into haze; sun-faded, slightly desaturated palette with gang colours as the strongest accents; moody but simple
-lighting (long sunsets, sodium streetlights, neon at night); a worn, lived-in city (chain-link, power lines, dumpsters,
-beat-up cars, billboards, litter); satirical characters who look like real people, the comedy in behaviour and barks.
-The Arkenfall screenshots are dropped as a target, but their lessons stay: dense small detail, atmospheric depth,
-constant subtle motion. (The direction arrived cut off at "constant sub"; read as "constant subtle motion".)
+Target: references/target-look.jpeg — a remastered early-2000s open-world crime game. Style only: no assets, names,
+designs or locations copied. Bright neutral daylight with a clear sun and pale sky; light distance haze only; soft sun
+shadows; ambient occlusion under eaves and in corners; filmic tone mapping; warm lights at night. No flat colours:
+every surface has colour, roughness and normal detail plus procedural wear. Framed recessed windows, trim, eaves,
+gutters, porches; raised kerbs (some painted red), verges, sidewalks, driveways, crosswalks; poles with sagging lines,
+streetlights, palms and trees from leaf cards, parked cars, bins, idle people.
+(Superseded v3 "PS2 smog" direction: warm smoggy haze, grading and vignette are gone.)
+
+## The kit (everything that makes "h" look right, reusable everywhere)
+
+Data (sim-safe, no Three.js) — `src/city/kitdata/`:
+- `data.js`: the kit-data format (pads, ribbons, kerbs, paint, houses, apartments, stores, warehouses, sheds, fences,
+  palms, trees, shrubs, pole lines, lights, cars, trucks, bins, hydrants, props, people, manholes; world metres, `y`
+  = standing level, CURB = 0.15 lot level), the module frame (u across the front street, v deep), and colliders for
+  everything (rotated buildings become a fill of small boxes so there are no invisible corners).
+- `streets.js`: street dressing for any grid of cells: kerb at the road edge with corners rounded at the sidewalk
+  radius, short red-painted no-parking runs and some red corners, kerbs dropped with paved aprons where a module's
+  lane / alley / drive cuts through; grass verge + concrete walk (residential, industrial, parks) or full paving
+  (commercial); crosswalks, stop bars and a double yellow centre line on open segments; manholes; palms in verges,
+  street trees in commercial walks; utility poles along two sides of every block; corner streetlights; hydrants;
+  parked cars on the road at the kerb.
+- `modules.js`: the neighbourhood modules (below), `lotFill` (one house / walk-up / workshop on a frontage lot) and
+  `houseRow` (a row of houses for edges).
+- `hood.js`: module placement on cells (zone-weighted, facing the widest open side) and the "h" test neighbourhood.
+
+Render — `src/render/kit/`:
+- `textures.js`: in-house procedural PBR textures (colour, roughness, normal from a height field): asphalt with grain,
+  patches and sealed cracks; concrete with slab joints and stains; red kerb paint; grass; dirt; lap siding; stucco;
+  running-bond brick; three-tab shingles; corrugated metal; sectional garage door; painted trim; fence planks;
+  chain-link; palm bark; bark; window interiors (blinds / curtains); palm frond and leaf-cluster cards; grass tufts;
+  worn road paint; tar and gravel. (Poly Haven / ambientCG are blocked by this environment's network policy; the
+  in-house set can be swapped for CC0 photo textures later without touching anything else.)
+- `materials.js`: one MeshStandardMaterial per surface with world-metre tiling and vertex tint, plus shader wear
+  (large-scale grime drift, damp at wall feet, drip streaks, blots, roughness variation) so repetition doesn't show.
+- `batch.js`: geometry batching with world-space metre UVs projected per face (bricks and boards line up across
+  pieces), merged to one mesh per surface (optionally per 160 m chunk).
+- `houses.js`: houses (walls built around real openings: recessed framed windows with sashes, sills, casings, head
+  trim; doors with panels; corner boards, floor bands, skirt boards; hip / side-gable / front-gable / flat roofs with
+  eave overhang, fascia, soffit, rake boards, gutters, downspouts; porches with posts, railings, steps, shed roofs;
+  chimneys; security bars and window AC units), extended to walk-ups (unit doors per floor), storefronts, warehouses
+  (roll-up doors, high windows) and yard buildings.
+- `buildings.js`: apartment walk-ups (walkway, railing, outside stair), corner stores (storefront, awning, lettered
+  sign board, posters), tilt-up warehouses (painted band, wall lamps, bollards), garages / sheds / site offices.
+- `ground.js`: pads (extruded polygons), ribbons, kerbs (2 m blocks, red where painted), paint, tuft spots.
+- `vegetation.js`: palms (curved ringed trunks, folded frond cards, dead-frond skirt), broadleaf trees and shrubs
+  (leaf cards, normals bent out of the crown), grass tufts.
+- `street.js`, `props.js`: utility poles (crossarms, insulators, transformers, sagging catenary wires), cobra-head
+  streetlights, sedans, box trucks, bins, hydrants, manholes, fences at any angle (chain-link, barbed, wood, block),
+  dumpsters, ice machines, payphones, newspaper boxes, benches, bollards, wheel stops, hoops, laundry lines, pallets,
+  containers.
+- `classify.js`: the generator's plain boxes (downtown towers, business templates, warehouse bases, edges) drawn with
+  kit materials, surface chosen from material, size, height and colour, hues pulled toward grey.
+- `world.js`: builds a whole kit-data scene (plus classified boxes) into batched meshes.
+- `kitView.js`: the lighting model: shader sky (pale blue zenith, bright hazy horizon, soft broken cloud, sun glow),
+  sun from the south-east with 2048 PCF soft shadows following the camera's focus, hemisphere fill, image-based
+  ambient from the sky (PMREM), FogExp2 light haze, GTAO screen-space AO (leaf cards hidden from its G-buffer), MSAA,
+  ACES filmic, no grade or vignette; night: moonlight, warm lamp heads and windows, real point lights on the nearest
+  streetlights. Quality tiers: high / medium / low (AO and MSAA off on low).
+
+## Neighbourhood modules (all original layouts)
+- **Crescent** (from "h", made original): a curving lane enters from the front street and bows out to a side street;
+  houses on the outside of the bend face the lane radially, the two-storey porch house (brick ground floor, siding
+  above) sits at the apex; inside the bend houses face the outer streets around a pocket green with a big tree and a
+  bench; palms on the lane verge, poles and wires, two streetlights, a parked car, neighbours chatting.
+- **Cul-de-sac**: a lane to a turning bulb with a kerbed, planted island and a palm; five houses fanned around the bulb
+  with driveways converging on it; houses along the lane and on the outer streets.
+- **Corner store**: a store on the corner with a striped parking lot and wheel stops, awning and sign, ice machine,
+  payphone, newspaper boxes, bench, bollards, a dumpster behind; a walk-up next door; houses along the streets.
+- **Backyard alley**: houses face the streets and back onto a concrete service alley with a centre drain; fences with
+  gates, garages and sheds on the alley, laundry lines, bins, a basketball hoop, a car, poles and wires.
+- **Warehouse block**: a tilt-up warehouse with roll-up doors and a site office in a cracked concrete yard behind
+  chain-link with barbed wire and a gate; box trucks, a shipping container, pallet stacks, a dumpster, yard lights.
+
+## "h" (the visual test scene)
+`?scene=hero` (or H on the title / pause screen): a fixed 3 x 2 grid of blocks (corner store, crescent, warehouse;
+alley, cul-de-sac, crescent) with a fringe of houses, built by exactly the same kit and pipeline as the generated city.
+The player starts in the junction at the crescent's front-left corner, looking up its front street: the reference
+camera. `tests/browser/heroshots.mjs` renders it (plus an aerial, one view per module and night);
+`tests/browser/kitshots.mjs` renders generated seeds from the same camera angle next to it.
+
+## The generated city in the kit look (default; `generateTurf(cfg, seed, { kit: false })` for the old look)
+Free whole cells get a module by zone (residential: crescent / cul-de-sac / alley / corner store; commercial: corner
+store / alley; industrial: warehouse block). Frontage left around businesses and warehouse bases outside the core is
+filled by `lotFill` (houses, walk-ups, workshops). The downtown core keeps its towers, drawn with kit materials.
+Streets, kerbs, verges and furniture come from `streets.js`; the old ground visuals stay as colliders only. All
+kit-data items add their own colliders.
 
 ---
 
@@ -402,6 +480,56 @@ reference only; copy no assets, names, or designs.
   but keep their lessons: dense small detail,
   atmospheric depth, and constant sub
 ```
+
+---
+
+## Art direction fix (remastered look, hero scene)
+ART DIRECTION FIX. The current look is flat and cartoony. The target is /references/target-look.jpeg: a remastered
+early-2000s open-world crime game look. Use it for style only; copy no assets or designs. Match its lighting,
+materials, and street detail; the city layout still comes from our generator. Fix these differences, in this order:
+1. LIGHTING: bright, neutral daylight with a clear sun and a pale sky. Remove the pink-brown grading, vignette, and
+heavy haze; keep only light distance haze. Add soft sun shadows, ambient occlusion under eaves and in corners, and
+filmic tone mapping. Light sources at night stay warm. 2. MATERIALS: no flat colors anywhere. Every surface gets a
+texture with color, roughness, and normal detail: wood siding, stucco, brick, concrete, asphalt with grain and patches,
+roof shingles, metal, chain-link. You may use free CC0 textures from Poly Haven or ambientCG, stored in
+/assets/textures with a CREDITS file; add procedural wear (grime, stains, cracks) so repetition doesn't show.
+3. BUILDINGS: framed, recessed windows with sills; trim, gutters, eaves, and proper rooflines; porches, railings, steps,
+garage doors, and fences on houses; loading docks and roll-up doors on warehouses. 4. GROUND: raised curbs (some
+painted red), sidewalks, grass strips, driveways, crosswalks, lane markings, manholes, and cracks. 5. STREET LIFE: power
+poles with sagging lines, streetlights, trees and palms built from leaf cards, shrubs, parked cars, trash cans, and
+idle pedestrians. 6. CHARACTERS: realistic human proportions, skin and fabric materials, natural colors. No toy-like
+shapes. Build one hero scene first: a street with houses, a corner, and the player walking down it, matching the
+target's camera angle. Screenshot it, compare it side by side with the target, list the five biggest differences, fix
+them, and repeat at least three times. STOP and show me before rolling the style out to the whole city. Keep 60 fps.
+
+## Character fix
+CHARACTER FIX. The player character looks like a toy (capsule limbs, segmented body), while the pedestrian NPCs look
+like real people. Unify them. 1. Build ONE shared human character generator, based on the pedestrian NPC model. The
+player, crew members, rival gang members, neutral defenders, and pedestrians all come from it. 2. Replace the player
+character with this model. The player is now LOU MANCUSO (per Part 2): a 52-year-old ex-bus driver in a worn work
+jacket, jeans, and work boots. Retire Dee's model and her old abilities (Syringe, Rounds, Salsa, Code) from the HUD.
+3. The camera is always close to the player and crew, so add a higher detail level for anyone within about 10 meters:
+smooth, continuous body with no visible joints or segments; hands with fingers; a face with real features: brows,
+nose, jaw, ears, and simple eyes; hair with volume and texture; clothing with folds, seams, and fabric textures,
+layered over the body; skin with subtle variation and shading. Distant characters keep the simpler model. 4. The
+generator varies body type, height, age, skin tone, face, hair, and outfit, so crews and crowds don't look cloned.
+5. Keep the existing animation and combat-feel systems working with the new rig. Verify with a close-up screenshot of
+Lou from the gameplay camera, one from the front, and one of Lou next to a pedestrian at the same distance. They must
+look like the same kind of person. STOP and show me.
+(Status: generator, both LODs, materials and Lou's sim kit are built; the close-up build is too slow and not yet wired
+in — parked when the next direction arrived.)
+
+## Reuse the "h" hero scene
+REUSE THE "h" HERO SCENE. 1. KIT: Extract everything that makes "h" look right into a reusable kit: materials and
+textures, lighting and sky setup, post-processing, houses, apartment buildings, curbs (including red-painted
+sections), sidewalks, grass, driveways, fences, palms and trees, power poles and lines, streetlights, cars, and props.
+Document it in DESIGN.md. 2. APPLY: Switch the procedural city to use this kit and lighting everywhere, so generated
+streets look as good as "h." 3. MODULE: Turn the hero scene into a handcrafted neighborhood module the generator can
+place. First make its layout original: change the road curve, building arrangement, and lot layout so it is no longer
+a recreation of any existing game location, while keeping its quality and feel. 4. MORE MODULES: Build 3–4 more
+original neighborhood modules in the same style (a cul-de-sac, a corner store intersection, an alley of backyards, a
+warehouse block). 5. Keep "h" as a visual test scene to compare against. Verify: generate 5 seeds, screenshot each
+from the "h" camera angle, and compare against "h." STOP and show me.
 
 ---
 

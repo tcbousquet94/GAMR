@@ -22,15 +22,21 @@ import { landmark, landmarkPlaza, park, civic, garage, perimeterBuildings, diago
 import { buildBusiness, frame, footprint, businessName, TEMPLATE, TYPES } from './business.js';
 import { buildWarehouse, warehouseFootprint, WH, WAREHOUSE_NAMES, HQ_WAREHOUSE_NAMES } from './warehouse.js';
 import { wornCity } from './worn.js';
+import { TAG } from '../kit.js';
+import { emptyKitData, kitColliders, CURB } from '../kitdata/data.js';
+import { placeModules } from '../kitdata/hood.js';
+import { streetData } from '../kitdata/streets.js';
 
-export function generateTurf(cfg, seed) {
+// opts.kit (default true): the remastered look. Streets, kerbs, verges and furniture come from the kit (as kit data),
+// free blocks are filled with neighbourhood modules, and the generator's own boxes are drawn with kit materials.
+export function generateTurf(cfg, seed, opts = {}) {
   const rng = new Rng(`turf:${cfg.id}:${seed}`);
   const kit = new Kit(rng, cfg.palette);
   // Identity + road skeleton (the landmark's spot is chosen on the skeleton, so it comes first in code).
   const L = layoutRoads(cfg, rng);
   const city = {
     district: cfg, seed: String(seed), kit, layout: L, size: L.size, sizeX: L.sizeX, sizeZ: L.sizeZ,
-    interactables: [], edges: null, laundrySpans: [],
+    interactables: [], edges: null, laundrySpans: [], kitLook: opts.kit !== false,
   };
   city.blocks = L.blocks.map((b) => ({ ...b, district: cfg.id, zone: null, owner: 'neutral', territory: null, warehouse: null, businesses: [] }));
   city.sideOpen = (cell, side) => sideOpen(L, cell, side);
@@ -49,11 +55,34 @@ export function generateTurf(cfg, seed) {
     if (b.zone === 'civic') civic(kit, city, b, raster);
   }
   for (const b of rng.shuffle(city.blocks.filter((q) => q.zone === 'commercial'))) if (rng.chance(cfg.buildings.garageChance)) garage(kit, city, b, raster);
+  // Neighbourhood modules in whole cells that nothing else has claimed (kit look).
+  const KD = city.kitLook ? emptyKitData() : null;
+  let cuts = [];
+  if (KD) {
+    const free = L.cells.filter((c) => raster.test({ x0: c.rect.x0 + 0.5, z0: c.rect.z0 + 0.5, x1: c.rect.x1 - 0.5, z1: c.rect.z1 - 0.5 }, R.BLOCK, R.DIAG | R.RESERVED | R.BUILT | R.STREET | R.MEWS));
+    const cells = free.map((c) => ({ rect: c.rect, zone: city.blocks[c.block].zone, sides: sidesOf(city, c), src: c }));
+    cuts = placeModules(KD, cells, rng);
+    for (const c of cells) if (c.placed) { raster.mark(c.rect, R.BUILT); c.src.module = c.placed; }
+    city.kitPending = KD; city.kitCuts = cuts;
+  }
   for (const b of city.blocks) if (b.zone !== 'park' && b.zone !== 'landmark') perimeterBuildings(kit, city, b, raster);
   diagonalFrontage(kit, city, raster);
   interiors(kit, city, raster);
-  furniture(kit, city, raster);
-  wornCity(kit, city, raster);
+  if (KD) {
+    // Streets in the kit look: kerbs, verges, walks, paint, palms, poles, lights, hydrants, parked cars.
+    const cells = L.cells.map((c) => ({ rect: c.rect, zone: city.blocks[c.block].zone, sides: sidesOf(city, c) }));
+    const byRect = new Map(cells.map((c) => [`${c.rect.x0},${c.rect.z0}`, c]));
+    for (const q of cuts) q.cell = byRect.get(`${q.cell.rect.x0},${q.cell.rect.z0}`);
+    delete city.kitPending; delete city.kitCuts;
+    KD.pads.unshift({ surf: 'asphalt', poly: rectPoly(city.inner, 40), y0: -0.2, y1: 0, tint: 0xc4c2be });
+    for (const c of cells) KD.pads.splice(1, 0, { surf: c.zone === 'residential' || c.zone === 'park' ? 'grass' : 'concrete', poly: rectPoly(c.rect, 0), y0: 0, y1: CURB - 0.004, tint: c.zone === 'industrial' ? 0xb8b4ac : 0xffffff });
+    streetData(KD, { cells, segs: L.segs, sw: cfg.roads.sidewalk, rng, cuts });
+    kitColliders(KD, (x0, y0, z0, x1, y1, z1, tag) => kit.collider(x0, y0, z0, x1, y1, z1, tag), TAG);
+    city.kitData = KD;
+  } else {
+    furniture(kit, city, raster);
+    wornCity(kit, city, raster);
+  }
   buildFireEscapes(kit);
 
   // Physics.
@@ -76,6 +105,9 @@ export function generateTurf(cfg, seed) {
   city.turf = turfData(city, world, kit);
   return city;
 }
+
+const sidesOf = (city, c) => ({ s: city.sideOpen(c, 's'), n: city.sideOpen(c, 'n'), e: city.sideOpen(c, 'e'), w: city.sideOpen(c, 'w') });
+const rectPoly = (r, m) => [[r.x0 - m, r.z0 - m], [r.x1 + m, r.z0 - m], [r.x1 + m, r.z1 + m], [r.x0 - m, r.z1 + m]];
 
 // ---- zoning: landmark, warehouses, HQs, territories, zones --------------------------------------------------------
 function zoning(city, rng) {

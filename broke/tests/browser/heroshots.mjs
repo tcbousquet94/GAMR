@@ -13,12 +13,16 @@ mkdirSync(OUT, { recursive: true });
 // Each shot: page-side setup run after load. The main one matches the target's camera: behind the player, walking
 // north toward the junction with the houses across the avenue.
 const SHOTS = {
-  hero: `(async () => { const B = __broke, O = 160; B.pose({ x: O - 0.5, y: 0.3, z: O + 1, yaw: 0.12, pitch: -0.12 }); B.hold({ moveZ: 0.45 }); })()`,
-  corner: `(async () => { const B = __broke, O = 160; B.pose({ x: O + 4, y: 0.3, z: O - 4, yaw: -0.95, pitch: -0.05 }); })()`,
-  house: `(async () => { const B = __broke, O = 160; B.pose({ x: O + 30, y: 0.3, z: O - 26, yaw: -0.25, pitch: 0.05 }); })()`,
-  side: `(async () => { const B = __broke, O = 160; B.pose({ x: O + 2, y: 0.3, z: O + 70, yaw: 0.0, pitch: -0.04 }); B.hold({ moveZ: 0.55 }); })()`,
-  night: `(async () => { const B = __broke, O = 160; B.pose({ x: O + 1.6, y: 0.3, z: O + 9, yaw: 0, pitch: -0.05 }); B.night(1); })()`,
+  hero: `(async () => { const B = __broke, s = B.game.city.spawn; B.pose({ x: s.x, y: 0.3, z: s.z, yaw: s.yaw, pitch: -0.12 }); B.hold({ moveZ: 0.45 }); })()`,
+  aerial: `(async () => { const B = __broke, c = B.game.city; B.fly(true, { x: c.size * 0.1, y: 120, z: c.size * 0.95, yaw: -0.75, pitch: -0.55 }); })()`,
+  night: `(async () => { const B = __broke, s = B.game.city.spawn; B.pose({ x: s.x, y: 0.3, z: s.z, yaw: s.yaw, pitch: -0.05 }); B.night(1); })()`,
 };
+// One street-level look at each module from its front street.
+for (let i = 0; i < 6; i++) SHOTS[`m${i}`] = `(async () => { const B = __broke, c = B.game.city.layout.cells[${i}], r = c.rect;
+  const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2, f = { s: [0, 1], n: [0, -1], e: [1, 0], w: [-1, 0] }[c.front];
+  const px = cx + f[0] * ((r.x1 - r.x0) / 2 + 9) - f[1] * 14, pz = cz + f[1] * ((r.z1 - r.z0) / 2 + 9) + f[0] * 14;
+  B.pose({ x: px, y: 0.3, z: pz, yaw: Math.atan2(-(cx - px), -(cz - pz)), pitch: -0.08 }); })()`;
+
 
 const srv = await startServer();
 let errs = [];
@@ -26,10 +30,11 @@ try {
   for (const [name, js] of Object.entries(SHOTS)) {
     if (only && !only.includes(name)) continue;
     const { browser, page, errors } = await openGame(srv.url, `scene=hero&shot=1&quality=high`);
+    await page.waitForFunction(() => window.__broke?.view?.composer, null, { timeout: 240000 });
     await page.waitForTimeout(1500);
     await page.evaluate(js);
-    await page.waitForTimeout(name === 'hero' || name === 'side' ? 1800 : 2500);
-    await page.screenshot({ path: `${OUT}${name}.png` });
+    await page.waitForTimeout(name === 'hero' ? 1800 : 2500);
+    await page.screenshot({ path: `${OUT}${name}.png`, timeout: 180000 });
     const perf = await page.evaluate(() => window.__broke.perf());
     console.log(name, JSON.stringify({ fps: perf.fps, calls: perf.calls, tris: perf.triangles }));
     errs = errs.concat(errors.filter((e) => !/Pointer Lock|404/.test(e)).map((e) => `${name}: ${e}`));

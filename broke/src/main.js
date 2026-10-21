@@ -7,7 +7,7 @@ import { TurfGame } from './sim/turf/turfGame.js';
 import { downtown } from './city/districts/downtown.js';
 import { DEE } from './sim/survivors/dee.js';
 import { View } from './render/view.js';
-import { HeroView } from './render/hero/heroView.js';
+import { KitView } from './render/kit/kitView.js';
 import { HeroGame } from './sim/hero/heroGame.js';
 import { Input } from './input/input.js';
 import { Hud } from './ui/hud.js';
@@ -27,7 +27,8 @@ const canvas = document.getElementById('game');
 // for the session, so it also works where the URL can't be edited).
 const sceneFlag = () => { try { return sessionStorage.getItem('broke.scene'); } catch { return null; } };
 const HERO = params.get('scene') === 'hero' || (params.get('scene') == null && sceneFlag() === 'hero');
-const view = new (HERO ? HeroView : View)(canvas, { quality: params.get('quality') || 'auto', preserve: params.has('shot') || params.has('bot') });
+const CLASSIC = params.get('mode') === 'classic'; // the retired roguelike keeps its old renderer
+const view = new (CLASSIC ? View : KitView)(canvas, { quality: params.get('quality') || 'auto', preserve: params.has('shot') || params.has('bot') });
 const input = new Input(canvas);
 const touch = new TouchControls(document.getElementById('touch'), Object.fromEntries(Object.entries(ABILITY_ICONS).map(([k, v]) => [k, icon(v, '#ffffff', 64, true)])));
 input.touch = touch;
@@ -200,7 +201,7 @@ installDebug(app, { startRun });
 if (HERO || params.get('autostart') === '1' || params.has('bot') || params.has('shot')) startRun(app.seed);
 else {
   // Title screen over a live city backdrop.
-  const g = (app.game = new Game({ seed: app.seed, district: downtown, survivor: DEE }));
+  const g = (app.game = CLASSIC ? new Game({ seed: app.seed, district: downtown, survivor: DEE }) : new TurfGame({ seed: app.seed, survivor: DEE }));
   g.director.enabled = false;
   view.load(g);
   hud.bind(g, DEE, touch);

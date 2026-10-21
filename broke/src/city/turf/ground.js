@@ -18,16 +18,17 @@ export function ground(kit, city, raster) {
   const inner = { x0: L.X[0], z0: L.Z[0], x1: L.X[L.cols] + L.S, z1: L.Z[L.rows] + L.S };
   city.inner = inner;
   // One asphalt slab under the whole street grid; blocks sit on it at curb height.
-  kit.solid(inner.x0, -1, inner.z0, inner.x1, 0, inner.z1, pal.asphalt, MAT.STD, TAG.GROUND);
+  const kl = city.kitLook; // kit look: the kit draws streets, sidewalks and block ground; these stay as colliders
+  kit.solid(inner.x0, -1, inner.z0, inner.x1, 0, inner.z1, kl ? null : pal.asphalt, MAT.STD, TAG.GROUND);
   for (const sg of L.segs) raster.mark(sg.rect, R.STREET);
   for (const I of L.intersections) raster.mark(I.rect, R.STREET);
   for (const c of L.cells) {
     const r = c.rect;
     const zone = city.blocks[c.block].zone;
     // Sidewalk ring (inside the street corridor) and the block's own ground.
-    kit.solid(r.x0 - sw, 0, r.z0 - sw, r.x1 + sw, G - 0.01, r.z1 + sw, pal.sidewalk, MAT.STD, TAG.GROUND);
-    kit.box(r.x0 - sw - 0.2, 0, r.z0 - sw - 0.2, r.x1 + sw + 0.2, G - 0.02, r.z1 + sw + 0.2, pal.curb);
-    kit.solid(r.x0, -1, r.z0, r.x1, G, r.z1, zone === 'park' ? 0x4f6040 : zone === 'landmark' || zone === 'civic' ? 0x7a7680 : zone === 'industrial' ? 0x5d5a62 : 0x67636e, MAT.STD, TAG.GROUND);
+    kit.solid(r.x0 - sw, 0, r.z0 - sw, r.x1 + sw, G - 0.01, r.z1 + sw, kl ? null : pal.sidewalk, MAT.STD, TAG.GROUND);
+    if (!kl) kit.box(r.x0 - sw - 0.2, 0, r.z0 - sw - 0.2, r.x1 + sw + 0.2, G - 0.02, r.z1 + sw + 0.2, pal.curb);
+    kit.solid(r.x0, -1, r.z0, r.x1, G, r.z1, kl ? null : zone === 'park' ? 0x4f6040 : zone === 'landmark' || zone === 'civic' ? 0x7a7680 : zone === 'industrial' ? 0x5d5a62 : 0x67636e, MAT.STD, TAG.GROUND);
     raster.mark(r, R.BLOCK);
   }
   // Mews: where a street was pedestrianised, paving at curb height with planters and benches down the middle.
@@ -42,7 +43,7 @@ export function ground(kit, city, raster) {
     for (let z = 0; z < raster.h; z++) for (let x = 0; x < raster.w; x++) if (diagDist(D, x + 0.5, z + 0.5) < D.width / 2 + 1.5) raster.a[z * raster.w + x] |= R.DIAG;
     diagonal(kit, city, raster);
   }
-  markings(kit, city);
+  if (!kl) markings(kit, city);
 }
 
 function mewsDressing(kit, m) {

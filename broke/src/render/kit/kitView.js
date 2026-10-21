@@ -1,4 +1,4 @@
-// Renderer for the hero scene (?scene=hero): the remastered look's lighting model. Bright neutral daylight from a
+// Renderer for the remastered look (the "h" test neighbourhood and the generated city): its lighting model. Bright neutral daylight from a
 // clear sun and a pale sky, image-based ambient from that sky, soft PCF sun shadows, screen-space ambient occlusion
 // (GTAO) for contact darkening under eaves and in corners, light distance haze only (scene fog), MSAA, and ACES
 // filmic tone mapping. No colour grade or vignette. At night the sun goes out and the streetlights and windows stay warm.
@@ -15,10 +15,13 @@ import { Fx } from '../fx.js';
 import { Telegraphs } from '../telegraphs.js';
 import { RigType, rootMatrix } from '../rig.js';
 import { humanPose } from '../models/humanoid.js';
-import { buildHeroScene } from './scene.js';
-import { heroMaterials } from './materials.js';
-import { personModel, personMaterial } from './people.js';
-import { PEOPLE, O } from '../../hero/layout.js';
+import { buildKitWorld } from './world.js';
+import { kitMaterials as heroMaterials } from './materials.js';
+import { personMaterial } from './people.js';
+import { makePerson } from '../people/person.js';
+import { loModel } from '../people/lo.js';
+import { buildCity } from '../cityMesh.js';
+import { buildEdges } from '../edges.js';
 
 // Sun from the south-east, fairly high: street faces read lit and shadows fall forward-left across the road.
 const SUN = new THREE.Vector3(0.55, 0.66, 0.42).normalize();
@@ -31,7 +34,7 @@ export const HERO_QUALITY = {
   low: { pixelRatio: 0.8, shadows: 1024, ao: false, msaa: 0, pointLights: 2 },
 };
 
-export class HeroView extends View {
+export class KitView extends View {
   load(game) {
     this.dispose();
     const scene = (this.scene = new THREE.Scene());
@@ -49,12 +52,16 @@ export class HeroView extends View {
     this.sun.shadow.bias = -0.0003; this.sun.shadow.normalBias = 0.04; this.sun.shadow.radius = 3; this.sun.shadow.blurSamples = 10;
     scene.add(this.hemi, this.sun, this.sun.target);
     this.pmrem = new THREE.PMREMGenerator(this.renderer);
-    // World.
-    const built = buildHeroScene();
+    // World: the city's kit data (streets, modules) as batched meshes, chunked for big maps.
+    const city = game.city;
+    const built = buildKitWorld(city.kitData, { chunk: city.hero ? 0 : 160, seed: city.seed, kit: city.hero ? null : city.kit });
+    // The generated city also has emissive pieces, window quads, signs, props and light pools in the old city mesh.
+    if (!city.hero) { this.cityMesh = buildCity(city, scene, { kitBoxes: true }); this.edgeMesh = city.edges ? buildEdges(city, scene) : null; }
     scene.add(built.group);
     this.world = built.group;
     this.lamps = built.lamps;
-    this.foliage = built.group.children.filter((m) => m.name === 'leaves' || m.name === 'frond' || m.name === 'chainlink');
+    this.foliage = [];
+    built.group.traverse((m) => { if (m.isMesh && ['leaves', 'frond', 'chainlink', 'tuft'].includes(m.name)) this.foliage.push(m); });
     this.points = [];
     for (let i = 0; i < 5; i++) { const l = new THREE.PointLight(0xffb878, 0, 22, 1.8); scene.add(l); this.points.push(l); }
     // Characters: the player (shared actor layer) plus idle locals, all in the skin/fabric material.
@@ -63,14 +70,12 @@ export class HeroView extends View {
     this.actors = new Actors(scene, game, this);
     const pm = personMaterial();
     for (const m of this.actors.dee.meshes) { m.material = pm; m.receiveShadow = true; }
-    this.people = {};
-    for (const look of new Set(PEOPLE.map((p) => p.look))) {
-      this.people[look] = new RigType(personModel(look), 4, scene);
-      for (const m of this.people[look].meshes) { m.material = pm; m.receiveShadow = true; }
-    }
+    // Locals from the shared person generator (distant level of detail).
+    this.peopleList = (city.kitData.people || []).map((p) => ({ ...p, rig: new RigType(loModel(makePerson(p.seed)), 1, scene) }));
+    for (const p of this.peopleList) for (const m of p.rig.meshes) { m.material = pm; m.receiveShadow = true; }
     this.fx = new Fx(scene, game, this);
     this.tele = new Telegraphs(scene, game);
-    this.city = null; this.details = null; this.edges = null;
+    this.city = null; this.details = null; this.edges = null; // (View's own city mesh is not used here)
     this.setQuality(this.qualityName === 'auto' ? 'high' : this.qualityName);
     this.frame = 0;
     this.t = 0;
@@ -132,6 +137,7 @@ export class HeroView extends View {
     this.scene.environment = this.envRT.texture;
     this.scene.environmentIntensity = DAY.env + (NIGHT.env - DAY.env) * k;
     this.placeLamps();
+    this.cityMesh?.setNight(k);
   }
 
   // The real point lights go to the streetlights nearest the camera.
@@ -159,6 +165,8 @@ export class HeroView extends View {
     this.renderer.shadowMap.autoUpdate = false;
     if (this.frame % 2 === 0 || this.frame < 3) this.renderer.shadowMap.needsUpdate = true;
     if (this.night > 0.1 && this.frame % 30 === 0) this.placeLamps();
+    if (this.cityMesh && this.frame % 30 === 0) this.cityMesh.updateLod(this.camera.position);
+    this.cityMesh?.tick(g.time); this.edgeMesh?.update(g.time);
     this.actors.update(dt);
     this.updatePeople(dt);
     this.fx.update(dt);
@@ -169,9 +177,10 @@ export class HeroView extends View {
   }
 
   updatePeople() {
-    for (const r of Object.values(this.people)) r.begin();
-    const m = new THREE.Matrix4();
-    PEOPLE.forEach((p, i) => {
+    const m = new THREE.Matrix4(), cam = this.camera.position;
+    this.peopleList.forEach((p, i) => {
+      p.rig.begin();
+      if ((p.x - cam.x) ** 2 + (p.z - cam.z) ** 2 > 110 * 110) { p.rig.end(); return; }
       const st = { phase: 0, speed: 0, t: this.t + i * 1.7 };
       const pose = humanPose(st);
       // Idle weight shift and the odd gesture.
@@ -180,10 +189,10 @@ export class HeroView extends View {
       pose.foreL = [0.25, 0, 0]; pose.foreR = [0.25, 0, 0];
       if (i % 2 === 1) { pose.armR = [0.9 + Math.sin(this.t * 2 + i) * 0.25, 0, 0.3]; pose.foreR = [1.0, 0, 0]; }
       pose.head = [0.05, Math.sin(this.t * 0.4 + i * 2) * 0.4, 0];
-      rootMatrix(O + p.x, 0.15, O + p.z, p.yaw, 1, m);
-      this.people[p.look].add(m, pose);
+      rootMatrix(p.x, p.y ?? 0.15, p.z, p.yaw, 1, m);
+      p.rig.add(m, pose);
+      p.rig.end();
     });
-    for (const r of Object.values(this.people)) r.end();
   }
 
   // Auto quality only steps resolution here (the tiers are built around AO + shadows).

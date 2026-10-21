@@ -72,6 +72,7 @@ export function towerOnPodium(kit, r, podH, towerH, opts = {}) {
   const inset = Math.min((r.x1 - r.x0), (r.z1 - r.z0)) * 0.22;
   const t = { x0: r.x0 + inset, z0: r.z0 + inset, x1: r.x1 - inset, z1: r.z1 - inset };
   if (opts.towerShift) { t.x0 += opts.towerShift[0]; t.x1 += opts.towerShift[0]; t.z0 += opts.towerShift[1]; t.z1 += opts.towerShift[1]; }
+  if (opts.landmark) return landmarkSpire(kit, t, podH, towerH, opts);
   building(kit, t, towerH, { style: 'glass', base: podH, roof: false, windowStart: podH + 1.2 });
   // Faceted crown so towers read like the reference skyline.
   const cx = (t.x0 + t.x1) / 2, cz = (t.z0 + t.z1) / 2, w = (t.x1 - t.x0) * 0.75;
@@ -85,6 +86,51 @@ export function towerOnPodium(kit, r, podH, towerH, opts = {}) {
     const p = f === 'n' ? { x: cx, z: t.z0 - 0.1, nx: 0, nz: -1 } : f === 's' ? { x: cx, z: t.z1 + 0.1, nx: 0, nz: 1 } : f === 'w' ? { x: t.x0 - 0.1, z: cz, nx: -1, nz: 0 } : { x: t.x1 + 0.1, z: cz, nx: 1, nz: 0 };
     kit.sign(towerName(rng), 'tower', p.x, towerH - 4, p.z, (t.x1 - t.x0) * 0.7, 2.2, p.nx, p.nz, rng.pick([0x33e0ff, 0xe8e4f0, 0xb04bff]));
   }
+  return t;
+}
+
+// The district landmark: a stepped art-deco shaft with two setbacks, lit crown bands and a needle spire. It is
+// visible from every street, so it doubles as the player's compass (spawn on the avenue, landmark mid-route).
+function landmarkSpire(kit, t, podH, H, opts) {
+  const { pal } = kit;
+  const stone = 0x8c8696, trim = 0xd8c8a8, warm = 0xffd27a;
+  const tiers = [[0, 0.62], [3, 0.84], [6, 1]];
+  let base = podH;
+  for (const [ins, frac] of tiers) {
+    const r = { x0: t.x0 + ins, z0: t.z0 + ins, x1: t.x1 - ins, z1: t.z1 - ins };
+    const top = podH + (H - podH) * frac;
+    building(kit, r, top, { style: 'glass', base, roof: false, windowStart: base + 1.2 });
+    // Stone cornice at each setback, with a band of lit crown windows just below it.
+    kit.box(r.x0 - 0.4, top - 0.2, r.z0 - 0.4, r.x1 + 0.4, top + 0.9, r.z1 + 0.4, trim);
+    kit.box(r.x0, top, r.z0, r.x1, top + 0.3, r.z1, stone);
+    const w = r.x1 - r.x0, d = r.z1 - r.z0;
+    for (const [nx, nz] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+      const n = Math.floor((nx ? d : w) / 2.2);
+      for (let i = 0; i < n; i++) {
+        const a = (i + 0.5) * ((nx ? d : w) / n);
+        const x = nx ? (nx < 0 ? r.x0 - 0.05 : r.x1 + 0.05) : r.x0 + a;
+        const z = nz ? (nz < 0 ? r.z0 - 0.05 : r.z1 + 0.05) : r.z0 + a;
+        kit.quad(x, top - 1.6, z, 1.2, 2.2, nx, nz, 0xe8d8b0, warm);
+      }
+    }
+    base = top;
+  }
+  // Crown: stacked shrinking drums, then the needle and its beacon.
+  const cx = (t.x0 + t.x1) / 2, cz = (t.z0 + t.z1) / 2;
+  let s = (t.x1 - t.x0) - 16, y = H;
+  for (let k = 0; k < 4; k++) {
+    const h = 4.5 - k * 0.6;
+    kit.boxC(cx, y + h / 2, cz, s, h, s, k % 2 ? trim : stone, MAT.STD, { ry: k % 2 ? Math.PI / 4 : 0 });
+    for (const [nx, nz] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) kit.quad(cx + nx * (s / 2 + 0.05), y + h * 0.55, cz + nz * (s / 2 + 0.05), s * 0.7, h * 0.4, nx, nz, 0xe8d8b0, warm);
+    y += h; s *= 0.7;
+  }
+  kit.box(cx - 0.5, y, cz - 0.5, cx + 0.5, y + 10, cz + 0.5, pal.metal, MAT.METAL);
+  kit.box(cx - 0.18, y + 10, cz - 0.18, cx + 0.18, y + 30, cz + 0.18, pal.metal, MAT.METAL);
+  kit.light(cx, y + 30, cz, 0xff3355, 0, 'beacon');
+  kit.light(cx, H + 4, cz, warm, 0, 'beacon');
+  const f = opts.signFace || 'n';
+  const p = f === 'n' ? { x: cx, z: t.z0 - 0.5, nx: 0, nz: -1 } : f === 's' ? { x: cx, z: t.z1 + 0.5, nx: 0, nz: 1 } : f === 'w' ? { x: t.x0 - 0.5, z: cz, nx: -1, nz: 0 } : { x: t.x1 + 0.5, z: cz, nx: 1, nz: 0 };
+  kit.sign('FIRST NATIONAL DEBT', 'tower', p.x, podH + (H - podH) * 0.62 - 4, p.z, (t.x1 - t.x0) * 0.85, 2.6, p.nx, p.nz, 0xffd27a);
   return t;
 }
 

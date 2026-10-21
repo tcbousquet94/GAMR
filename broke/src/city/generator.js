@@ -39,16 +39,28 @@ export function generateCity(district, seed) {
     }
   }
 
-  // Spawn on the west outer street, exit (subway) in the east column on a lot facing the outer east street.
-  const spawnRow = rng.int(0, 2 * N - 1);
-  const spawnLotRow = city.lots.filter((l) => l.gj === spawnRow);
-  const sz = (spawnLotRow[0].rect.z0 + spawnLotRow[0].rect.z1) / 2;
-  city.spawn = { x: W * 0.5, y: 0, z: sz, yaw: -Math.PI / 2 };
-  // Exit row is on the far side vertically too when possible, so the route crosses the map.
+  // District identity (layout only): a main avenue spine runs east from the spawn edge across town; the centre
+  // block is the landmark core; the exit sits on the far edge, off the avenue, so the route reads as
+  // "down the avenue, past the landmark, then find the station".
+  const avK = rng.int(1, N - 1); // inner horizontal street index
+  const avZ0 = avK * (B + W);
+  city.avenue = { k: avK, z0: avZ0, z1: avZ0 + W, zc: avZ0 + W / 2 };
+  city.spawn = { x: W * 0.5, y: 0, z: city.avenue.zc, yaw: -Math.PI / 2 };
   const exitCandidates = city.lots.filter((l) => l.gi === 2 * N - 1);
-  const farRows = exitCandidates.filter((l) => Math.abs(l.gj - spawnRow) >= N - 1);
-  const exitLot = rng.pick(farRows.length ? farRows : exitCandidates);
+  const offAvenue = exitCandidates.filter((l) => l.rect.z1 < avZ0 - 1 || l.rect.z0 > avZ0 + W + 1);
+  const score = (l) => Math.abs((l.rect.z0 + l.rect.z1) / 2 - city.avenue.zc);
+  const sorted = (offAvenue.length ? offAvenue : exitCandidates).slice().sort((a, b) => score(b) - score(a));
+  const exitLot = rng.pick(sorted.slice(0, 2));
   exitLot.type = 'subway';
+  // Landmark core: the centre block. Its lot on the avenue gets the landmark spire, the one beside it a plaza.
+  const centre = city.blocks.find((b) => b.i === Math.floor(N / 2) && b.j === Math.floor(N / 2));
+  if (centre) {
+    const onAv = centre.lots.filter((l) => !l.type && (Math.abs(l.rect.z1 - avZ0) < W + 1 || Math.abs(l.rect.z0 - (avZ0 + W)) < W + 1));
+    const lm = onAv[0] || centre.lots.find((l) => !l.type);
+    if (lm) { lm.type = 'tower'; lm.landmark = true; city.landmark = lm; }
+    const pl = centre.lots.find((l) => !l.type && l.li !== lm?.li && l.lj === lm?.lj) || centre.lots.find((l) => !l.type);
+    if (pl) pl.type = 'plaza';
+  }
   assignModules(city, rng);
 
   // Streets first (ground, sidewalks, furniture), then each module.
@@ -138,6 +150,16 @@ function boundary(kit, city) {
   kit.collider(size - 0.5, -5, -20, size + 20, h, size + 20, TAG.BOUNDARY);
   kit.collider(-20, -5, -20, size + 20, h, 0.5, TAG.BOUNDARY);
   kit.collider(-20, -5, size - 0.5, size + 20, h, size + 20, TAG.BOUNDARY);
+  // Readable edges (layout only): the east edge, where the station is, runs along an elevated rail viaduct; the
+  // west edge, behind the spawn, along a highway overpass. Both sit just outside the invisible walls; the
+  // renderer runs trains and traffic over them (city.edges).
+  const off = 16; // gap between the map edge and the facades behind the viaduct / overpass
+  city.edges = {
+    rail: { x: size + 8, y: 10.5, z0: -40, z1: size + 40 },
+    road: { x: -8, y: 8.5, z0: -40, z1: size + 40 },
+  };
+  edgeStructure(kit, city.edges.rail, 4.2, 0x8a8078, true);
+  edgeStructure(kit, city.edges.road, 6, 0x857f86, false);
   // Boundary facades: a row of tall buildings just outside the map so streets end in walls, not voids.
   const r = kit.rng;
   for (const side of ['n', 's', 'w', 'e']) {
@@ -148,12 +170,41 @@ function boundary(kit, city) {
       const c = r.pick(pal.brick.concat(pal.concrete));
       if (side === 'n') kit.box(t, -0.5, -d, t + w - 1, hh, 0, c);
       if (side === 's') kit.box(t, -0.5, size, t + w - 1, hh, size + d, c);
-      if (side === 'w') kit.box(-d, -0.5, t, 0, hh, t + w - 1, c);
-      if (side === 'e') kit.box(size, -0.5, t, size + d, hh, t + w - 1, c);
+      if (side === 'w') kit.box(-d - off, -0.5, t, -off, hh, t + w - 1, c);
+      if (side === 'e') kit.box(size + off, -0.5, t, size + d + off, hh, t + w - 1, c);
       kit.boundaryFacades = kit.boundaryFacades || [];
       kit.boundaryFacades.push({ side, t, w: w - 1, h: hh });
       t += w;
     }
+  }
+}
+
+// Viaduct / overpass: a deck on concrete piers with parapets, plus pier lamps. half = half-width of the deck.
+function edgeStructure(kit, e, half, color, rail) {
+  const { x, y, z0, z1 } = e;
+  kit.box(x - half, y - 1.4, z0, x + half, y, z1, color);
+  kit.box(x - half - 0.2, y - 1.6, z0, x + half + 0.2, y - 1.3, z1, 0x6e6870);
+  kit.box(x - half, y, z0, x - half + 0.3, y + 1.1, z1, color);
+  kit.box(x + half - 0.3, y, z0, x + half, y + 1.1, z1, color);
+  for (let z = z0 + 6; z < z1; z += 24) {
+    kit.box(x - 1.2, -0.5, z - 1.2, x + 1.2, y - 1.4, z + 1.2, 0x7e7680);
+    kit.box(x - half + 0.4, y - 3.2, z - 1.4, x + half - 0.4, y - 1.4, z + 1.4, 0x7e7680); // pier cap
+  }
+  if (rail) {
+    for (const o of [-1.6, 1.6]) for (const g of [-0.72, 0.72]) kit.box(x + o + g - 0.06, y, z0, x + o + g + 0.06, y + 0.18, z1, 0x5a5560);
+    // Catenary masts.
+    for (let z = z0 + 18; z < z1; z += 36) {
+      kit.box(x + half - 0.6, y, z - 0.12, x + half - 0.36, y + 6.5, z + 0.12, 0x4a4650);
+      kit.box(x - 2.2, y + 6.2, z - 0.1, x + half - 0.36, y + 6.4, z + 0.1, 0x4a4650);
+    }
+    kit.sign('METRO LINE 7', 'paint', x - half - 0.25, y - 0.7, (z0 + z1) / 2, 14, 1.0, -1, 0, 0xe8e0d0);
+  } else {
+    for (let z = z0 + 10; z < z1; z += 30) {
+      kit.box(x - 0.1, y, z - 0.1, x + 0.1, y + 7, z + 0.1, 0x4a4650);
+      kit.light(x, y + 7, z, 0xffc070, 10, 'street');
+    }
+    kit.sign('I-90 EXPRESS', 'wayfind', x + half + 0.25, y + 3.4, (z0 + z1) * 0.35, 9, 2.2, 1, 0, 0xe8e4f0);
+    kit.box(x + half - 0.1, y, (z0 + z1) * 0.35 - 0.1, x + half + 0.1, y + 4.6, (z0 + z1) * 0.35 + 0.1, 0x4a4650);
   }
 }
 
@@ -169,6 +220,8 @@ function placeInteractables(city, rng) {
   const out = [];
   const used = [];
   const farEnough = (s) => used.every((u) => (u.x - s.x) ** 2 + (u.z - s.z) ** 2 > 36);
+  // Never park a machine at the foot of a ladder (it would block the climb).
+  const nearClimb = (s) => kit.climbs.some(({ box: b }) => s.x > b.minX - 2 && s.x < b.maxX + 2 && s.z > b.minZ - 2 && s.z < b.maxZ + 2 && s.y < b.maxY && s.y > b.minY - 1);
   const take = (s, type) => {
     used.push(s);
     out.push({ id: out.length, type, x: s.x, y: s.y, z: s.z, yaw: s.yaw, module: s.module, used: false });
@@ -176,11 +229,16 @@ function placeInteractables(city, rng) {
   // Module-forced interactables (call panel etc.).
   for (const s of kit.slots) if (s.tags.includes('force')) take(s, s.tags.find((t) => t !== 'force'));
   for (const lot of city.lots) {
-    const slots = rng.shuffle(kit.slots.filter((s) => s.module === lot.id && !s.tags.includes('force') && validStandPoint(world, s.x, s.y, s.z, 0.6, 1.8)));
+    const slots = rng.shuffle(kit.slots.filter((s) => s.module === lot.id && !s.tags.includes('force') && !nearClimb(s) && validStandPoint(world, s.x, s.y, s.z, 0.6, 1.8)));
     // Food truck alleys are a good place for vending machines.
     const boost = lot.type === 'foodtrucks' ? { vending: 2.0 } : {};
+    // Services cluster along the main avenue; the edges of town are quieter.
+    const av = city.avenue;
+    const nearAv = av && (Math.abs(lot.rect.z1 - av.z0) < 2 || Math.abs(lot.rect.z0 - av.z1) < 2);
+    const edge = lot.gi === 0 || lot.gj === 0 || lot.gi === 2 * city.N - 1 || lot.gj === 2 * city.N - 1;
+    const densMul = nearAv ? 1.45 : edge ? 0.75 : 1;
     for (const [type, d] of Object.entries(dens)) {
-      const want = Math.floor(d * (boost[type] || 1) + rng.next());
+      const want = Math.floor(d * (boost[type] || 1) * densMul + rng.next());
       for (let k = 0; k < want; k++) {
         const s = slots.find((q) => farEnough(q) && (type !== 'locker' || q.tags.includes('front') || q.tags.includes('wall')) && (type !== 'newsbox' || q.y < 1));
         if (s) take(s, type);
@@ -188,7 +246,7 @@ function placeInteractables(city, rng) {
     }
   }
   // Street slots fill gaps so the street never feels empty.
-  const street = rng.shuffle(kit.slots.filter((s) => s.module === -1 && validStandPoint(world, s.x, s.y, s.z, 0.6, 1.8)));
+  const street = rng.shuffle(kit.slots.filter((s) => s.module === -1 && !nearClimb(s) && validStandPoint(world, s.x, s.y, s.z, 0.6, 1.8)));
   let extra = Math.round(city.lots.length * 0.6);
   for (const s of street) {
     if (extra <= 0) break;

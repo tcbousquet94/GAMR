@@ -31,7 +31,8 @@ export function installDebug(app, { startRun }) {
       Object.assign(P.body.vel, { x: 0, y: 0, z: 0 });
       P.yaw = yaw; P.pitch = pitch;
       app.input.yaw = yaw; app.input.pitch = pitch;
-      for (let i = 0; i < 3; i++) app.game.step({ ...EMPTY_INPUT, yaw, pitch });
+      // Settle onto the ground so the animator (stepped with the sim in shot mode) is not frozen mid-fall.
+      for (let i = 0; i < 40; i++) { app.game.step({ ...EMPTY_INPUT, yaw, pitch }); app.view.actors?.update(1 / 60); }
     },
     step(n = 1, input = {}) { for (let i = 0; i < n; i++) app.game.step({ ...EMPTY_INPUT, yaw: app.game.player.yaw, pitch: app.game.player.pitch, ...input }); },
     setMinutes(m) { app.game.clock.time = m * 60; app.game.clock.update(0); },

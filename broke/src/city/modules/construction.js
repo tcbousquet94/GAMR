@@ -65,10 +65,12 @@ export function construction(kit, lot) {
     if (y === 24) continue;
     // Partial concrete decks in some bays.
     for (let bx = 0; bx < 4; bx++) for (let bz = 0; bz < 3; bz++) {
-      if (rng.chance(y === 8 ? 0.7 : 0.45)) kit.solid(F.x0 + bx * 8, y - 0.3, F.z0 + bz * 8, F.x0 + bx * 8 + 8, y, F.z0 + bz * 8 + 8, 0x7b7680, MAT.STD, TAG.PLATFORM);
+      // The bay row beside the scaffold is always decked at 8m so the frame's shop slot is reachable.
+      const besideScaffold = y === 8 && bx === 0 && bz === (north ? 0 : 2);
+      if (besideScaffold || rng.chance(y === 8 ? 0.7 : 0.45)) kit.solid(F.x0 + bx * 8, y - 0.3, F.z0 + bz * 8, F.x0 + bx * 8 + 8, y, F.z0 + bz * 8 + 8, 0x7b7680, MAT.STD, TAG.PLATFORM);
     }
   }
-  kit.slot(F.x0 + 4, 8, F.z0 + 4, 0, ['frame']);
+  kit.slot(F.x0 + 4, 8, north ? F.z0 + 4 : F.z1 - 4, 0, ['frame']);
   kit.spawn(F.x0 + 12, G, F.z0 + 12, 'site');
   // Scaffolding on the frame face toward the pit.
   const sf = north ? F.z0 - 1.6 : F.z1;

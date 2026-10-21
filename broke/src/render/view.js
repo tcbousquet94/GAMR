@@ -13,6 +13,7 @@ import { CameraRig } from './camera.js';
 import { Actors } from './actors.js';
 import { Fx } from './fx.js';
 import { buildDetails } from './details.js';
+import { buildEdges } from './edges.js';
 
 // Sun sits to the south-west so it lights the facades you see heading east toward the subway.
 const SUN_AZ = Math.PI * 0.82;
@@ -65,6 +66,7 @@ export class View {
     for (let i = 0; i < 6; i++) { const l = new THREE.PointLight(0xffa34d, 0, 16, 1.6); scene.add(l); this.points.push(l); }
     this.city = buildCity(game.city, scene);
     this.details = buildDetails(game.city, scene);
+    this.edges = buildEdges(game.city, scene);
     this.lightList = game.city.kit.lights.filter((l) => l.radius > 0 && l.kind !== 'steam');
     this.rig = new CameraRig(this.camera);
     this.actors = new Actors(scene, game, this);
@@ -136,6 +138,7 @@ export class View {
     if (this.lodT <= 0) { this.lodT = 0.5; this.city.updateLod(cam); this.placePointLights(cam, L.night); }
     this.city.tick(g.time);
     this.details.update(g.time);
+    this.edges.update(g.time);
     this.actors.update(dt);
     this.fx.update(dt);
     this.renderer.info.reset();

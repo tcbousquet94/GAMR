@@ -48,7 +48,7 @@ export function tower(kit, lot) {
   // Ceiling + upper podium floors + roof, tower above.
   kit.solid(P.x0, lobbyH, P.z0, P.x1, podH, P.z1, 0x6d6a74, MAT.STD, TAG.BUILDING);
   kit.box(P.x0 - 0.3, lobbyH, P.z0 - 0.3, P.x1 + 0.3, lobbyH + 0.8, P.z1 + 0.3, 0x8f8a96);
-  towerOnPodium(kit, P, podH, rng.range(48, 92), { skipPodium: true, signFace: fz });
+  towerOnPodium(kit, P, podH, lot.landmark ? rng.range(150, 170) : rng.range(48, 92), { skipPodium: true, signFace: fz, landmark: lot.landmark });
   // Podium upper windows (lit offices) on all faces.
   for (const [f, L] of [['x', zf], ['x', zb], ['z', xf], ['z', xb]]) {
     for (let y = lobbyH + 1.5; y < podH - 1; y += 3.5) {

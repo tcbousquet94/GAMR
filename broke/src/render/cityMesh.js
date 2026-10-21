@@ -318,6 +318,11 @@ function drawSign(ctx, s, x, y, w, h) {
     ctx.fillText(s.text, cx, cy);
     ctx.shadowBlur = 0;
     ctx.fillStyle = col; ctx.globalAlpha = 0.55; ctx.fillText(s.text, cx, cy); ctx.globalAlpha = 1;
+  } else if (s.kind === 'wayfind') {
+    ctx.fillStyle = '#24324a'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#e8eef6';
+    ctx.font = font(40, 700);
+    ctx.fillText(s.text, cx, cy);
   } else if (s.kind === 'graffiti') {
     ctx.font = `italic ${font(size + 4, 900)}`;
     ctx.fillStyle = col; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 5;

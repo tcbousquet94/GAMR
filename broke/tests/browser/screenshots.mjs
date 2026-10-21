@@ -21,6 +21,9 @@ const SHOTS = {
   hud: { min: 6, js: `(() => { const g=__broke.game; g.director.enabled=false; for (const id of ['latte','espresso','espresso','coupon','hotsauce','dataplan','replyall','insoles','gavel']) g.giveItem(id); g.player.equipment='airhorn'; g.economy.cents=1234; g.player.hp=48; g.player.cooldowns.utility=3; const s=g.city.spawn; __broke.pose({x:s.x, y:0.2, z:s.z, yaw:-Math.PI/2+0.2, pitch:0.05}); })()` },
   phone: { min: 0.6, mobile: true, js: `(() => { const g=__broke.game; const s=g.city.spawn; g.director.enabled=false; __broke.pose({x:s.x, y:0.2, z:s.z, yaw:0, pitch:0.12}); })()` },
   wide: { min: 0.3, js: `(() => { const g=__broke.game; g.director.enabled=false; const s=g.city.spawn; const W=g.city.W, B=g.city.B; __broke.pose({x:W+B+W*0.5, y:0.2, z:s.z, yaw:-Math.PI/2 + 0.25, pitch:0.2}); __broke.view.rig.dist=6; })()` },
+  landmark: { min: 1.5, js: `(() => { const g=__broke.game; g.director.enabled=false; const s=g.city.spawn; __broke.pose({x:s.x, y:0.2, z:s.z, yaw:-Math.PI/2, pitch:0.3}); __broke.view.rig.dist=5; })()` },
+  viaduct: { min: 2, js: `(() => { const g=__broke.game; g.director.enabled=false; const S=g.city.size; const e=g.city.edges.rail; const ex=g.city.exit.center; g.time=8; __broke.pose({x:S-8, y:0.2, z:ex.z-40, yaw:-Math.PI/2-0.6, pitch:0.28}); __broke.view.rig.dist=6; })()` },
+  overpass: { min: 2.5, js: `(() => { const g=__broke.game; g.director.enabled=false; const s=g.city.spawn; __broke.pose({x:9, y:0.2, z:s.z+20, yaw:Math.PI/2+0.45, pitch:0.2}); })()` },
   dee: { min: 0.5, js: `(() => { const g=__broke.game; const s=g.city.spawn; g.director.enabled=false; __broke.pose({x:s.x, y:0.2, z:s.z, yaw:0, pitch:-0.35}); __broke.view.rig.dist=2.6; })()` },
 };
 

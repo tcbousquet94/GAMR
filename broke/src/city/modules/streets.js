@@ -84,7 +84,7 @@ export function streets(kit, city) {
     for (let t = 0; t < size; t += 7) {
       if (isIntersection(t, city) || isIntersection(t + 3, city)) continue;
       kit.box(c - 0.08, 0, t, c + 0.08, 0.02, t + 3, pal.lane);
-      kit.box(t, 0, c - 0.08, t + 3, 0.02, c + 0.08, pal.lane);
+      if (!(city.avenue && k === city.avenue.k)) kit.box(t, 0, c - 0.08, t + 3, 0.02, c + 0.08, pal.lane);
     }
     for (let m = 0; m <= N; m++) {
       const ic = pos(m) - W / 2;
@@ -94,6 +94,9 @@ export function streets(kit, city) {
       }
     }
   }
+
+  if (city.avenue) avenue(kit, city);
+  wayfinding(kit, city);
 
   // Furniture along every block edge.
   for (const bl of city.blocks) {
@@ -139,16 +142,17 @@ function furnishEdge(kit, city, bl, side, sw) {
     placeProp(kit, 'streetlight', p.x, G, p.z, Math.atan2(-nx, -nz)); // arm (local -z) reaches over the road
     kit.light(p.x + nx * 1.6, 6.3, p.z + nz * 1.6, pal.street, 9);
   }
-  // Parked cars in the curb lane, with gaps.
-  for (let u = 8; u < len - 8; ) {
+  // Parked cars in the curb lane, with gaps (none on the avenue: it's kept open, like a boulevard).
+  const onAvenue = city.avenue && ((side === 'n' && Math.abs(bl.z0 - city.avenue.z1) < 1) || (side === 's' && Math.abs(bl.z1 - city.avenue.z0) < 1));
+  for (let u = 8; u < (onAvenue ? 0 : len - 8); ) {
     if (rng.chance(0.55)) {
       const p = at(u, sw + 1.3);
       placeProp(kit, rng.chance(0.15) ? 'van' : 'car', p.x, 0, p.z, p.yaw, rng.pick(CAR_COLORS));
       u += rng.range(6, 9);
     } else u += rng.range(5, 14);
   }
-  // Sidewalk clutter in the building-side half of the sidewalk.
-  for (let u = 6; u < len - 6; u += rng.range(9, 16)) {
+  // Sidewalk clutter in the building-side half of the sidewalk (busier on the avenue).
+  for (let u = 6; u < len - 6; u += onAvenue ? rng.range(6, 10) : rng.range(9, 16)) {
     const r = rng.next();
     const p = at(u, sw * 0.45);
     if (r < 0.2) placeProp(kit, 'hydrant', p.x, G, p.z);
@@ -187,5 +191,52 @@ function alley(kit, city, x0, z0, x1, z1, axis) {
   for (let u = 10; u < len; u += 26) {
     const cx = axis === 'z' ? x0 + 0.3 : x0 + u, cz = axis === 'z' ? z0 + u : z0 + 0.3;
     kit.light(cx, 4.5, cz, 0xffb36a, 6, 'alley');
+  }
+}
+
+// The main avenue: a planted median with trees and double-headed lamps, broken at each cross street.
+function avenue(kit, city) {
+  const { rng, pal } = kit;
+  const zc = city.avenue.zc;
+  for (let m = 0; m < city.N; m++) {
+    const x0 = city.W + m * (city.B + city.W) + 3, x1 = x0 + city.B - 6;
+    kit.solid(x0, 0, zc - 1.1, x1, 0.35, zc + 1.1, 0x7a7680, MAT.STD, TAG.PROP);
+    kit.box(x0 + 0.2, 0.35, zc - 0.9, x1 - 0.2, 0.42, zc + 0.9, 0x4a5a3a);
+    for (let x = x0 + 7; x < x1 - 4; x += 14) {
+      kit.prop('tree', x, 0.4, zc, rng.range(0, 6.28), rng.pick(pal.foliage));
+      kit.collider(x - 0.25, 0.4, zc - 0.25, x + 0.25, 3.4, zc + 0.25, TAG.PROP);
+    }
+    for (let x = x0 + 14; x < x1 - 6; x += 28) {
+      placeProp(kit, 'streetlight', x, 0.35, zc - 0.2, Math.PI);
+      placeProp(kit, 'streetlight', x, 0.35, zc + 0.2, 0);
+      kit.light(x, 6.6, zc - 1.8, pal.street, 9);
+      kit.light(x, 6.6, zc + 1.8, pal.street, 9);
+    }
+  }
+  kit.link('avenue', 'street', 'street', city.W, zc);
+}
+
+// "Subway" signs at every intersection, one per approach, with an arrow toward the station.
+function wayfinding(kit, city) {
+  const target = city.lots.find((l) => l.type === 'subway');
+  if (!target) return;
+  const tx = (target.rect.x0 + target.rect.x1) / 2, tz = (target.rect.z0 + target.rect.z1) / 2;
+  const { N, B, W } = city;
+  const h = 3.4;
+  for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) {
+    const cx = i * (B + W) + W / 2, cz = j * (B + W) + W / 2;
+    const dx = tx - cx, dz = tz - cz, l = Math.hypot(dx, dz) || 1;
+    if (l < 40) continue;
+    const off = W / 2 - 0.4;
+    // [corner x, corner z, sign normal]: each faces the drivers/pedestrians approaching from one direction.
+    for (const [ox, oz, nx, nz] of [[off, -off, -1, 0], [off, off, 0, -1], [-off, off, 1, 0], [-off, -off, 0, 1]]) {
+      const px = cx + ox, pz = cz + oz;
+      // Viewer looks along -n; screen-right is (nz, -nx).
+      const fwd = (dx * -nx + dz * -nz) / l, right = (dx * nz + dz * -nx) / l;
+      const arrow = Math.abs(fwd) >= Math.abs(right) ? (fwd > 0 ? '\u2191' : '\u2193') : right > 0 ? '\u2192' : '\u2190';
+      kit.box(px - 0.05, 0, pz - 0.05, px + 0.05, h + 0.4, pz + 0.05, kit.pal.metal, MAT.METAL);
+      kit.box(px - (nz ? 0.9 : 0.04), h - 0.3, pz - (nx ? 0.9 : 0.04), px + (nz ? 0.9 : 0.04), h + 0.3, pz + (nx ? 0.9 : 0.04), 0x24324a);
+      kit.sign(`SUBWAY ${arrow}`, 'wayfind', px + nx * 0.06, h, pz + nz * 0.06, 1.7, 0.5, nx, nz, 0xe8eef6);
+    }
   }
 }

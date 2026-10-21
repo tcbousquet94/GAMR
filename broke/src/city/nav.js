@@ -113,7 +113,14 @@ export class NavGraph {
       const near = this.nodesInRect(b.minX - 1.2, b.minZ - 1.2, b.maxX + 1.2, b.maxZ + 1.2);
       const bottoms = near.filter((i) => this.y[i] >= b.minY - 0.6 && this.y[i] <= b.maxY - 1.0 && sees(i));
       const tops = this.nodesInRect(b.minX - 2.2, b.minZ - 2.2, b.maxX + 2.2, b.maxZ + 2.2)
-        .filter((i) => this.y[i] > b.minY + 1 && this.y[i] <= b.maxY + 0.6 && (sees(i) || this.y[i] > b.maxY - 1.6)); // the top, or any landing on the way up
+        .filter((i) => {
+          if (!(this.y[i] > b.minY + 1 && this.y[i] <= b.maxY + 0.6)) return false;
+          if (this.y[i] > b.maxY - 1.6) return true; // the top
+          // A landing on the way up must sit right beside the ladder (fire-escape decks are 0.5m away), not on
+          // some neighbouring roof you would have to leap to sideways mid-climb.
+          const dx = Math.max(b.minX - this.x[i], 0, this.x[i] - b.maxX), dz = Math.max(b.minZ - this.z[i], 0, this.z[i] - b.maxZ);
+          return dx <= 1.2 && dz <= 1.2 && sees(i);
+        });
       for (const a of bottoms) for (const t of tops) {
         if (this.y[t] - this.y[a] < 1) continue;
         this.adj[a].push(t, EDGE.CLIMB, (this.y[t] - this.y[a]) * 1.4 + 2);

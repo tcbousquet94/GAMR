@@ -61,7 +61,7 @@ export class Animator {
     this.w = {}; // layer weights (smoothed 0..1)
     this.hit = { tx: { v: 0, dv: 0 }, tz: { v: 0, dv: 0 }, hx: { v: 0, dv: 0 }, hz: { v: 0, dv: 0 }, aL: { v: 0, dv: 0 }, aR: { v: 0, dv: 0 }, dip: { v: 0, dv: 0 } };
     this.look = { yaw: { v: 0, dv: 0 }, pitch: { v: 0, dv: 0 } };
-    this.idleT = 0; this.fidget = null; this.fidgetIn = 4 + Math.random() * 5;
+    this.idleT = 0; this.fidget = null; this.fidgetIn = 2.5 + Math.random() * 3;
     this.shift = Math.random() * 10;
     this.t = Math.random() * 10;
     this.timers = { pivot: 0, skid: 0, land: 0, brace: 0, recentFast: 0 };
@@ -218,11 +218,11 @@ export class Animator {
     p.armL[2] -= breathe * 0.02; p.armR[2] += breathe * 0.02;
     if (idle > 0.01) {
       const shift = Math.sin(t * 0.55 + this.shift);
-      hipsT[0] += shift * 0.03 * S * idle;
+      hipsT[0] += shift * 0.05 * S * idle;
       p.hips[2] += shift * 0.05 * idle;
       p.torso[2] -= shift * 0.06 * idle;
-      p.legL[0] += Math.max(0, shift) * 0.06 * idle; p.shinL[0] -= Math.max(0, shift) * 0.18 * idle;
-      p.legR[0] += Math.max(0, -shift) * 0.06 * idle; p.shinR[0] -= Math.max(0, -shift) * 0.18 * idle;
+      p.legL[0] += Math.max(0, shift) * 0.1 * idle; p.shinL[0] -= Math.max(0, shift) * 0.28 * idle;
+      p.legR[0] += Math.max(0, -shift) * 0.1 * idle; p.shinR[0] -= Math.max(0, -shift) * 0.28 * idle;
       p.footL[0] += Math.max(0, shift) * 0.12 * idle; p.footR[0] += Math.max(0, -shift) * 0.12 * idle;
       p.head[1] += Math.sin(t * 0.37 + this.seed) * 0.15 * idle;
     }
@@ -323,10 +323,12 @@ export class Animator {
     p.armL[0] += aL * 0.6; p.armL[2] -= Math.abs(aL) * 0.4; p.armR[0] += aR * 0.6; p.armR[2] += Math.abs(aR) * 0.4;
     p.hips[0] += tx * 0.15;
     const px = H.px ? wobble(H.px, 9, 0.5, dt) : 0, pz = H.pz ? wobble(H.pz, 9, 0.5, dt) : 0;
-    hipsT[0] += px * 0.12 * S; hipsT[2] += pz * 0.12 * S;
+    hipsT[0] += px * 0.2 * S; hipsT[2] += pz * 0.2 * S;
     hipsT[1] += hd * 0.08 * S;
     // A stagger: the legs splay to catch the shove.
-    p.legL[0] += pz * 0.2; p.legR[0] -= pz * 0.15; p.legL[2] -= Math.abs(px) * 0.15; p.legR[2] += Math.abs(px) * 0.15;
+    // (strong enough to read: the audit's frame strips showed the legs locked while the torso took the hit)
+    p.legL[0] += pz * 0.5; p.legR[0] -= pz * 0.4; p.legL[2] -= Math.abs(px) * 0.4; p.legR[2] += Math.abs(px) * 0.4;
+    p.shinL[0] -= Math.abs(hd) * 0.5 + Math.max(0, pz) * 0.3; p.shinR[0] -= Math.abs(hd) * 0.5 + Math.max(0, -pz) * 0.3;
     this.hitT = Math.max(0, (this.hitT || 0) - dt);
     // ---- final easing: every joint follows its target through a critically damped spring ---------------------------
     const out = {};

@@ -33,6 +33,7 @@ export class Player {
     this.slows = []; // {mul, t}
     this.latchedBy = null;
     this.cart = 0; // seconds of shopping-cart ride left
+    this.aimT = 0; // GTA-style combat stance: set by shooting, relaxes ~1.4 s after the last shot
     this.hits = 0; // counts toward Gavel of Authority
     this.dead = false;
     this.lastSafe = { x: spawn.x, y: spawn.y + 0.2, z: spawn.z };
@@ -96,6 +97,8 @@ export class Player {
     if (this.pizzaZone && Math.hypot(this.pos.x - this.pizzaZone.x, this.pos.z - this.pizzaZone.z) <= this.pizzaZone.r) this.heal(st.maxHp * st.pizzaHealPct * dt, true);
 
     // Abilities and equipment.
+    // Out of combat Dee just runs; shooting snaps her into an aim stance (and shows the crosshair) for a moment.
+    this.aimT = input.primary || input.secondary || input.special ? 1.4 : Math.max(0, this.aimT - dt);
     if (this.cart <= 0) this.kit.update(this, dt, input, g);
     if (input.equipment && this.equipment && this.equipCd <= 0) g.useEquipment(this);
     if (input.interact && !this.climbing) g.economy.tryInteract(this);
@@ -228,21 +231,24 @@ export class Player {
         const tx = dx / dl, tz = dz / dl;
         const cross = hx * tz - hz * tx, dot = hx * tx + hz * tz;
         const ang = Math.atan2(cross, dot);
-        if (Math.abs(ang) > 2.3 && hs > 5) {
+        if (Math.abs(ang) > MOVE.pivotAngle && hs > 5) {
           // Pivot: brake hard first.
           if (!this.pivoting) { this.pivoting = true; g.events.emit('pivot', { from: { x: hx, z: hz }, to: { x: tx, z: tz } }); }
           sp = Math.max(0, hs - MOVE.pivotDecel * dt);
           if (sp < 1.6) { hx = tx; hz = tz; this.pivoting = false; }
         } else {
           this.pivoting = false;
-          const rate = MOVE.turnRate / (1 + hs * 0.11) * control;
+          const rate = MOVE.turnRate / (1 + hs * MOVE.turnFalloff) * control;
           const turn = Math.max(-rate * dt, Math.min(rate * dt, ang));
           const c = Math.cos(turn), s2 = Math.sin(turn);
           const nhx = hx * c - hz * s2, nhz = hx * s2 + hz * c;
           hx = nhx; hz = nhz;
           if (hs < 1.2) { hx = tx; hz = tz; } // from (nearly) standing, just go
-          const acc = (sp < want ? MOVE.accelGround : MOVE.decelGround) * control;
-          sp = sp < want ? Math.min(want, sp + acc * dt) : Math.max(want, sp - acc * dt);
+          // Carving a hard turn bleeds speed: the body's momentum fights the new direction.
+          const carve = hs > 4 ? Math.min(1, Math.max(0, (Math.abs(ang) - 0.5) / 1.2)) : 0;
+          const wantT = want * (1 - MOVE.turnSpeedLoss * carve);
+          const acc = (sp < wantT ? MOVE.accelGround : MOVE.decelGround) * control;
+          sp = sp < wantT ? Math.min(wantT, sp + acc * dt) : Math.max(wantT, sp - acc * dt);
         }
         this.skid = 0; this.skidUsed = false;
       } else {

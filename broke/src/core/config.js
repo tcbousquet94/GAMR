@@ -17,7 +17,10 @@ export const MOVE = {
   accelGround: 24, // speed builds over two or three strides
   decelGround: 30,
   pivotDecel: 55,
-  turnRate: 13, // rad/s at a standstill, lower at speed so turns arc
+  turnRate: 9, // rad/s at a standstill, falling with speed (turnFalloff) so turns arc with weight
+  turnFalloff: 0.2, // ~3.7 rad/s at a run, ~2.9 at a sprint
+  turnSpeedLoss: 0.3, // up to 30% of speed bled while carving a hard turn
+  pivotAngle: 2.0, // sharper than this at speed: brake and pivot instead of carving
   frictionSkid: 3.2,
   hardLandSpeed: 19,
   accelAir: 22,

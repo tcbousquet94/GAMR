@@ -303,7 +303,7 @@ export class Actors {
       if (d2 < bd && dx * f.x + dz * f.z > -0.3 * Math.sqrt(d2)) { bd = d2; look = c; }
     }
     if (!look) { const it = g.economy.focus(P); if (it) look = { x: it.x, y: it.y + 1.2, z: it.z }; }
-    const firing = this.fireT > 0;
+    const firing = this.fireT > 0 || P.aimT > 0; // aim stance while shooting and briefly after, relaxed otherwise
     const pose = animate(A, dt, {
       pos: b.pos, vel: b.vel, onGround: b.onGround, climbing: !!P.climbing, climbWall: P.climbing?.wall, crouch: P.crouch, vault: P.vault,
       aimYaw: P.yaw, aimPitch: P.pitch, face: firing || P.cart > 0 ? 'aim' : 'move', firing, world: g.world, lookAt: look,
@@ -311,6 +311,9 @@ export class Actors {
       extra: { throwT: Math.max(0, this.throwT / 0.35), spin: Math.max(0, this.spinT / 0.4), cart: P.cart > 0 },
       cloth: M.clothSpring(this, dt, b.vel, A.yaw ?? P.yaw, this.t, M.CLOTH.dee),
     });
+    // GTA-style: the dart only appears in her hand while she's in the aim stance (or mid-throw).
+    this.dartK = (this.dartK ?? 0) + ((firing || this.throwT > 0 ? 1 : 0) - (this.dartK ?? 0)) * Math.min(1, 14 * dt);
+    pose.dart = { r: [0, 0, 0], s: Math.max(0.001, this.dartK) };
     this.dee.begin();
     const hidden = this.view.rig.cur < 1.1; // camera jammed against her: don't fill the screen with scrubs
     if (!P.dead && !hidden) {

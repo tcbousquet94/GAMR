@@ -27,11 +27,12 @@ export function deeModel() {
         scyl(0.007, 0.007, 0.09, 0x2a3a8a, at(-0.09, 0.42, -0.115)), scyl(0.007, 0.007, 0.08, 0xd0d0d0, at(-0.075, 0.415, -0.115)),
       ],
       legR: [sbox(0.05, 0.14, 0.12, TEAL_D, at(0.085, -0.24, 0), 0.02)], // cargo pocket
-      foreR: [scap(0.012, 0.13, 0x9be6dc, at(0, -0.33, -0.07, Math.PI / 2, 0, 0), 6)], // syringe dart in hand
     },
     cloth: [
       // Scrub-top hem: flares over the hips and swings as she runs.
       { name: 'hem', parent: 'torso', pivot: [0, 0.06, 0], geos: [slathe([[0.155, 0.0], [0.17, -0.06], [0.185, -0.13], [0.19, -0.15]], TEAL_D, at(0, 0, 0), 0.68)] },
+      // Syringe dart in her hand: its own part so it can be holstered (scaled away) when she isn't shooting.
+      { name: 'dart', parent: 'foreR', pivot: [0, -0.33, 0], geos: [scap(0.012, 0.13, 0x9be6dc, at(0, 0, -0.07, Math.PI / 2, 0, 0), 6)] },
     ],
   });
 }

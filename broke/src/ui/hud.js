@@ -243,6 +243,7 @@ export class Hud {
     el.latch.style.display = P.latchedBy ? '' : 'none';
     this.hitT -= dt;
     el.cross.classList.toggle('hit', this.hitT > 0);
+    el.cross.classList.toggle('on', P.aimT > 0 || this.hitT > 0); // crosshair only while shooting (GTA-style)
     this.vig = Math.max(frac < 0.3 ? 0.35 : 0, this.vig - dt * 1.5);
     el.vig.style.opacity = this.vig;
   }

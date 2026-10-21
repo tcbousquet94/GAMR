@@ -145,7 +145,7 @@ export class Animator {
     const idle = target01('idle', sp < 0.4 && ctx.onGround && !ctx.climbing, 3);
     // ---- gait ---------------------------------------------------------------------------------------------------
     const moving = ctx.onGround && !ctx.climbing && !ctx.vault && o.gait;
-    const freq = (0.95 + 0.2 * sp / S) * o.freq; // cadence rises with speed (~2.9 Hz at a sprint)
+    const freq = (0.7 + 0.1 * sp / S) * o.freq; // gait cycles/s (2 steps each): ~2.8 steps/s at a run, ~3.5 at a sprint
     if (moving && sp > 0.15) this.phase += TAU * freq * dt;
     else this.phase += wrap(Math.round(this.phase / Math.PI) * Math.PI - this.phase) * Math.min(1, 6 * dt); // settle to a neutral stance
     const amp = clamp(sp / (3.2 * S), 0, 1) * (1 - air) * (1 - climb) * (1 - vault);
@@ -166,7 +166,7 @@ export class Animator {
     for (const [i, side, ph] of [[0, -1, this.phase], [1, 1, this.phase + Math.PI]]) {
       const run = clamp((sp - 4 * S) / (4 * S), 0, 1);
       // Foot travel relative to the hip, capped: at speed the stride lengthens through flight time, not splits.
-      const fwd = Math.min(stepLen * 0.5, 0.44 * S) * Math.sin(ph) * amp;
+      const fwd = Math.min(stepLen * 0.5, 0.56 * S) * Math.sin(ph) * amp;
       const swing = Math.max(0, Math.cos(ph));
       const lift = (0.1 + 0.18 * run) * S * Math.pow(swing, 1.4) * amp;
       const g = cd(this.footG[i], footGround(side, fwd), 30, dt);
@@ -200,18 +200,20 @@ export class Animator {
     // ---- upper body: arm swing, twist, lean, bank ------------------------------------------------------------
     const swingA = (0.25 + 0.55 * clamp(sp / (6 * S), 0, 1)) * amp * o.armSwing;
     const sw = Math.sin(this.phase);
-    p.armL = [-sw * swingA * 1.1, 0, -0.1];
-    p.armR = [sw * swingA * 1.1, 0, 0.1];
-    p.foreL = [0.28 + 0.9 * clamp(sp / (7 * S), 0, 1), 0, 0];
-    p.foreR = [0.28 + 0.9 * clamp(sp / (7 * S), 0, 1), 0, 0];
+    p.armL = [-sw * swingA * 0.95, 0, -0.1];
+    p.armR = [sw * swingA * 0.95, 0, 0.1];
+    // Loose elbows (a relaxed jog, not a ready stance); they fold a little more on the forward swing.
+    const bend = 0.22 + 0.6 * clamp(sp / (7 * S), 0, 1);
+    p.foreL = [bend + Math.max(0, -sw) * 0.25 * amp, 0, 0];
+    p.foreR = [bend + Math.max(0, sw) * 0.25 * amp, 0, 0];
     // Relaxed shoulders: arms hang slightly forward and out, never bolt upright.
     p.armL[0] += 0.08; p.armR[0] += 0.08; p.armL[2] -= 0.06; p.armR[2] += 0.06;
     p.hips = [0, sw * 0.12 * amp, -sw * 0.04 * amp];
     const lean = clamp(-this.accF.v * 0.022 - spN * 0.16, -0.5, 0.35);
-    const bank = clamp(this.yawRate * sp * 0.012 + this.accS.v * 0.006, -0.35, 0.35);
+    const bank = clamp(this.yawRate * sp * 0.02 + this.accS.v * 0.009, -0.45, 0.45); // lean into turns like a body carrying momentum
     p.torso = [lean, -sw * 0.16 * amp, bank];
     p.head = [-lean * 0.6 + 0.04 * spN, sw * 0.06 * amp, -bank * 0.5];
-    hipsT[0] = bank * 0.06 * S;
+    hipsT[0] = bank * 0.12 * S; // hips swing out of the turn
     // Idle life: breathing, weight shifts, fidgets.
     const breathe = Math.sin(t * 1.45 + this.seed) * (1 - spN * 0.7);
     p.torso[0] += breathe * 0.022;

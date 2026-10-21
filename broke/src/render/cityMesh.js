@@ -463,7 +463,9 @@ function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); 
 
 // ---- lights: ground pools, bulbs, string lights, beacons ------------------------------------------------------------
 function buildLights(kit, scene) {
-  const pools = kit.lights.filter((l) => l.radius > 0 && l.kind !== 'steam');
+  // A furnished interior's lights (they carry a tint for the real point light) get no additive ground pool: lying on
+  // the floor it tinted the room orange and turned dark tiles maroon.
+  const pools = kit.lights.filter((l) => l.radius > 0 && l.kind !== 'steam' && !l.tint);
   // Soft radial texture for light pools.
   const tex = radialTexture();
   const poolMat = new THREE.MeshBasicMaterial({ map: tex, color: 0xffa34d, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, fog: true });

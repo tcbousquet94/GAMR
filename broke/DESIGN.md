@@ -179,20 +179,26 @@ and `CAM` in `src/core/config.js`; the gun: `src/sim/gun.js`.
 
 # SAL'S DINER (the HQ diner as a real place)
 
-Every diner (each gang HQ's front room, and any other diner) is a furnished, walk-in place built in
-`buildDiner` (`src/city/turf/business.js`), seen from the street through clear glass (`shopGlass`) and open blinds.
-Look (from the user's reference image, style only): a worn, lived-in diner. Muted square floor tile, cream tiled walls
-over a green tile dado with a red stripe, a drop-tile ceiling with fluorescent tubes, red tufted booths with
-wood-laminate tables (three at the window, three along the side wall), a green-tiled 7-stool counter, a back counter
-under a wide kitchen pass (coffee, shakes, soda), and on the back wall the name in red script over a DINER plate, two
-black menu boards and a "we reserve the right to refuse service" sign, with a clock, speaker and vent. Posters ("eat
-here / be happy", "try our daily specials"), a street sign, a payphone, an extinguisher, restrooms door, jukebox, and
-the **memorial wall** (photos, a candle shelf, "NEVER FORGOTTEN") on the alley
-wall across from the booths (`biz.memorialWall`). Behind the pass: the kitchen (fryers, flat-top, range under a hood,
-prep table, fridge, dish sink, shelving) with a clear path from the kitchen door to the back door.
-People (`biz.patrons`, drawn by the kit view with seated / counter / cook poses): Sal behind the counter, a cook, a
-waitress, three regulars in booths and two at the counter. The diner uses its own random stream so furnishing it never
-changes the rest of the city. Re-bake Palmetto Bay after changing it: `node tools/bakemap.mjs 396873 palmetto`.
+Every diner (each gang HQ's front room, and any other diner) is a furnished, walk-in place built in `buildDiner`
+(`src/city/turf/business.js`), seen from the street through clear glass (`shopGlass`) and open blinds. The look follows
+the user's second reference image (style only; its "Liberty City" poster became "Palmetto Bay"):
+- A long stainless counter with a red trim band and eight chrome-and-red stools down the corner side, with the register
+  (the capture point: furnished interiors place their own and skip the template counter), a cake dome and condiments.
+  Behind it a back bar (coffee machine, soda fountain, shake mixer), four black menu boards and an old TV on a shelf.
+- Red leather booths with laminate tables down the alley side, two more at the front window; above them the
+  **memorial wall** (framed photos, a candle shelf, "NEVER FORGOTTEN"; `biz.memorialWall`), a red neon OPEN and a
+  city poster.
+- The back wall in dark wood with a black-and-white checker tile band over a green wainscot (the band runs round the
+  room), the big cream SAL'S DINER shield sign (the business name in red, DINER in navy, a red star), framed notices,
+  a glass exit door under a red EXIT sign, and the kitchen pass and doorway.
+- Worn black-and-cream checkerboard floor; a dark drop-tile ceiling with square light panels and a ceiling fan; dim,
+  warm light (interior lights carry `power` and `tint`; they get no additive ground pool, which tinted floors orange).
+- Behind the back wall the kitchen (grill line under a hood, fryers, range, prep table, fridge, dish sink, shelving)
+  with a clear path from the doorway and the exit to the back door.
+- People (`biz.patrons`, drawn by the kit view with seated / counter / cook poses): Sal behind the counter, a cook, a
+  waitress, four regulars in booths and two at the counter.
+The diner uses its own random stream so furnishing it never changes the rest of the city. Re-bake Palmetto Bay after
+changing it: `node tools/bakemap.mjs 396873 palmetto`.
 
 # THE TURF MAP (how Downtown is generated) — decisions
 

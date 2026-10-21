@@ -193,7 +193,7 @@ export function perimeterBuildings(kit, city, b, raster) {
             fireEscape: !tower && rng.chance(0.45) ? [inward] : [],
           });
           raster.mark(q, R.BUILT);
-          (city.buildings = city.buildings || []).push({ rect: q, h, block: b.id });
+          (city.buildings = city.buildings || []).push({ rect: q, h, block: b.id, side });
           u += ww + (rng.chance(0.22) ? rng.range(3.5, 5) : 0); // occasional service alley
           placed = true;
           break;

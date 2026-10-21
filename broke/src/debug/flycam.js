@@ -20,7 +20,7 @@ export class FlyCam {
   }
 
   // Look straight down from above a point (used for the overlay screenshot and "overview" key).
-  overview(x, z, height) { this.pos = { x, y: height, z: z + 0.01 }; this.input.pitch = -1.5; }
+  overview(x, z, height) { this.pos = { x, y: height, z: z + 0.01 }; this.input.pitch = -1.5; this.input.yaw = 0; } // north up
 
   update(dt) {
     if (!this.active) return;

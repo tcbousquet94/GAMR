@@ -102,6 +102,8 @@ export class Ragdoll {
     set('hips', make(T.pelvis.p, _tmp(T.chest.p, T.pelvis.p), hipX, mats[byName.hips]));
     set('torso', make(T.pelvis.p, _tmp(T.neck.p, T.pelvis.p), torsoX, mats[byName.torso]));
     set('head', make(T.neck.p, _tmp(T.head.p, T.neck.p), torsoX, mats[byName.head]));
+    // The model's static head scale (realistic proportions) carries into the ragdoll before children are placed.
+    { const hp = this.rig.parts[byName.head]; if (hp?.scale && res[byName.head]) res[byName.head].scale(_sv.setScalar(hp.scale)); }
     for (const s of ['L', 'R']) {
       set(`arm${s}`, make(T[`sh${s}`].p, _tmp(T[`el${s}`].p, T[`sh${s}`].p), torsoX, mats[byName[`arm${s}`]], true));
       set(`fore${s}`, make(T[`el${s}`].p, _tmp(T[`ha${s}`].p, T[`el${s}`].p), torsoX, mats[byName[`fore${s}`]], true));
@@ -120,5 +122,5 @@ export class Ragdoll {
     return res;
   }
 }
-const _t = new THREE.Vector3();
+const _t = new THREE.Vector3(), _sv = new THREE.Vector3();
 function _tmp(a, b) { return _t.subVectors(a, b).clone(); }

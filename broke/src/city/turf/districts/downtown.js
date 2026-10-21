@@ -40,5 +40,14 @@ export const DOWNTOWN = {
     garageChance: 0.3,
   },
   palette: LEGACY.palette,
-  lighting: LEGACY.lighting,
+  // PS2-era crime-city look: a smoggy, sun-faded afternoon (yellow-brown haze swallowing the distance), a long
+  // orange sunset, then a sodium-lit night with neon. Optional per key: density (haze), grade [r, g, b, saturation],
+  // clouds (0..1 cloud cover strength). The turf clock is fixed for now (t=0), the URL ?t= picks another time.
+  lighting: {
+    keys: [
+      { t: 0, sky: [0x8d9cb0, 0xc9bf9f, 0xe2cc94], sun: 0xffdca8, sunI: 3.4, hemi: [0xc8c2aa, 0x6a5a48], hemiI: 1.05, fog: 0xc8b48a, fogD: 0.004, night: 0, sunEl: 34, haze: 0xb9a67e, hazeFar: 0xd6c49a, density: 0.0033, grade: [1.08, 1.0, 0.86, 0.78], clouds: 0.35 },
+      { t: 2.5, sky: [0x5a5a7a, 0xc68a5c, 0xf0a454], sun: 0xff8a3c, sunI: 2.6, hemi: [0xa08a88, 0x5a4038], hemiI: 1.0, fog: 0xb07a52, fogD: 0.0045, night: 0.4, sunEl: 7, haze: 0x9c6c50, hazeFar: 0xd8925c, density: 0.0046, grade: [1.12, 0.98, 0.84, 0.8], clouds: 0.45 },
+      { t: 5.5, sky: [0x0e1226, 0x1b2036, 0x3c3046], sun: 0x6a78c8, sunI: 0.45, hemi: [0x40486e, 0x2a2030], hemiI: 1.15, fog: 0x2c2a38, fogD: 0.0042, night: 1, sunEl: 40, haze: 0x3a3030, hazeFar: 0x252838, density: 0.0038, grade: [1.06, 0.98, 0.9, 0.82], clouds: 0.2 },
+    ],
+  },
 };

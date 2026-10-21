@@ -3,6 +3,7 @@ export class Perf {
   constructor(el) { this.el = el; this.on = /perf=1/.test(location.search); this.frames = []; this.t = 0; }
   toggle() { this.on = !this.on; this.el.style.display = this.on ? 'block' : 'none'; }
   frame(dt, view, game) {
+    if (dt <= 0) return; // skip zero-length frames (they would poison the average)
     this.frames.push(dt * 1000);
     if (this.frames.length > 120) this.frames.shift();
     const s = this.frames.slice().sort((a, b) => a - b);

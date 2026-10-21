@@ -9,7 +9,7 @@ export function humanoid(s) {
   const skin = s.skin;
   const X = (name) => s.extra?.[name] || [];
   const parts = [];
-  const part = (name, parent, pivot, geos) => parts.push({ name, parent, pivot, geo: merge(geos) });
+  const part = (name, parent, pivot, geos, scale) => parts.push({ name, parent, pivot, geo: merge(geos), scale });
   const sw = 0.2 * k; // shoulder half-width
   part('hips', null, [0, 0.95, 0], [
     slathe([[0.0, -0.12], [0.15 * k, -0.11], [0.17 * k, -0.02], [0.15 * k, 0.08], [0.0, 0.09]], s.pants, at(0, 0, 0), 0.72),
@@ -28,16 +28,16 @@ export function humanoid(s) {
     sball(0.03 * hs, skin, at(-0.122 * hs, 0.19 * hs, 0.01, 0, 0, 0, 0.6, 1, 1), 8), sball(0.03 * hs, skin, at(0.122 * hs, 0.19 * hs, 0.01, 0, 0, 0, 0.6, 1, 1), 8),
     ...face(s.face || {}, hs, skin),
     ...X('head'),
-  ]);
+  ], s.headReal ?? 0.86); // realistic proportions: ~1/7.5 of body height, hair and features scale with it
   if (!s.face?.shades) part('eyes', 'head', [0, 0.21 * hs, -0.128 * hs], [
-    sball(0.013, s.face?.eye ?? 0x1f1814, at(-0.047 * hs, -0.002, -0.004), 8), sball(0.013, s.face?.eye ?? 0x1f1814, at(0.047 * hs, -0.002, -0.004), 8),
+    sball(0.0085, s.face?.eye ?? 0x1f1814, at(-0.047 * hs, -0.002, -0.006), 8), sball(0.0085, s.face?.eye ?? 0x1f1814, at(0.047 * hs, -0.002, -0.006), 8),
   ]);
   for (const side of [-1, 1]) {
     const L = side < 0 ? 'L' : 'R';
-    part(`arm${L}`, 'torso', [side * sw, 0.47, 0], [sball(0.075 * k, s.sleeve ?? s.shirt, at(0, -0.01, 0), 12), scap(0.058 * k, 0.2, s.sleeve ?? s.shirt, at(0, -0.14, 0)), ...X(`arm${L}`)]);
+    part(`arm${L}`, 'torso', [side * sw, 0.47, 0], [sball(0.062 * k, s.sleeve ?? s.shirt, at(0, -0.01, 0), 12), scap(0.058 * k, 0.2, s.sleeve ?? s.shirt, at(0, -0.14, 0)), ...X(`arm${L}`)]);
     part(`fore${L}`, `arm${L}`, [0, -0.29, 0], [
       scap(0.05 * k, 0.18, s.cuff ?? s.sleeve ?? s.shirt, at(0, -0.12, 0)),
-      s.noHands ? null : sball(0.058 * (s.handScale || 1), skin, at(0, -0.29, -0.005, 0, 0, 0, 0.85, 1.15, 0.7), 12),
+      s.noHands ? null : sball(0.047 * (s.handScale || 1), skin, at(0, -0.285, -0.005, 0, 0, 0, 0.8, 1.25, 0.62), 12),
       ...X(`fore${L}`),
     ]);
     const lr = (s.legWidth || 1) * k;
@@ -46,8 +46,8 @@ export function humanoid(s) {
     part(`shin${L}`, `leg${L}`, [0, -0.43, 0], [scap(0.065 * lr * (s.flare || 1), 0.3, s.pantsLow ?? s.pants, at(0, -0.2, 0)), ...X(`shin${L}`)]);
     // Separate foot on an ankle pivot so the sole can sit flat on steps and slopes (leg IK counter-rotates it).
     part(`foot${L}`, `shin${L}`, [0, -0.4, 0], [
-      sbox(0.13 * ss, 0.1, 0.28 * ss, s.shoes, at(0, -0.005, -0.05), 0.045),
-      s.sole ? sbox(0.135 * ss, 0.035, 0.29 * ss, s.sole, at(0, -0.055, -0.05), 0.015) : null,
+      sbox(0.112 * ss, 0.09, 0.265 * ss, s.shoes, at(0, -0.005, -0.05), 0.04),
+      s.sole ? sbox(0.116 * ss, 0.03, 0.272 * ss, s.sole, at(0, -0.05, -0.05), 0.012) : null,
     ]);
   }
   for (const c of s.cloth || []) part(c.name, c.parent, c.pivot, c.geos);
@@ -60,11 +60,11 @@ function face(f, hs, skin) {
   const g = [];
   for (const sx of [-1, 1]) {
     if (!f.shades) {
-      g.push(sball(0.022, f.white ?? 0xf4f0ea, at(sx * 0.047 * hs, y, z + 0.006, 0, 0, 0, 1, f.squint ? 0.5 : 1, 0.6), 10));
+      g.push(sball(0.016, f.white ?? 0xe8e0d6, at(sx * 0.047 * hs, y, z + 0.008, 0, 0, 0, 1.15, f.squint ? 0.45 : 0.7, 0.45), 10));
     }
     // Brows: angry slant down toward the nose, happy arch up, calm level.
     const tilt = f.brows === 'angry' ? sx * 0.5 : f.brows === 'happy' ? -sx * 0.25 : 0;
-    g.push(scap(0.009, 0.045, f.brow ?? 0x3a2a22, at(sx * 0.05 * hs, y + 0.045 + (f.brows === 'angry' ? -0.005 : 0), z + 0.002, 0, 0, Math.PI / 2 + tilt), 6));
+    g.push(scap(0.006, 0.045, f.brow ?? 0x3a2a22, at(sx * 0.05 * hs, y + 0.045 + (f.brows === 'angry' ? -0.005 : 0), z + 0.002, 0, 0, Math.PI / 2 + tilt), 6));
   }
   if (f.shades) g.push(sbox(0.2 * hs, 0.05, 0.04, 0x141418, at(0, y, z + 0.004), 0.018));
   g.push(sball(0.024, skin, at(0, y - 0.04, z - 0.004, 0, 0, 0, 0.8, 1.1, 1), 8)); // nose

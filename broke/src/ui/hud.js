@@ -232,7 +232,7 @@ export class Hud {
     // Interact banner.
     let pr = null;
     const it = !turf && g.state === 'playing' ? g.economy.focus(P) : null;
-    if (turf) { const b = g.businessNear(P.pos, 7); if (b) pr = { title: b.name, sub: `${b.label} \u00b7 Block ${b.block} \u00b7 ${b.hq != null ? `Gang ${b.hq + 1} HQ` : b.owner === 'neutral' ? 'Neutral' : `Gang ${+b.owner.slice(4) + 1}`}`, info: true }; }
+    if (turf && !this.flying) { const b = g.businessNear(P.pos, 7); if (b) pr = { title: b.name, sub: `${b.label} \u00b7 Block ${b.block} \u00b7 ${b.hq != null ? `Gang ${b.hq + 1} HQ` : b.owner === 'neutral' ? 'Neutral' : `Gang ${+b.owner.slice(4) + 1}`}`, info: true }; }
     if (it) {
       if (it.type === 'callpanel') { if (ex.state === 'idle') pr = { title: 'Call the train', sub: 'The ride home is 75 seconds out. Hold the platform.' }; }
       else {

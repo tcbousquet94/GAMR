@@ -21,6 +21,7 @@ import { edges } from './edges.js';
 import { landmark, landmarkPlaza, park, civic, garage, perimeterBuildings, diagonalFrontage, interiors } from './fill.js';
 import { buildBusiness, frame, footprint, businessName, TEMPLATE, TYPES } from './business.js';
 import { buildWarehouse, warehouseFootprint, WH, WAREHOUSE_NAMES, HQ_WAREHOUSE_NAMES } from './warehouse.js';
+import { wornCity } from './worn.js';
 
 export function generateTurf(cfg, seed) {
   const rng = new Rng(`turf:${cfg.id}:${seed}`);
@@ -52,6 +53,7 @@ export function generateTurf(cfg, seed) {
   diagonalFrontage(kit, city, raster);
   interiors(kit, city, raster);
   furniture(kit, city, raster);
+  wornCity(kit, city, raster);
   buildFireEscapes(kit);
 
   // Physics.
@@ -63,7 +65,12 @@ export function generateTurf(cfg, seed) {
   city.world = world;
   city.spawnPoints = kit.spawns.filter((s) => validStandPoint(world, s.x, s.y, s.z, 0.5, 1.9));
   const hq0 = city.warehouses.find((w) => w.hq === 0);
-  city.spawn = { x: hq0.yardSpawn.x, y: 0.3, z: hq0.yardSpawn.z, yaw: Math.atan2(-(hq0.safe.x - hq0.yardSpawn.x), -(hq0.safe.z - hq0.yardSpawn.z)) };
+  // Player start: the HQ yard just inside the gate (searching outward if a prop ever lands on it).
+  let sp = hq0.yardSpawn;
+  for (let r = 0; r < 8 && !validStandPoint(world, sp.x, 0.15, sp.z, 0.45, 1.9); r += 0.5) {
+    for (let a = 0; a < 16; a++) { const q = { x: hq0.yardSpawn.x + Math.cos(a * 0.39) * r, z: hq0.yardSpawn.z + Math.sin(a * 0.39) * r }; if (validStandPoint(world, q.x, 0.15, q.z, 0.45, 1.9)) { sp = q; break; } }
+  }
+  city.spawn = { x: sp.x, y: 0.3, z: sp.z, yaw: Math.atan2(-(hq0.safe.x - sp.x), -(hq0.safe.z - sp.z)) };
 
   // Strategy data last: cover, climbs, battle zones.
   city.turf = turfData(city, world, kit);

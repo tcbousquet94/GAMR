@@ -33,13 +33,15 @@ const SHOTS = {
   yard_container: `(() => { const w = __broke.game.turf.warehouses.find((q) => q.hq == null) || __broke.game.turf.warehouses[0]; const c = w.defenderPosts.find((p) => p.kind === 'containerTop'); const d = w.docks[1].outside; $flyTo({ x: c.x, y: c.y + 1.7, z: c.z }, { x: d.x, y: 2, z: d.z }); })()`,
   floor_catwalk: `(() => { const w = __broke.game.turf.warehouses.find((q) => q.hq == null) || __broke.game.turf.warehouses[0]; const c = w.catwalk[0]; const d = w.docks[0].inside; $flyTo({ x: c.x, y: c.y + 1.7, z: c.z }, { x: d.x, y: 1.4, z: d.z }); })()`,
   office_safe: `(() => { const w = __broke.game.turf.warehouses.find((q) => q.hq == null) || __broke.game.turf.warehouses[0]; const o = w.office, s = w.safe; const d = { x: s.x - o.x, z: s.z - o.z }; $flyTo({ x: o.x - d.x * 0.15, y: o.y + 1.7, z: o.z - d.z * 0.15 }, { x: s.x, y: s.y - 0.4, z: s.z }); })()`,
-  overlay: `(() => { const g = __broke.game; __broke.overlay(true); __broke.fly(true, { x: g.turf.size.x / 2, y: 430, z: g.turf.size.z / 2, down: true }); })()`,
+  overlay: `(() => { const g = __broke.game; __broke.overlay(true); __broke.fly(true, { x: g.turf.size.x / 2, y: 470, z: g.turf.size.z / 2 + 30, down: true }); })()`,
   overlay_close: `(() => { const b = $biz('bodega'); const o = $out(b); __broke.overlay(true); $flyTo({ x: b.door.x + o.x * 40, y: 45, z: b.door.z + o.z * 40 }, { x: b.capture.x, y: 0, z: b.capture.z }); })()`,
   map: `(() => { __broke.map(); })()`,
   hq: `(() => { const b = __broke.game.turf.businesses.find((q) => q.hq === 1); const o = $out(b); $flyTo({ x: b.door.x + o.x * 12 + o.z * 4, y: 3, z: b.door.z + o.z * 12 - o.x * 4 }, { x: b.capture.x, y: 2.5, z: b.capture.z }); })()`,
   aerial: `(() => { const g = __broke.game, T = g.turf; $flyTo({ x: -40, y: 140, z: T.size.z + 40 }, { x: T.size.x * 0.55, y: 0, z: T.size.z * 0.45 }); })()`,
   river: `(() => { const g = __broke.game, T = g.turf; const c = T.connections.find((q) => q.side === 'e'); $flyTo({ x: c.x - 30, y: 4, z: c.z + 30 }, { x: c.x + 10, y: 2, z: c.z }); })()`,
   park: `(() => { const g = __broke.game, T = g.turf; const p = T.blocks.find((b) => b.zone === 'park') || T.blocks[0]; $flyTo({ x: p.bounds.x0 - 6, y: 9, z: p.bounds.z1 + 6 }, { x: p.center.x, y: 0, z: p.center.z }); })()`,
+  dee: `(() => { const g = __broke.game; const s = g.city.spawn; __broke.pose({ x: s.x, y: 0.3, z: s.z, yaw: s.yaw + Math.PI, pitch: -0.2 }); __broke.view.rig.dist = 2.4; })()`,
+  night: `(() => { __broke.setMinutes(7); const b = $biz('bodega'); const o = $out(b); $flyTo({ x: b.door.x + o.x * 16 - o.z * 6, y: 2.4, z: b.door.z + o.z * 16 + o.x * 6 }, { x: b.door.x, y: 3, z: b.door.z }); })()`,
   street: `(() => { const g = __broke.game; const s = g.city.spawn; __broke.pose({ x: s.x, y: 0.3, z: s.z, yaw: s.yaw + Math.PI, pitch: 0.06 }); })()`,
 };
 

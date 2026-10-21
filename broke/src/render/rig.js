@@ -56,6 +56,7 @@ export class RigType {
         if (pp.t) { tx = pp.t[0]; ty = pp.t[1]; tz = pp.t[2]; }
         if (pp.s != null) sc = pp.s;
       }
+      if (p.scale) sc *= p.scale; // static per-part scale from the model (e.g. realistic head size)
       _e.set(rx, ry, rz, 'YXZ');
       _q.setFromEuler(_e);
       _v.set(p.pivot[0] + tx, p.pivot[1] + ty, p.pivot[2] + tz);

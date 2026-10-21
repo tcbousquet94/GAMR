@@ -298,8 +298,12 @@ function buildSigns(kit, scene) {
   return { mesh, material, canvas, uTime };
 }
 
-// World-space procedural wear so big flat surfaces aren't blank colour fields: on the ground, oil stains, asphalt
-// patches, hairline cracks and grain; on walls, grime at the base and faint rain streaks.
+// World-space procedural surfaces, PS2-era style: low-poly geometry with the detail in the "texture". Everything is
+// computed from world position + normal + base colour, quantised to ~6 cm texels so it reads like a low-res texture:
+//   ground   asphalt (cracks, tar patches, oil, aggregate, faded wear) / sidewalk slabs with joints and stains
+//   walls    brick courses with mortar on brick-coloured walls; concrete panel seams, water stains and rust streaks
+//            elsewhere; grime rising from the base everywhere
+//   roofs    tar-and-gravel speckle
 function addWear(mat) {
   mat.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader
@@ -313,22 +317,60 @@ function addWear(mat) {
           return mix(mix(wh(i), wh(i + vec2(1, 0)), f.x), mix(wh(i + vec2(0, 1)), wh(i + vec2(1, 1)), f.x), f.y); }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         {
-          vec2 xz = vWPos.xz;
-          if (vWNrm.y > 0.9 && vWPos.y < 0.5) {
-            float stain = smoothstep(0.55, 0.85, wn(xz * 0.09) * 0.65 + wn(xz * 0.31) * 0.35);
-            float patchA = step(0.74, wn(floor(xz / 3.0) * 0.37 + 11.0));
-            float crack = (1.0 - smoothstep(0.0, 0.018, abs(wn(xz * 0.45) - 0.5))) * step(0.55, wn(xz * 0.07 + 3.0));
-            float grain = wh(floor(xz * 9.0)) - 0.5;
-            diffuseColor.rgb *= (1.0 - 0.16 * stain) * (1.0 + 0.07 * (patchA - 0.5)) * (1.0 - 0.3 * crack) * (1.0 + 0.06 * grain);
+          vec3 base = diffuseColor.rgb;
+          float lum = dot(base, vec3(0.299, 0.587, 0.114));
+          vec3 tp = floor(vWPos * 16.0) / 16.0; // texel quantisation
+          float k = 1.0;
+          if (vWNrm.y > 0.9) {
+            vec2 xz = vWPos.xz, q = tp.xz;
+            float grain = wh(q * 3.1) - 0.5;
+            if (vWPos.y < 0.5) {
+              if (lum < 0.24) {
+                // Asphalt: aggregate, tar-snake cracks, patches, oil, wheel-worn lanes.
+                float crack = (1.0 - smoothstep(0.0, 0.02, abs(wn(xz * 0.4) - 0.5))) * step(0.5, wn(xz * 0.06 + 3.0));
+                float patchA = step(0.72, wn(floor(xz / 2.5) * 0.41 + 7.0));
+                float oil = smoothstep(0.62, 0.85, wn(xz * 0.12) * 0.6 + wn(xz * 0.5) * 0.4);
+                k *= (1.0 + 0.1 * grain) * (1.0 - 0.32 * crack) * (1.0 - 0.1 * patchA) * (1.0 - 0.2 * oil);
+                k *= 1.0 + 0.06 * (wn(xz * 0.03) - 0.5);
+              } else {
+                // Sidewalk / paving: slab joints, gum and stains.
+                vec2 sl = fract(xz / 1.6);
+                float joint = (1.0 - smoothstep(0.0, 0.035, min(sl.x, sl.y)));
+                float stain = smoothstep(0.6, 0.9, wn(xz * 0.2) * 0.7 + wn(xz * 0.9) * 0.3);
+                float gum = step(0.985, wh(q * 1.7));
+                k *= (1.0 + 0.08 * grain) * (1.0 - 0.22 * joint) * (1.0 - 0.18 * stain) * (1.0 - 0.35 * gum);
+              }
+            } else {
+              // Roofs: tar and gravel.
+              k *= (1.0 + 0.18 * grain) * (1.0 - 0.12 * smoothstep(0.55, 0.85, wn(xz * 0.15)));
+            }
           } else if (abs(vWNrm.y) < 0.3) {
-            float along = dot(xz, vec2(abs(vWNrm.z), abs(vWNrm.x)));
-            float base = 1.0 - smoothstep(0.0, 1.4, vWPos.y);
-            float streak = smoothstep(0.6, 0.95, wn(vec2(along * 0.9, vWPos.y * 0.04))) * smoothstep(30.0, 4.0, vWPos.y);
-            diffuseColor.rgb *= (1.0 - 0.18 * base) * (1.0 - 0.1 * streak);
+            float along = dot(vWPos.xz, vec2(abs(vWNrm.z), abs(vWNrm.x)));
+            float y = vWPos.y;
+            bool brick = base.r > base.g * 1.18 && base.r > base.b * 1.15 && lum < 0.5;
+            float grain = wh(vec2(floor(along * 16.0), floor(y * 16.0)) * 1.3) - 0.5;
+            if (brick) {
+              float row = floor(y / 0.22);
+              float bx = (along + mod(row, 2.0) * 0.3) / 0.6;
+              float mortar = max(1.0 - smoothstep(0.0, 0.07, fract(y / 0.22)), 1.0 - smoothstep(0.0, 0.035, fract(bx)));
+              float tint = wh(vec2(floor(bx), row)) - 0.5;
+              k *= (1.0 + 0.16 * tint) * (1.0 + 0.06 * grain);
+              diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.52, 0.49, 0.46) * lum * 2.2, 0.55 * mortar);
+            } else {
+              float seam = max(1.0 - smoothstep(0.0, 0.04, fract(along / 3.0)), 1.0 - smoothstep(0.0, 0.05, fract(y / 3.6)));
+              k *= (1.0 + 0.07 * grain) * (1.0 - 0.14 * seam);
+            }
+            // Water stains / rust streaks running down from ledges, grime rising from the street.
+            float streak = smoothstep(0.62, 0.95, wn(vec2(along * 0.9, y * 0.035))) * smoothstep(40.0, 3.0, y);
+            float rust = smoothstep(0.8, 0.97, wn(vec2(along * 2.3, y * 0.08) + 11.0)) * smoothstep(12.0, 1.0, y);
+            float base01 = 1.0 - smoothstep(0.0, 1.8, y);
+            k *= (1.0 - 0.16 * streak) * (1.0 - 0.28 * base01);
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.24, 0.14) * (0.6 + lum), 0.35 * rust);
           }
+          diffuseColor.rgb *= k;
         }`);
   };
-  mat.customProgramCacheKey = () => 'city-wear';
+  mat.customProgramCacheKey = () => 'city-wear-v3';
 }
 
 function hexCss(c) { return `#${(c >>> 0).toString(16).padStart(6, '0')}`; }
@@ -371,6 +413,16 @@ function drawSign(ctx, s, x, y, w, h) {
       if (arrow) { ctx.font = font(h * 0.8, 900); ctx.fillText(arrow, x + w - h * 0.5, cy); }
     }
     }
+  } else if (s.kind === 'billboard') {
+    // Painted ad: a colour field, a big title, a tagline strip, a weathered border.
+    const [title, tag] = s.text.split('|');
+    ctx.fillStyle = col; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(x, y + h * 0.68, w, h * 0.32);
+    const dark = (s.color & 0xff) + ((s.color >> 8) & 0xff) + ((s.color >> 16) & 0xff) > 520;
+    ctx.fillStyle = dark ? '#1e1c22' : '#ffffff';
+    ctx.font = font(Math.min(h * 0.42, (w * 1.6) / Math.max(4, title.length)), 900); ctx.fillText(title, cx, y + h * 0.36);
+    ctx.font = font(h * 0.15, 700); ctx.fillText(tag || '', cx, y + h * 0.84);
+    ctx.strokeStyle = 'rgba(30,26,34,0.6)'; ctx.lineWidth = 6; ctx.strokeRect(x + 3, y + 3, w - 6, h - 6);
   } else if (s.kind === 'graffiti') {
     ctx.font = `italic ${font(size + 4, 900)}`;
     ctx.fillStyle = col; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 5;

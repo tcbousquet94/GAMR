@@ -9,6 +9,7 @@
 import { MAT, TAG } from '../kit.js';
 import { G } from '../modules/building.js';
 import { placeProp } from '../modules/streets.js';
+import { TAGS } from './worn.js';
 
 export const TEMPLATE = { F: 13, D: 16, H: 7.4, A: 4.2, L: 9, ground: 3.4, wall: 0.3 };
 
@@ -94,6 +95,8 @@ export function buildBusiness(kit, fr, biz, opts = {}) {
   solid(F - t, bd0, F, bd1, 2.3, GH, wallC);
   solid(F - t, bd1, F, D, G, GH, wallC);
   box(F, bd0 - 0.1, F + 0.08, bd1 + 0.1, G, 2.35, 0x3a3640, MAT.METAL); // door frame
+  // Tag on the alley wall, between the street and the ladder.
+  { const g = fr.at(F + 0.04, 4.5); kit.sign(rng.pick(TAGS), 'graffiti', g.x, 1.8, g.z, 3.5, 1.3, fr.tu.x, fr.tu.z, rng.pick([0x33e0ff, 0xff3fb8, 0xffd34a, 0x7dff4a, 0xe8e4dc])); }
   biz.backDoor = P(F + 1.2, (bd0 + bd1) / 2);
   biz.backDoorInside = P(F - 1.2, (bd0 + bd1) / 2);
   kit.light(fr.at(F + 0.3, bd1 + 0.4).x, 2.9, fr.at(F + 0.3, bd1 + 0.4).z, 0xffb36a, 5, 'alley');

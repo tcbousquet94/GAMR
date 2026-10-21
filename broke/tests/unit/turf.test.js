@@ -57,3 +57,14 @@ test('control input is sanitised (no injected fields, clamped values)', () => {
   assert.equal(c.sprint, false);
   assert.equal(c.godMode, undefined);
 });
+
+test('the leader spawns standing in the HQ yard (no stuck / fall recovery)', () => {
+  for (const seed of [1, 2, 3, 4, 5]) {
+    const g = new TurfGame({ seed, survivor: DEE });
+    let recovers = 0;
+    g.events.on('recover', () => recovers++);
+    for (let i = 0; i < 300; i++) g.step({});
+    assert.equal(recovers, 0, `seed ${seed}`);
+    assert.ok(g.player.body.onGround);
+  }
+});

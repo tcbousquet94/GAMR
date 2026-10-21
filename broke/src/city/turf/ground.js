@@ -7,6 +7,7 @@ import { G } from '../modules/building.js';
 import { placeProp } from '../modules/streets.js';
 import { R } from './raster.js';
 import { diagDist } from './layout.js';
+import { beaterDressing, FADED } from './worn.js';
 
 const CAR_COLORS = [0x7a8090, 0x9a9ea6, 0xb8b6ba, 0x5d6478, 0x8a7a70, 0x6a7a8c, 0xc8c4bc, 0x8a3a3a];
 
@@ -126,7 +127,11 @@ export function furniture(kit, city, raster) {
       for (let u = 7; u < len - 7;) {
         const p = at(u, sw + 1.3);
         if (rng.chance(0.5) && free(p.x, p.z) && free(at(u - 2.4, sw + 1.3).x, at(u - 2.4, sw + 1.3).z) && free(at(u + 2.4, sw + 1.3).x, at(u + 2.4, sw + 1.3).z)) {
-          placeProp(kit, rng.chance(0.15) ? 'van' : 'car', p.x, 0, p.z, yawAlong, rng.pick(CAR_COLORS));
+          // About a third of the parked cars are beaters: faded paint, primer, a mismatched door, rust.
+          const beater = rng.chance(0.35);
+          const van = rng.chance(0.15);
+          placeProp(kit, van ? 'van' : 'car', p.x, 0, p.z, yawAlong, beater ? rng.pick(FADED) : rng.pick(CAR_COLORS));
+          if (beater && !van) beaterDressing(kit, p.x, p.z, yawAlong);
           u += rng.range(6, 9);
         } else u += rng.range(4, 10);
       }

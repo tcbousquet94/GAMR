@@ -6,13 +6,13 @@ import * as THREE from 'three';
 export function buildSky(scene) {
   const uniforms = {
     uTop: { value: new THREE.Color() }, uMid: { value: new THREE.Color() }, uHor: { value: new THREE.Color() },
-    uSunDir: { value: new THREE.Vector3(0, 0.2, -1) }, uSunCol: { value: new THREE.Color() }, uNight: { value: 0 }, uTime: { value: 0 },
+    uSunDir: { value: new THREE.Vector3(0, 0.2, -1) }, uSunCol: { value: new THREE.Color() }, uNight: { value: 0 }, uTime: { value: 0 }, uClouds: { value: 1 },
   };
   const mat = new THREE.ShaderMaterial({
     uniforms, side: THREE.BackSide, depthWrite: false, fog: false,
     vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.); gl_Position = p.xyww; }`,
     fragmentShader: /* glsl */ `
-      uniform vec3 uTop, uMid, uHor, uSunDir, uSunCol; uniform float uNight, uTime; varying vec3 vDir;
+      uniform vec3 uTop, uMid, uHor, uSunDir, uSunCol; uniform float uNight, uTime, uClouds; varying vec3 vDir;
       float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
         return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
@@ -39,8 +39,8 @@ export function buildSky(scene) {
           vec3 shade = mix(uMid, uTop, 0.35) * 0.92;
           vec3 cl = mix(shade, lit, 0.45 + 0.55 * pow(sa, 1.5));
           cl = mix(cl, vec3(0.16, 0.14, 0.3), uNight * 0.75);
-          c = mix(c, cl, c1 * 0.75 * fade);
-          c = mix(c, cl * 1.05, c2 * 0.5 * fade);
+          c = mix(c, cl, c1 * 0.75 * fade * uClouds);
+          c = mix(c, cl * 1.05, c2 * 0.5 * fade * uClouds);
         }
         // Stars.
         vec3 q = floor(d * 380.0);
@@ -75,5 +75,10 @@ export function sampleLighting(keys, minutes) {
   L.haze = col('haze'); L.hazeFar = col('hazeFar');
   L.sunI = a.sunI + (b.sunI - a.sunI) * s; L.hemiI = a.hemiI + (b.hemiI - a.hemiI) * s; L.fogD = a.fogD + (b.fogD - a.fogD) * s;
   L.night = a.night + (b.night - a.night) * s; L.sunEl = a.sunEl + (b.sunEl - a.sunEl) * s;
+  // Optional extras (district look): haze density, colour grade, cloud strength.
+  const num = (k, d) => (a[k] ?? d) + ((b[k] ?? d) - (a[k] ?? d)) * s;
+  L.density = a.density != null ? num('density', 0.0024) : null;
+  L.grade = a.grade ? a.grade.map((v, i) => v + ((b.grade ?? a.grade)[i] - v) * s) : null;
+  L.clouds = num('clouds', 1);
   return L;
 }

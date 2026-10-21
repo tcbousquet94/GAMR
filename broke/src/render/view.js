@@ -152,6 +152,7 @@ export class View {
 
   applyLighting(L) {
     const s = this.sky.uniforms;
+    s.uClouds.value = L.clouds ?? 1;
     s.uTop.value.copy(L.top); s.uMid.value.copy(L.mid); s.uHor.value.copy(L.hor); s.uSunCol.value.copy(L.sun); s.uNight.value = L.night;
     const el = THREE.MathUtils.degToRad(L.sunEl);
     s.uSunDir.value.set(Math.cos(SUN_AZ) * Math.cos(el), Math.sin(el), Math.sin(SUN_AZ) * Math.cos(el));
@@ -161,7 +162,9 @@ export class View {
       const u = this.atmo.uniforms;
       u.haze.value.copy(L.haze); u.hazeFar.value.copy(L.hazeFar); u.sunColor.value.copy(L.sun);
       u.sunDir.value.copy(s.uSunDir.value); u.night.value = L.night;
-      u.density.value = 0.0024 + 0.0008 * L.night;
+      u.density.value = L.density ?? 0.0024 + 0.0008 * L.night;
+      if (this.clearAir) u.density.value *= 0.15; // debug overlay: see the whole map
+      if (L.grade) u.grade.value.set(L.grade[0], L.grade[1], L.grade[2], L.grade[3]);
     }
     this.sky.uniforms.uTime.value = this.game.time;
     // Image-based light from the sky, refreshed as the time of day moves.

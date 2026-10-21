@@ -66,6 +66,7 @@ function toggleOverlay(on) {
   if (!g?.turf) return false;
   if (!app.overlay || app.overlay.game !== g) { app.overlay = { game: g, group: buildDebugOverlay(g.turf) }; view.scene.add(app.overlay.group); }
   app.overlay.group.visible = on ?? !app.overlay.group.visible;
+  view.clearAir = app.overlay.group.visible;
   return app.overlay.group.visible;
 }
 app.toggleOverlay = toggleOverlay;
@@ -133,7 +134,7 @@ addEventListener('resize', () => view.resize());
 function frame(now) {
   requestAnimationFrame(frame);
   const g = app.game;
-  let dt = Math.min(0.1, (now - app.last) / 1000);
+  let dt = Math.max(0, Math.min(0.1, (now - app.last) / 1000)); // the first rAF stamp can predate the load-time clock
   app.last = now;
   // Recording: animate exactly the sim time that elapsed this frame.
   if (app.driver && app.fixedRenderDt) dt = app.stepsPerFrame * DT;
@@ -160,6 +161,7 @@ function frame(now) {
   }
   view.render(dt);
   app.onFrame?.();
+  hud.flying = app.fly.active; // the leader is parked while the camera roams: no "you are here" prompt
   hud.update(dt);
   audio.tick(dt, {
     intensity: Math.min(6, g.clock.tier + (g.exit.state === 'called' ? 1 : 0) + (g.boss?.alive ? 1 : 0)),

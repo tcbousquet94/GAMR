@@ -12,6 +12,7 @@
 import { MAT, TAG } from '../kit.js';
 import { G } from '../modules/building.js';
 import { placeProp } from '../modules/streets.js';
+import { TAGS } from './worn.js';
 
 export const WH = { U0: 2, V0: 2, WU: 48, WV: 44, lane: 5, floor: 1.2, eave: 10, cat: 5.6 };
 const FENCE_H = 4.0, COLLIDE_H = 6;
@@ -53,6 +54,11 @@ export function buildWarehouse(kit, fr, wh) {
       solid(u0, v0, u1, v1, G, FENCE_H, 0x7a4a3a, MAT.STD, TAG.BUILDING);
       box(u0 - 0.05, v0 - 0.05, u1 + 0.05, v1 + 0.05, FENCE_H - 0.25, FENCE_H, 0x9a8a80);
       coll(u0, v0, u1, v1, FENCE_H, COLLIDE_H, TAG.BOUNDARY);
+      // Tags on the street face of the wall.
+      const o = outward(u0, v0, u1, v1);
+      const n = { x: fr.tu.x * o.u + fr.tv.x * o.v, z: fr.tu.z * o.u + fr.tv.z * o.v };
+      const len = horiz ? u1 - u0 : v1 - v0;
+      if (len > 5 && rng.chance(0.75)) { const m = fr.at((u0 + u1) / 2, (v0 + v1) / 2); kit.sign(rng.pick(TAGS), 'graffiti', m.x + n.x * 0.32, rng.range(1.5, 2.6), m.z + n.z * 0.32, Math.min(6, len - 1), 1.5, n.x, n.z, rng.pick([0x33e0ff, 0xff3fb8, 0xffd34a, 0xe8e4dc, 0x7dff4a])); }
     } else {
       coll(u0, v0, u1, v1, G, COLLIDE_H, TAG.PROP);
       box(u0, v0, u1, v1, G, FENCE_H, 0x9a9ca4, MAT.GLASS); // chain-link reads see-through
@@ -166,10 +172,10 @@ export function buildWarehouse(kit, fr, wh) {
   truck(U0 + 9, V0 + 9.5);
   if (rng.chance(0.7)) truck(U0 + 31, V0 + 8);
   const pallets = [];
-  for (let k = 0; k < 7; k++) {
+  for (let k = 0; k < 24 && pallets.length < 6; k++) { // keep drawing until the yard has its cover stacks
     const u = rng.range(yard.u0 + 2, yard.u1 - 2), vv = rng.range(yard.v0 + 1, yard.v1);
     if (Math.abs(u - (U0 + 9)) < 2.6 || (Math.abs(u - (U0 + 31)) < 2.6 && vv > V0 + 4)) continue;
-    if (u > gU0 - 2 && u < gU1 + 2 && vv < V0 + 6) continue; // keep the gate mouth clear
+    if (u > gU0 - 2.5 && u < gU1 + 2.5 && vv < V0 + 10) continue; // keep the gate mouth (and the yard spawn) clear
     const h = rng.chance(0.5) ? 1.1 : 0.55;
     solid(u - 0.6, vv - 0.6, u + 0.6, vv + 0.6, G, G + h, rng.chance(0.6) ? 0xa48a62 : 0x8a7a68, MAT.STD, TAG.PROP);
     s.cover.push({ ...rectOf(R(u - 0.6, vv - 0.6, u + 0.6, vv + 0.6)), y0: G, y1: G + h, kind: 'pallets' });
@@ -238,8 +244,15 @@ export function buildWarehouse(kit, fr, wh) {
   solid(B.u1 - W - cw, B.v0 + 5, B.u1 - W, B.v1 - W - cw, CY - 0.3, CY, 0x6a6670, MAT.METAL, TAG.PLATFORM);
   const railC = 0xc8a83a;
   const officeU0 = B.u1 - W - 10, officeV0 = B.v1 - W - cw - 6;
-  solid(B.u0 + W + 11, B.v1 - W - cw - 0.1, officeU0, B.v1 - W - cw, CY, CY + 1.05, railC, MAT.METAL, TAG.RAIL); // stops at the office
-  solid(B.u1 - W - cw - 0.1, B.v0 + 5, B.u1 - W - cw, officeV0, CY, CY + 1.05, railC, MAT.METAL, TAG.RAIL);
+  // Pipe railings (posts, top and knee rails) over one thin collider; they stop at the office.
+  const railing = (u0, v0, u1, v1) => {
+    const r = R(u0, v0, u1, v1); kit.collider(r.x0, CY, r.z0, r.x1, CY + 1.05, r.z1, TAG.RAIL);
+    const alongU = u1 - u0 > v1 - v0, len = alongU ? u1 - u0 : v1 - v0;
+    for (const [y0, y1] of [[CY + 0.98, CY + 1.05], [CY + 0.5, CY + 0.55]]) box(u0, v0, u1, v1, y0, y1, railC, MAT.METAL);
+    for (let t = 0; t <= len; t += 2) { const a = alongU ? u0 + t : u0, b = alongU ? v0 : v0 + t; box(a, b, a + (alongU ? 0.06 : u1 - u0), b + (alongU ? v1 - v0 : 0.06), CY, CY + 1.0, railC, MAT.METAL); }
+  };
+  railing(B.u0 + W + 11, B.v1 - W - cw - 0.1, officeU0, B.v1 - W - cw);
+  railing(B.u1 - W - cw - 0.1, B.v0 + 5, B.u1 - W - cw, officeV0);
   // Stairs: along the back wall, rising toward the corner side, landing on the catwalk's end.
   rampUV(kit, fr, B.u0 + W + 2.5, B.v1 - W - cw - 2.2, B.u0 + W + 11, B.v1 - W - cw, '-u', FL, CY, 0x8a8590);
   solid(B.u0 + W, B.v1 - W - cw - 2.2, B.u0 + W + 2.5, B.v1 - W - cw, CY - 0.3, CY, 0x6a6670, MAT.METAL, TAG.PLATFORM);

@@ -41,7 +41,7 @@ export function placeProp(kit, type, x, y, z, yaw = 0, color = null, solid = tru
   kit.collider(x - hx, y, z - hz, x + hx, y + s[1], z + hz, TAG.PROP);
 }
 
-const CAR_COLORS = [0x4a4f5c, 0x6b6f78, 0x8e8d92, 0x2f3340, 0x5a4f48, 0x3b4a5a, 0xa8a49c, 0x3d3a42];
+const CAR_COLORS = [0x7a8090, 0x9a9ea6, 0xb8b6ba, 0x5d6478, 0x8a7a70, 0x6a7a8c, 0xc8c4bc, 0x6e6a74];
 
 export function streets(kit, city) {
   const { rng, pal } = kit;

@@ -7,7 +7,7 @@ import { perimeter, placeProp, lowWall } from './common.js';
 import { garageName } from '../names.js';
 
 const DECKS = [G, 3.5, 7, 10.5];
-const CAR_COLORS = [0x4a4f5c, 0x6b6f78, 0x8e8d92, 0x2f3340, 0x5a4f48, 0x3b4a5a, 0xa8a49c];
+const CAR_COLORS = [0x7a8090, 0x9a9ea6, 0xb8b6ba, 0x5d6478, 0x8a7a70, 0x6a7a8c, 0xc8c4bc];
 
 export function garage(kit, lot) {
   const { rng, pal } = kit;

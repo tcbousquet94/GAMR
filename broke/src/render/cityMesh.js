@@ -175,7 +175,7 @@ export function buildCity(city, scene, opts = {}) {
       nightMat.uniforms.uNight.value = k;
       nightMat.uniforms.uDay.value = 1 - 0.55 * k;
       signs.material.color.setScalar(0.75 + 0.6 * k);
-      lights.poolMat.opacity = 0.05 + 0.5 * k;
+      lights.poolMat.opacity = 0.03 + 0.2 * k;
       lights.bulbMat.uniforms.uNight.value = k;
       skyline.material.uniforms.uNight.value = k;
     },

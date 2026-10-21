@@ -431,6 +431,23 @@ function drawSign(ctx, s, x, y, w, h) {
     ctx.fillStyle = col; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 5;
     ctx.translate(cx, cy); ctx.rotate(-0.06);
     ctx.strokeText(s.text, 0, 0); ctx.fillText(s.text, 0, 0);
+  } else if (s.kind === 'script') {
+    // A painted script logo (the diner's name over the counter): italic serif, coloured with a cream outline.
+    let sz = h * 0.9;
+    const scriptFont = (px) => `italic 900 ${px}px Georgia, 'Times New Roman', serif`;
+    ctx.font = scriptFont(sz);
+    while (ctx.measureText(s.text).width > w - 30 && sz > 14) { sz -= 2; ctx.font = scriptFont(sz); }
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#f2e8d4'; ctx.lineWidth = Math.max(4, sz * 0.12); ctx.strokeText(s.text, cx, cy);
+    ctx.strokeStyle = 'rgba(40,20,20,0.85)'; ctx.lineWidth = Math.max(2, sz * 0.04); ctx.strokeText(s.text, cx + 2, cy + 3);
+    ctx.fillStyle = col; ctx.fillText(s.text, cx, cy);
+  } else if (s.kind === 'plate') {
+    // A painted plate (posters, wall signs, street signs): solid colour ground, cream border, light lettering.
+    ctx.fillStyle = col; roundRect(ctx, x + 4, y + 4, w - 8, h - 8, 6); ctx.fill();
+    ctx.strokeStyle = 'rgba(242,232,212,0.85)'; ctx.lineWidth = 3; roundRect(ctx, x + 10, y + 10, w - 20, h - 20, 4); ctx.stroke();
+    ctx.font = font(Math.min(size, h * 0.55), 800);
+    ctx.fillStyle = '#f4ecdc';
+    ctx.fillText(s.text, cx, cy);
   } else if (s.kind === 'menu') {
     // Interior lettering (menu boards, door signs): coloured text on a transparent ground, set on a board.
     ctx.font = font(size, 700);
@@ -464,7 +481,8 @@ function buildLights(kit, scene) {
   scene.add(pm);
   // Bulbs: small glowing boxes, brighter at night (bloom picks them up). A neon sign is its own light source: a bulb
   // there would hang in front of the lettering (and reads as a black square by day).
-  const bulbs = kit.lights.filter((l) => l.kind !== 'steam' && l.kind !== 'neon');
+  // Shop ceiling lights are fittings inside the room, not a hanging cube.
+  const bulbs = kit.lights.filter((l) => l.kind !== 'steam' && l.kind !== 'neon' && l.kind !== 'shop');
   const bulbMat = new THREE.ShaderMaterial({
     uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uNight: { value: 0 }, uTime: { value: 0 } }]),
     vertexShader: `uniform float uNight; uniform float uTime; varying vec3 vC;

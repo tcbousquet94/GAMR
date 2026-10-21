@@ -289,10 +289,10 @@ export function businessName(type, rng, used) {
 // stand in it (`biz.patrons`, drawn by the kit view). Layout in the template frame: u along the street (door at the
 // alley end), v into the block; the template's register counter by the door stays as the host stand.
 const DINER = {
-  red: 0xb8322e, cream: 0xefe6d2, chrome: 0xc8ccd2, black: 0x1c1a20, white: 0xf2efe8, steel: 0x9aa0a8, wood: 0x8a5a3a,
-  vinyl: 0xc02a2a, formica: 0xe8dcc0, neon: 0xff5fd0, warm: 0xffd9a0,
+  red: 0xa8302a, cream: 0xd8ccb0, green: 0x5a6648, chrome: 0xc8ccd2, black: 0x1c1a20, white: 0xf2efe8, steel: 0x9aa0a8,
+  wood: 0x8a5a3a, vinyl: 0x9a2a26, laminate: 0x9a8a68, floor: 0x7a7064, floor2: 0x6c6358, warm: 0xfff0d0, board: 0x16161a,
 };
-function buildDiner({ solid, box, cover, fr, F, D, GH, biz, out, kit, corner }) {
+function buildDiner({ solid, box, cover, fr, F, D, GH, biz, kit, corner }) {
   // Its own random stream, so furnishing the diner never reshuffles the rest of the city.
   const rng = new Rng(`diner:${biz.name}:${biz.block}`);
   const C = DINER, t = 0.3, Gt = G;
@@ -303,178 +303,210 @@ function buildDiner({ solid, box, cover, fr, F, D, GH, biz, out, kit, corner }) 
   const at3 = (u, v, y) => { const p = fr.at(u, v); return { x: p.x, y, z: p.z }; };
   const dir = (du, dv) => ({ x: fr.tu.x * du + fr.tv.x * dv, z: fr.tu.z * du + fr.tv.z * dv });
   const yawOf = (du, dv) => { const d = dir(du, dv); return Math.atan2(-d.x, -d.z); };
-  const nIn = (du, dv) => dir(du, dv); // a sign's facing normal, in frame terms
   const sign = (text, kind, u, v, y, w, h, n, color) => { const p = fr.at(u, v); kit.sign(text, kind, p.x, y, p.z, w, h, n.x, n.z, color); };
   const light = (u, v, y, color, r) => { const p = fr.at(u, v); kit.light(p.x, y, p.z, color, r, 'shop'); };
   const SEAT = 0.46; // seat top above the floor
+  const PASS = 12.0, CV0 = 9.0, CV1 = 9.75, BAR0 = 11.55; // pass wall, counter, back counter (v)
+  const toPass = dir(0, -1), fromCorner = dir(1, 0), fromAlley = dir(-1, 0); // sign normals per wall
 
-  // Zones (v): dining room 0..PASS, the pass wall, kitchen PASS+..D.
-  const PASS = 12.0, CV0 = 9.0, CV1 = 9.75, BAR0 = 11.55;
-
-  // ---- floor: black-and-white checkerboard in the dining room, white tile in the kitchen -----------------------------
+  // ---- floor: worn square tile in two close tones (dining room), white tile in the kitchen -------------------------
   for (let u = 0; u < F - 0.01; u += 1) for (let v = 0; v < PASS - 0.01; v += 1) {
     const u1 = Math.min(F - t, u + 1), v1 = Math.min(PASS, v + 1), u0 = Math.max(t, u), v0 = Math.max(t, v);
-    bx(u0, v0, u1, v1, Gt, Gt + 0.006, (Math.floor(u) + Math.floor(v)) % 2 ? C.black : C.white, 'tile');
+    bx(u0, v0, u1, v1, Gt, Gt + 0.006, rng.chance(0.5) ? C.floor : C.floor2, 'tile');
   }
-  bx(t, PASS, F - t, D - t, Gt, Gt + 0.006, 0xe4e2dc, 'tile');
+  bx(t, PASS, F - t, D - t, Gt, Gt + 0.006, 0xd8d6d0, 'tile');
 
-  // ---- walls: red wainscot, chrome rail, cream above (dining room); the pass wall with its window and kitchen door --
-  const wains = (u0, v0, u1, v1, upper = true) => {
-    bx(u0, v0, u1, v1, Gt, 0.95, C.red, 'trim');
-    bx(u0, v0, u1, v1, 0.95, 1.02, C.chrome, 'chrome');
-    if (upper) bx(u0, v0, u1, v1, 1.02, GH - 0.12, C.cream, 'plaster');
+  // ---- walls: green tile below a red stripe, cream square tile above ------------------------------------------------
+  const wall = (u0, v0, u1, v1, upper = true) => {
+    bx(u0, v0, u1, v1, Gt, 0.88, C.green, 'tile');
+    bx(u0, v0, u1, v1, 0.88, 1.0, C.red, 'tile');
+    if (upper) bx(u0, v0, u1, v1, 1.0, GH - 0.12, C.cream, 'tile');
   };
-  // Alley wall (inner face at u = F - t), dining part.
-  wains(F - t - 0.03, t, F - t, PASS, true);
-  // Corner wall (inner face at u = t): windows from v 1.4 to 7.6 on a street corner.
-  if (corner) { wains(t, t, t + 0.03, 1.4); wains(t, 1.4, t + 0.03, 7.6, false); wains(t, 7.6, t + 0.03, PASS); }
-  else wains(t, t, t + 0.03, PASS);
-  // Pass wall: solid with a pass-through window (u 4..8) and an open kitchen doorway (u 10.9..12.1).
+  wall(F - t - 0.03, t, F - t, PASS);
+  if (corner) { wall(t, t, t + 0.03, 1.4); wall(t, 1.4, t + 0.03, 7.6, false); wall(t, 7.6, t + 0.03, PASS); }
+  else wall(t, t, t + 0.03, PASS);
+  // Pass wall: a wide open pass to the kitchen (u 3..9.6) and the kitchen doorway (u 10.9..12.1).
   const pw = (u0, u1, y0, y1) => solid(u0, PASS, u1, PASS + 0.25, y0, y1, C.cream, MAT.STD, TAG.BUILDING);
-  pw(t, 4, Gt, GH); pw(8, 10.9, Gt, GH); pw(12.1, F - t, Gt, GH);
-  pw(4, 8, Gt, 1.25); pw(4, 8, 1.95, GH);
-  pw(10.9, 12.1, 2.3, GH);
-  bx(4, PASS - 0.25, 8, PASS + 0.25, 1.25, 1.3, C.steel, 'metalPaint'); // pass shelf
-  bx(5.2, PASS + 0.02, 6.8, PASS + 0.12, 1.85, 1.92, C.chrome, 'chrome'); // order rail
-  for (let k = 0; k < 5; k++) bx(5.3 + k * 0.3, PASS - 0.01, 5.5 + k * 0.3, PASS + 0.01, 1.62, 1.84, 0xfaf6ea, 'trim'); // tickets
-  for (let k = 0; k < 3; k++) { bx(4.4 + k * 1.2, PASS - 0.2, 4.9 + k * 1.2, PASS + 0.1, 1.3, 1.36, C.white, 'trim'); bx(4.5 + k * 1.2, PASS - 0.15, 4.8 + k * 1.2, PASS + 0.05, 1.36, 1.42, k === 1 ? 0xd8a040 : 0x8a4a2a, 'trim'); } // plates up
-  glow(4.1, PASS - 0.05, 7.9, PASS + 0.2, 1.92, 1.95, 0xffc070); // heat lamps
-  wains(t, PASS - 0.03, 4, PASS); wains(8, PASS - 0.03, 10.9, PASS); wains(12.1, PASS - 0.03, F - t, PASS);
-  // Swinging kitchen door (open, folded back against the wall) with a porthole.
-  bx(12.04, PASS + 0.25, 12.1, PASS + 1.2, Gt, 2.2, C.steel, 'metalPaint');
-  glow(12.03, PASS + 0.6, 12.04, PASS + 0.9, 1.5, 1.8, 0xfff2d8);
+  pw(t, 3, Gt, GH); pw(9.6, 10.9, Gt, GH); pw(12.1, F - t, Gt, GH);
+  pw(3, 9.6, Gt, 1.15); pw(3, 9.6, 1.9, GH); pw(10.9, 12.1, 2.3, GH);
+  wall(t, PASS - 0.03, 3, PASS); wall(9.6, PASS - 0.03, 10.9, PASS); wall(12.1, PASS - 0.03, F - t, PASS);
+  bx(3, PASS - 0.03, 9.6, PASS, 1.9, GH - 0.12, C.cream, 'tile');
+  bx(3, PASS - 0.25, 9.6, PASS + 0.25, 1.15, 1.2, C.steel, 'metalPaint'); // pass shelf
+  bx(4.6, PASS + 0.02, 7.8, PASS + 0.12, 1.78, 1.84, C.chrome, 'chrome'); // order rail
+  for (let k = 0; k < 6; k++) bx(4.7 + k * 0.5, PASS + 0.04, 4.9 + k * 0.5, PASS + 0.06, 1.58, 1.78, 0xfaf6ea, 'trim'); // tickets
+  for (let k = 0; k < 3; k++) { bx(3.6 + k * 1.9, PASS - 0.2, 4.1 + k * 1.9, PASS + 0.1, 1.2, 1.26, C.white, 'trim'); bx(3.7 + k * 1.9, PASS - 0.15, 4.0 + k * 1.9, PASS + 0.05, 1.26, 1.32, k === 1 ? 0xd8a040 : 0x8a4a2a, 'trim'); } // plates up
+  glow(3.1, PASS - 0.05, 9.5, PASS + 0.2, 1.87, 1.9, 0xffc070); // heat lamps
+  bx(12.04, PASS + 0.25, 12.1, PASS + 1.2, Gt, 2.2, 0x2a2a2e, 'metalPaint'); // kitchen door, swung open
+  bx(12.03, PASS + 0.55, 12.04, PASS + 0.9, 1.4, 1.75, 0xa8c0cc, 'carGlass');
 
-  // ---- window booths: three booths across the front window (u 0.5..6.35) -------------------------------------------
+  // ---- back wall dressing: the name in red script, menu boards, the house rules, clock, speaker, vent ---------------
+  const name = biz.name.replace(/\s+Diner$/i, '');
+  sign(name, 'script', 6.3, PASS - 0.06, 3.08, 3.0, 0.4, toPass, C.red);
+  bx(5.1, PASS - 0.05, 7.5, PASS - 0.02, 2.66, 2.94, 0x6a1a18, 'trim'); // DINER plate
+  sign('DINER', 'plate', 6.3, PASS - 0.06, 2.8, 2.2, 0.27, toPass, 0x6a1a18);
+  const boards = [
+    [3.25, ['2 EGGS & TOAST  3.25', 'WAFFLE  2.75', 'BURGER  4.25', 'CHEESEBURGER  4.75']],
+    [5.85, ['CLUB SANDWICH  4.50', 'TUNA MELT  4.25', 'FRIES  .95', 'COFFEE  .75']],
+  ];
+  for (const [u0, lines] of boards) {
+    bx(u0, PASS - 0.05, u0 + 2.4, PASS - 0.02, 1.95, 2.6, C.board, 'trim');
+    lines.forEach((l, k) => sign(l, 'menu', u0 + 1.2, PASS - 0.06, 2.5 - k * 0.15, 2.2, 0.13, toPass, 0xf2efe8));
+  }
+  bx(8.4, PASS - 0.05, 9.5, PASS - 0.02, 1.95, 2.6, C.red, 'trim');
+  ['WE RESERVE', 'THE RIGHT TO', 'REFUSE SERVICE', 'TO ANYONE'].forEach((l, k) => sign(l, 'menu', 8.95, PASS - 0.06, 2.48 - k * 0.14, 1.0, 0.11, toPass, 0xf4ecdc));
+  // Clock, wall speaker and a vent grille to the left of the sign.
+  bx(2.25, PASS - 0.06, 2.75, PASS - 0.02, 2.55, 3.05, C.white, 'trim'); bx(2.24, PASS - 0.07, 2.76, PASS - 0.06, 2.55, 2.58, C.black);
+  bx(2.49, PASS - 0.08, 2.51, PASS - 0.07, 2.8, 2.98, C.black); bx(2.5, PASS - 0.08, 2.64, PASS - 0.07, 2.79, 2.81, C.black);
+  bx(0.7, PASS - 0.2, 1.1, PASS - 0.02, 2.7, 3.1, 0x2a2a2e, 'metalPaint'); // speaker
+  bx(1.3, PASS - 0.06, 1.9, PASS - 0.02, 2.55, 3.15, 0x8a8a86, 'metalPaint'); // vent grille
+  for (let k = 0; k < 6; k++) bx(1.32, PASS - 0.07, 1.88, PASS - 0.06, 2.6 + k * 0.09, 2.63 + k * 0.09, 0x4a4a48);
+
+  bx(t, t, F - t, PASS, GH - 0.14, GH - 0.12, 0xcfc6b0, 'tile'); // drop-tile ceiling
+
+  // ---- fluorescent tube fixtures on short rods ----------------------------------------------------------------------
+  const tube = (u, v, len, alongU) => {
+    const [a0, a1, b0, b1] = alongU ? [u - len / 2, u + len / 2, v - 0.16, v + 0.16] : [u - 0.16, u + 0.16, v - len / 2, v + len / 2];
+    bx(a0, b0, a1, b1, 2.82, 2.92, 0xd8d8d4, 'metalPaint');
+    glow(a0 + 0.05, b0 + 0.06, a1 - 0.05, b1 - 0.06, 2.79, 2.82, 0xf8f6ec);
+    for (const k of [0.2, 0.8]) { const uu = alongU ? a0 + (a1 - a0) * k : u, vv = alongU ? v : b0 + (b1 - b0) * k; bx(uu - 0.015, vv - 0.015, uu + 0.015, vv + 0.015, 2.92, GH - 0.14, C.black); }
+  };
+  tube(3.2, 2.8, 1.8, true); tube(7.0, 2.8, 1.8, true); tube(4.4, 7.4, 1.8, true); tube(8.4, 7.4, 1.8, true);
+  light(5.2, 5.0, 2.7, 0xfff4e0, 9);
+
+  // ---- booths: red tufted benches, wood-laminate tables on pedestals ------------------------------------------------
   const booth = (u0, v0, along) => {
-    // along = 'u': benches face each other across u; table at the window end. 'v': along the side wall.
-    const L = 1.75; // bench length
+    const L = 1.75;
     const seat = (a0, a1, back) => {
-      // a0..a1: the bench's 0.55 depth; back: which side the backrest is on (-1 at a0, +1 at a1).
       const r = along === 'u' ? [a0, v0, a1, v0 + L] : [u0, a0, u0 + L, a1];
       const R = (x0, x1) => (along === 'u' ? [x0, r[1], x1, r[3]] : [r[0], x0, r[2], x1]);
-      sd(...r, Gt, Gt + 0.36, C.chrome, 'chrome');
+      sd(...r, Gt, Gt + 0.36, 0x4a2a24, 'trim');
       bx(...r, Gt + 0.36, SEAT, C.vinyl, 'rubber');
-      const bk = back < 0 ? R(a0, a0 + 0.14) : R(a1 - 0.14, a1);
-      sd(...bk, SEAT, 1.2, C.vinyl, 'rubber');
-      bx(...bk, 1.2, 1.24, C.chrome, 'chrome');
-      cover(...r, Gt, 1.2, 'booth');
+      const bk = back < 0 ? R(a0, a0 + 0.16) : R(a1 - 0.16, a1);
+      sd(...bk, SEAT, 1.3, C.vinyl, 'rubber');
+      // Tufting: shallow horizontal seams across the backrest.
+      for (const y of [0.75, 1.0]) bx(...(back < 0 ? R(a0 + 0.16, a0 + 0.17) : R(a1 - 0.17, a1 - 0.16)), y, y + 0.02, 0x6a1a18, 'rubber');
+      cover(...r, Gt, 1.3, 'booth');
     };
+    const top = (a, b, c, d) => { sd(a, b, c, d, 0.72, 0.76, C.laminate, 'planks'); bx(a, b, c, d, 0.7, 0.72, C.chrome, 'chrome'); };
     if (along === 'u') {
       seat(u0, u0 + 0.55, -1); seat(u0 + 1.25, u0 + 1.8, 1);
-      sd(u0 + 0.6, v0 + 0.1, u0 + 1.2, v0 + 1.55, 0.72, 0.76, C.formica, 'trim');
-      bx(u0 + 0.6, v0 + 0.1, u0 + 1.2, v0 + 1.55, 0.7, 0.72, C.chrome, 'chrome');
-      bx(u0 + 0.86, v0 + 0.5, u0 + 0.94, v0 + 1.2, Gt, 0.7, C.chrome, 'chrome');
+      top(u0 + 0.58, v0 + 0.1, u0 + 1.22, v0 + 1.55);
+      bx(u0 + 0.86, v0 + 0.78, u0 + 0.94, v0 + 0.86, Gt, 0.7, 0x2a2a2e, 'metalPaint');
+      bx(u0 + 0.7, v0 + 0.62, u0 + 1.1, v0 + 1.02, Gt, Gt + 0.03, 0x2a2a2e, 'metalPaint');
       tableTop(u0 + 0.9, v0 + 0.35);
       return [{ u: u0 + 0.3, v: v0 + 0.85, fu: 1, fv: 0 }, { u: u0 + 1.5, v: v0 + 0.85, fu: -1, fv: 0 }];
     }
     seat(v0, v0 + 0.55, -1); seat(v0 + 1.25, v0 + 1.8, 1);
-    sd(u0 + 0.1, v0 + 0.6, u0 + 1.55, v0 + 1.2, 0.72, 0.76, C.formica, 'trim');
-    bx(u0 + 0.1, v0 + 0.6, u0 + 1.55, v0 + 1.2, 0.7, 0.72, C.chrome, 'chrome');
-    bx(u0 + 0.5, v0 + 0.86, u0 + 1.2, v0 + 0.94, Gt, 0.7, C.chrome, 'chrome');
+    top(u0 + 0.1, v0 + 0.58, u0 + 1.55, v0 + 1.22);
+    bx(u0 + 0.78, v0 + 0.86, u0 + 0.86, v0 + 0.94, Gt, 0.7, 0x2a2a2e, 'metalPaint');
+    bx(u0 + 0.62, v0 + 0.7, u0 + 1.02, v0 + 1.1, Gt, Gt + 0.03, 0x2a2a2e, 'metalPaint');
     tableTop(u0 + 0.35, v0 + 0.9);
     return [{ u: u0 + 0.85, v: v0 + 0.3, fu: 0, fv: 1 }, { u: u0 + 0.85, v: v0 + 1.5, fu: 0, fv: -1 }];
   };
-  // On every table: a napkin dispenser, ketchup and mustard, a sugar pourer.
+  // On every table: a napkin dispenser, ketchup and mustard, salt and pepper.
   function tableTop(u, v) {
     bx(u - 0.06, v - 0.08, u + 0.06, v + 0.08, 0.76, 0.9, C.chrome, 'chrome');
-    bx(u + 0.12, v - 0.04, u + 0.17, v + 0.01, 0.76, 0.94, 0xc02020, 'trim');
-    bx(u + 0.12, v + 0.05, u + 0.17, v + 0.1, 0.76, 0.94, 0xe8c020, 'trim');
-    bx(u - 0.16, v - 0.03, u - 0.1, v + 0.03, 0.76, 0.86, 0xe8eef2, 'carGlass');
+    bx(u + 0.12, v - 0.04, u + 0.17, v + 0.01, 0.76, 0.94, 0xb02020, 'trim');
+    bx(u + 0.12, v + 0.05, u + 0.17, v + 0.1, 0.76, 0.94, 0xd8b020, 'trim');
+    bx(u - 0.16, v - 0.05, u - 0.12, v - 0.01, 0.76, 0.84, 0xe8eef2, 'trim'); bx(u - 0.16, v + 0.01, u - 0.12, v + 0.05, 0.76, 0.84, 0x3a3a3a, 'trim');
   }
   const seats = [];
   for (let i = 0; i < 3; i++) seats.push(...booth(0.5 + i * 1.95, 0.35, 'u'));
-  // Along the corner wall: three more booths (under the side windows on a corner lot).
   for (let i = 0; i < 3; i++) seats.push(...booth(t + 0.05, 3.0 + i * 1.95, 'v'));
-  for (let i = 0; i < 6; i++) { const u = 1.4 + (i % 3) * 1.95, v = i < 3 ? 1.1 : 3.9 + (i - 3) * 1.95; const pu = i < 3 ? u : 1.05; bx(pu - 0.2, v - 0.2, pu + 0.2, v + 0.2, 2.5, 2.62, C.red, 'trim'); glow(pu - 0.15, v - 0.15, pu + 0.15, v + 0.15, 2.47, 2.5, C.warm); }
-  for (let i = 0; i < 3; i++) bx(1.38 + i * 1.95, 1.08, 1.42 + i * 1.95, 1.12, 2.62, GH - 0.12, C.black); // pendant cords
 
-  // ---- the counter: chrome-trimmed, with seven stools ---------------------------------------------------------------
+  // ---- window blinds: slats tilted open, so the room still shows from the street ----------------------------------
+  const winU0 = 0.6, winU1 = F - 4.1;
+  for (let y = 1.0; y < 2.8; y += 0.11) bx(winU0, t + 0.02, winU1, t + 0.05, y, y + 0.022, 0xd8d0c0, 'trim');
+  bx(winU0, t + 0.01, winU1, t + 0.07, 2.8, 2.86, 0xc8c0b0, 'trim');
+  if (corner) {
+    for (let y = 1.0; y < 2.8; y += 0.11) bx(t + 0.02, 1.4, t + 0.05, 7.6, y, y + 0.022, 0xd8d0c0, 'trim');
+    bx(t + 0.01, 1.4, t + 0.07, 7.6, 2.8, 2.86, 0xc8c0b0, 'trim');
+  }
+
+  // ---- the counter: green tile front with a red band, grey laminate top, seven chrome stools ----------------------
   const cu0 = 2.6, cu1 = 10.2;
-  sd(cu0, CV0, cu1, CV1, Gt, 1.0, C.red, 'trim');
-  bx(cu0 - 0.04, CV0 - 0.04, cu1 + 0.04, CV1 + 0.04, 0.95, 1.0, C.chrome, 'chrome');
-  bx(cu0 - 0.08, CV0 - 0.12, cu1 + 0.08, CV1 + 0.02, 1.0, 1.06, C.formica, 'trim');
+  sd(cu0, CV0, cu1, CV1, Gt, 0.95, C.green, 'tile');
+  bx(cu0 - 0.01, CV0 - 0.01, cu1 + 0.01, CV1 + 0.01, 0.75, 0.86, C.red, 'tile');
+  bx(cu0 - 0.08, CV0 - 0.14, cu1 + 0.08, CV1 + 0.02, 0.95, 1.03, 0x8a8680, 'trim');
   bx(cu0, CV0 - 0.02, cu1, CV0, 0.1, 0.18, C.chrome, 'chrome'); // foot rail
-  cover(cu0, CV0, cu1, CV1, Gt, 1.0, 'counter');
+  cover(cu0, CV0, cu1, CV1, Gt, 0.95, 'counter');
   const stools = [];
   for (let k = 0; k < 7; k++) {
     const u = 3.1 + k * 1.05, v = CV0 - 0.65;
-    bx(u - 0.04, v - 0.04, u + 0.04, v + 0.04, Gt, 0.66, C.chrome, 'chrome');
-    bx(u - 0.16, v - 0.16, u + 0.16, v + 0.16, Gt, Gt + 0.04, C.chrome, 'chrome');
-    bx(u - 0.2, v - 0.2, u + 0.2, v + 0.2, 0.66, 0.74, C.vinyl, 'rubber');
+    bx(u - 0.05, v - 0.05, u + 0.05, v + 0.05, Gt, 0.64, C.chrome, 'chrome');
+    bx(u - 0.17, v - 0.17, u + 0.17, v + 0.17, Gt, Gt + 0.05, C.chrome, 'chrome');
+    bx(u - 0.21, v - 0.21, u + 0.21, v + 0.21, 0.64, 0.68, C.chrome, 'chrome');
+    bx(u - 0.2, v - 0.2, u + 0.2, v + 0.2, 0.68, 0.76, C.vinyl, 'rubber');
     stools.push({ u, v });
   }
-  // On the counter: a cake stand under glass, coffee cups, a sugar pourer, a menu holder.
-  bx(4.0, CV0 + 0.15, 4.5, CV0 + 0.6, 1.06, 1.1, C.chrome, 'chrome');
-  bx(4.05, CV0 + 0.2, 4.45, CV0 + 0.55, 1.1, 1.24, 0xe8c890, 'trim');
-  bx(4.0, CV0 + 0.15, 4.5, CV0 + 0.6, 1.24, 1.42, 0xe8eef2, 'carGlass');
-  for (const u of [5.4, 7.5, 8.6]) { bx(u - 0.05, CV0 + 0.1, u + 0.05, CV0 + 0.2, 1.06, 1.15, C.white, 'trim'); }
-  for (const u of [3.4, 6.5, 9.6]) { bx(u - 0.22, CV0 + 0.15, u + 0.22, CV0 + 0.59, 2.5, 2.62, C.red, 'trim'); glow(u - 0.17, CV0 + 0.2, u + 0.17, CV0 + 0.54, 2.47, 2.5, C.warm); } // pendant shades
-  for (const u of [3.4, 6.5, 9.6]) bx(u - 0.02, CV0 + 0.35, u + 0.02, CV0 + 0.39, 2.6, GH - 0.12, C.black);
-  light(6.4, CV0 + 0.4, 2.5, 0xffe2b8, 8);
+  // On the counter: napkins, condiments, a cake stand under glass, cups.
+  for (const u of [3.6, 6.2, 8.8]) { bx(u - 0.06, CV0 + 0.25, u + 0.06, CV0 + 0.4, 1.03, 1.17, C.chrome, 'chrome'); bx(u + 0.12, CV0 + 0.28, u + 0.17, CV0 + 0.33, 1.03, 1.21, 0xb02020, 'trim'); bx(u + 0.21, CV0 + 0.28, u + 0.26, CV0 + 0.33, 1.03, 1.21, 0xd8b020, 'trim'); }
+  bx(4.6, CV0 + 0.15, 5.1, CV0 + 0.6, 1.03, 1.07, C.chrome, 'chrome');
+  bx(4.65, CV0 + 0.2, 5.05, CV0 + 0.55, 1.07, 1.2, 0xe8c890, 'trim');
+  bx(4.6, CV0 + 0.15, 5.1, CV0 + 0.6, 1.2, 1.38, 0xe8eef2, 'carGlass');
+  for (const u of [5.6, 7.6]) bx(u - 0.05, CV0 + 0.1, u + 0.05, CV0 + 0.2, 1.03, 1.12, C.white, 'trim');
 
-  // ---- back bar against the pass wall: coffee, shakes, pie case, soda fountain ----------------------------------
+  // ---- back counter under the pass: coffee, shakes, soda, a cooler ------------------------------------------------
   sd(cu0, BAR0, cu1, PASS, Gt, 0.95, C.steel, 'metalPaint');
-  bx(cu0, BAR0 - 0.02, cu1, PASS, 0.95, 0.99, C.chrome, 'chrome');
-  // Coffee machines with lit warmers and two pots each.
-  for (const u of [2.8, 9.0]) {
-    bx(u, BAR0 + 0.05, u + 0.9, PASS - 0.02, 0.99, 1.65, C.chrome, 'chrome');
+  bx(cu0, BAR0 - 0.02, cu1, PASS, 0.95, 0.99, 0x8a8680, 'trim');
+  for (const u of [2.75, 9.15]) {
+    bx(u, BAR0 + 0.05, u + 0.9, PASS - 0.02, 0.99, 1.62, C.steel, 'metalPaint');
     glow(u + 0.1, BAR0 + 0.04, u + 0.8, BAR0 + 0.06, 1.0, 1.04, 0xff7030);
     for (const k of [0.25, 0.65]) bx(u + k - 0.1, BAR0 + 0.1, u + k + 0.1, BAR0 + 0.3, 1.04, 1.28, 0x2a1a10, 'carGlass');
   }
-  // Milkshake mixer, soda fountain taps.
-  bx(4.1, BAR0 + 0.1, 4.5, BAR0 + 0.35, 0.99, 1.5, 0x8ad0c8, 'metalPaint');
-  for (let k = 0; k < 4; k++) bx(7.1 + k * 0.3, BAR0 + 0.05, 7.2 + k * 0.3, BAR0 + 0.2, 1.3, 1.45, C.chrome, 'chrome');
-  bx(7.0, BAR0 + 0.15, 8.2, PASS - 0.02, 0.99, 1.55, C.red, 'trim');
-  // Rotating pie case: lit glass tower.
-  bx(5.0, BAR0 + 0.05, 5.8, PASS - 0.02, 0.99, 1.05, C.chrome, 'chrome');
-  for (let k = 0; k < 3; k++) bx(5.1, BAR0 + 0.1, 5.7, PASS - 0.07, 1.12 + k * 0.28, 1.2 + k * 0.28, [0xd89a50, 0xc04848, 0xf0e0b0][k], 'trim');
-  bx(5.0, BAR0 + 0.05, 5.8, PASS - 0.02, 1.05, 1.95, 0xe8eef2, 'carGlass');
-  glow(5.0, BAR0 + 0.05, 5.8, PASS - 0.02, 1.95, 2.0, 0xfff2d8);
+  bx(4.0, BAR0 + 0.1, 4.4, BAR0 + 0.35, 0.99, 1.45, 0x8ad0c8, 'metalPaint'); // shake mixer
+  for (let k = 0; k < 4; k++) bx(7.1 + k * 0.3, BAR0 + 0.05, 7.2 + k * 0.3, BAR0 + 0.2, 1.25, 1.4, C.chrome, 'chrome'); // soda taps
+  bx(7.0, BAR0 + 0.15, 8.2, PASS - 0.02, 0.99, 1.15, C.red, 'trim');
 
-  // ---- menu board over the pass, a clock, the restrooms --------------------------------------------------------
-  const facing = nIn(0, -1);
-  const menu = ['BREAKFAST ALL DAY', 'COFFEE ........ 1.50', 'SHORT STACK ... 4.25', 'PATTY MELT .... 6.75', "SAL'S SPECIAL .. 7.99", 'PIE BY THE SLICE 3.75'];
-  bx(3.9, PASS - 0.06, 8.1, PASS - 0.02, 2.05, 3.2, C.black, 'trim');
-  sign(menu[0], 'menu', 6, PASS - 0.07, 3.02, 3.9, 0.3, facing, 0xffd34a);
-  for (let k = 1; k < menu.length; k++) sign(menu[k], 'menu', 6, PASS - 0.07, 2.88 - k * 0.15, 3.2, 0.16, facing, 0xf2efe8);
-  sign('KITCHEN', 'menu', 11.5, PASS - 0.04, 2.55, 1.0, 0.13, facing, 0xffd34a);
-  // Clock over the counter end.
-  bx(9.25, PASS - 0.05, 9.75, PASS - 0.02, 2.55, 3.05, C.white, 'trim'); bx(9.24, PASS - 0.06, 9.76, PASS - 0.05, 2.55, 2.58, C.red, 'trim');
-  bx(9.49, PASS - 0.07, 9.51, PASS - 0.06, 2.8, 2.98, C.black); bx(9.5, PASS - 0.07, 9.64, PASS - 0.06, 2.79, 2.81, C.black);
-  // Restrooms door on the corner wall by the counter, with a sign.
-  bx(t, 9.4, t + 0.06, 10.4, Gt, 2.1, C.wood, 'planks');
-  bx(t + 0.06, 9.85, t + 0.08, 9.95, 1.0, 1.06, C.chrome, 'chrome');
-  sign('RESTROOMS', 'menu', t + 0.1, 9.9, 2.3, 1.0, 0.13, nIn(1, 0), 0xf2efe8);
-
-  // ---- jukebox in the corner, glowing --------------------------------------------------------------------------------
-  sd(t + 0.1, 10.7, t + 1.0, 11.4, Gt, 1.45, C.wood, 'planks');
-  glow(t + 0.15, 10.68, t + 0.95, 10.7, 0.5, 1.25, 0xff9a3c);
-  glow(t + 0.25, 10.66, t + 0.85, 10.68, 1.25, 1.42, 0x3cc8ff);
-  bx(t + 0.1, 10.7, t + 1.0, 11.4, 1.45, 1.6, C.chrome, 'chrome');
+  // ---- dining-room walls: posters, a street sign, a framed picture, payphone, extinguisher, restrooms, jukebox -----
+  // Corner wall (over the side booths): street sign, "EAT HERE / BE HAPPY", a framed picture.
+  bx(t + 0.03, 8.55, t + 0.06, 9.35, 1.95, 2.95, C.red, 'trim');
+  sign('EAT HERE', 'menu', t + 0.07, 8.95, 2.8, 0.75, 0.1, fromCorner, 0xf4ecdc);
+  bx(t + 0.06, 8.8, t + 0.08, 9.1, 2.3, 2.55, 0xc88a3a, 'trim'); bx(t + 0.08, 8.85, t + 0.09, 9.05, 2.38, 2.48, 0x6a2a1a, 'trim'); // a burger
+  sign('BE HAPPY', 'menu', t + 0.07, 8.95, 2.07, 0.75, 0.1, fromCorner, 0xf4ecdc);
+  bx(t + 0.03, 9.6, t + 0.07, 10.2, 2.25, 2.75, 0x8a6a3a, 'planks'); bx(t + 0.07, 9.65, t + 0.08, 10.15, 2.3, 2.7, 0x7a7a6a, 'trim'); // framed picture
+  if (!corner) { sign('PALMETTO AVE', 'plate', t + 0.05, 5.0, 2.45, 1.3, 0.2, fromCorner, 0x1e2a24); }
+  else sign('PALMETTO AVE', 'plate', t + 0.05, 8.0, 2.7, 1.1, 0.16, fromCorner, 0x1e2a24);
+  // Alley wall by the pass: "TRY OUR DAILY SPECIALS!", the payphone and an extinguisher.
+  const aw = F - t - 0.04;
+  bx(aw - 0.03, 9.2, aw, 10.0, 1.85, 2.95, C.red, 'trim');
+  ['TRY OUR', 'DAILY', 'SPECIALS!'].forEach((l, k) => sign(l, 'menu', aw - 0.04, 9.6, 2.82 - k * 0.15, 0.7, 0.11, fromAlley, 0xf4ecdc));
+  bx(aw - 0.05, 9.4, aw - 0.03, 9.8, 2.05, 2.3, 0xc88a3a, 'trim');
+  bx(aw - 0.14, 10.5, aw, 10.85, 1.2, 1.75, 0x3a3a3e, 'metalPaint'); // payphone
+  bx(aw - 0.2, 10.55, aw - 0.14, 10.65, 1.4, 1.65, C.black, 'trim');
+  bx(aw - 0.15, 11.2, aw, 11.4, 0.9, 1.4, 0xc02020, 'trim'); // extinguisher
+  // Restrooms door on the corner wall by the counter end, and the jukebox in the corner.
+  bx(t, 10.4, t + 0.06, 11.4, Gt, 2.1, 0x2a2622, 'planks');
+  bx(t + 0.06, 10.85, t + 0.08, 10.95, 1.0, 1.06, C.chrome, 'chrome');
+  sign('RESTROOMS', 'menu', t + 0.1, 10.9, 2.3, 1.0, 0.12, fromCorner, 0xf2efe8);
+  sd(2.0, 11.0, 2.55, 11.7, Gt, 1.4, C.wood, 'planks');
+  glow(2.05, 10.98, 2.5, 11.0, 0.5, 1.2, 0xff9a3c);
+  bx(2.0, 11.0, 2.55, 11.7, 1.4, 1.52, C.chrome, 'chrome');
 
   // ---- memorial wall: photos of the fallen on the alley wall across from the booths, a shelf of candles ------------
   const MW0 = 3.2, MW1 = 8.6, mu = F - t - 0.05;
   bx(mu - 0.04, MW0, mu, MW1, 1.15, 2.85, 0x2a2228, 'planks');
   for (let k = 0; k < 9; k++) {
     const v = MW0 + 0.35 + (k % 5) * 1.05 + (k > 4 ? 0.5 : 0), y = k > 4 ? 1.35 : 2.05;
-    bx(mu - 0.07, v, mu - 0.04, v + 0.48, y, y + 0.6, 0xd8cdb8, 'trim'); // frame
-    bx(mu - 0.08, v + 0.05, mu - 0.07, v + 0.43, y + 0.05, y + 0.55, rng.pick([0x6a5a50, 0x8a7a6a, 0x5a6a7a, 0x7a6a5a]), 'trim'); // photo
+    bx(mu - 0.07, v, mu - 0.04, v + 0.48, y, y + 0.6, 0xd8cdb8, 'trim');
+    bx(mu - 0.08, v + 0.05, mu - 0.07, v + 0.43, y + 0.05, y + 0.55, rng.pick([0x6a5a50, 0x8a7a6a, 0x5a6a7a, 0x7a6a5a]), 'trim');
   }
   sd(mu - 0.3, MW0 + 0.4, mu, MW1 - 0.4, 1.0, 1.05, C.wood, 'planks');
   for (let k = 0; k < 7; k++) { const v = MW0 + 0.7 + k * 0.62; bx(mu - 0.2, v, mu - 0.14, v + 0.06, 1.05, 1.17, 0xf2e8d8, 'trim'); glow(mu - 0.19, v + 0.01, mu - 0.15, v + 0.05, 1.17, 1.22, 0xffb040); }
-  bx(mu - 0.26, MW1 - 1.2, mu - 0.1, MW1 - 1.04, 1.05, 1.35, 0x3a7a3a, 'trim'); bx(mu - 0.3, MW1 - 1.25, mu - 0.06, MW1 - 1.0, 1.35, 1.48, 0xd84a6a, 'trim'); // flowers
-  sign('NEVER FORGOTTEN', 'menu', mu - 0.09, (MW0 + MW1) / 2, 2.98, 2.6, 0.18, nIn(-1, 0), 0xffd34a);
+  bx(mu - 0.26, MW1 - 1.2, mu - 0.1, MW1 - 1.04, 1.05, 1.35, 0x3a7a3a, 'trim'); bx(mu - 0.3, MW1 - 1.25, mu - 0.06, MW1 - 1.0, 1.35, 1.48, 0xd84a6a, 'trim');
+  sign('NEVER FORGOTTEN', 'menu', mu - 0.09, (MW0 + MW1) / 2, 2.98, 2.6, 0.18, fromAlley, 0xffd34a);
   biz.memorialWall = { a: fr.at(mu, MW0), b: fr.at(mu, MW1), y0: 1.15, y1: 2.85 };
 
-  // ---- kitchen: grill line on the back wall, hood, fryers, prep table, fridge, dish sink ---------------------------
+  // ---- kitchen: tiled walls, grill line under a hood, fryers, range, prep table, fridge, dish sink ------------------
   const KB = D - t;
+  bx(t, KB - 0.03, F - t, KB, Gt, 2.2, 0xe4e2dc, 'tile'); // white tile behind the line
   sd(0.6, KB - 0.85, 2.0, KB, Gt, 0.92, C.steel, 'metalPaint'); // fryers
   bx(0.7, KB - 0.75, 1.25, KB - 0.1, 0.92, 0.95, 0xc8a040, 'trim'); bx(1.35, KB - 0.75, 1.9, KB - 0.1, 0.92, 0.95, 0xc8a040, 'trim');
   sd(2.0, KB - 0.85, 4.6, KB, Gt, 0.9, C.steel, 'metalPaint'); // flat-top
   bx(2.05, KB - 0.8, 4.55, KB - 0.05, 0.9, 0.94, 0x2a2828, 'metalPaint');
-  for (let k = 0; k < 4; k++) bx(2.3 + k * 0.55, KB - 0.6, 2.6 + k * 0.55, KB - 0.3, 0.94, 0.97, 0x6a3a22, 'trim'); // patties
+  for (let k = 0; k < 4; k++) bx(2.3 + k * 0.55, KB - 0.6, 2.6 + k * 0.55, KB - 0.3, 0.94, 0.97, 0x6a3a22, 'trim');
   sd(4.6, KB - 0.85, 6.4, KB, Gt, 0.9, C.steel, 'metalPaint'); // range
-  for (const u of [5.0, 5.9]) { bx(u - 0.2, KB - 0.65, u + 0.2, KB - 0.25, 0.9, 0.93, C.black); bx(u - 0.15, KB - 0.6, u + 0.15, KB - 0.3, 0.93, 1.12, 0x9a9aa0, 'metal'); }
+  for (const u of [5.0, 5.9]) { bx(u - 0.2, KB - 0.65, u + 0.2, KB - 0.25, 0.9, 0.93, C.black); bx(u - 0.15, KB - 0.6, u + 0.15, KB - 0.3, 0.93, 1.12, 0x9a9aa0, 'chrome'); }
   bx(0.5, KB - 1.1, 6.5, KB, 2.25, 2.9, C.steel, 'metalPaint'); // hood
   glow(0.6, KB - 1.05, 6.4, KB - 0.95, 2.22, 2.25, 0xfff0d0);
   sd(2.6, 13.3, 6.4, 14.0, Gt, 0.92, C.steel, 'metalPaint'); // prep table
@@ -487,7 +519,8 @@ function buildDiner({ solid, box, cover, fr, F, D, GH, biz, out, kit, corner }) 
   bx(9.1, KB - 0.6, 10.5, KB - 0.1, 0.88, 0.9, 0x8ab0c0, 'carGlass');
   for (let k = 0; k < 4; k++) bx(9.15 + k * 0.08, KB - 0.55, 9.2 + k * 0.08, KB - 0.25, 0.9, 1.15, C.white, 'trim');
   sd(t + 0.05, 12.6, t + 0.55, 15.0, Gt, 1.9, 0x8a8478, 'metalPaint'); // dry storage shelving
-  light(4, 14, 3.0, 0xf2f6ff, 7);
+  tube(4, 14.0, 1.8, true);
+  light(4, 14, 2.7, 0xf2f6ff, 7);
 
   // ---- people: Sal behind the counter, a cook on the line, a waitress, the regulars ------------------------------
   const person = (u, v, y, fu, fv, pose, seed) => biz.patrons.push({ ...at3(u, v, y), yaw: yawOf(fu, fv), pose, seed });
@@ -498,5 +531,5 @@ function buildDiner({ solid, box, cover, fr, F, D, GH, biz, out, kit, corner }) 
   person(9.0, 6.2, Gt, -0.4, 1, 'stand', s0 + 3); // waitress, by the register
   const sitters = rng.shuffle(seats.slice()).slice(0, 3);
   sitters.forEach((q, i) => person(q.u, q.v, SEAT - 0.82, q.fu, q.fv, 'sit', s0 + 10 + i));
-  for (const k of rng.shuffle([0, 1, 2, 3, 4, 5, 6]).slice(0, 2)) person(stools[k].u, stools[k].v, 0.74 - 0.82, 0, 1, 'sitCounter', s0 + 20 + k);
+  for (const k of rng.shuffle([0, 1, 2, 3, 4, 5, 6]).slice(0, 2)) person(stools[k].u, stools[k].v, 0.76 - 0.82, 0, 1, 'sitCounter', s0 + 20 + k);
 }

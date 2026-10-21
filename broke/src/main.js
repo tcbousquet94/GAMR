@@ -7,6 +7,8 @@ import { TurfGame } from './sim/turf/turfGame.js';
 import { downtown } from './city/districts/downtown.js';
 import { DEE } from './sim/survivors/dee.js';
 import { View } from './render/view.js';
+import { HeroView } from './render/hero/heroView.js';
+import { HeroGame } from './sim/hero/heroGame.js';
 import { Input } from './input/input.js';
 import { Hud } from './ui/hud.js';
 import { Screens } from './ui/screens.js';
@@ -21,7 +23,8 @@ import { buildDebugOverlay } from './render/debugOverlay.js';
 
 const params = new URLSearchParams(location.search);
 const canvas = document.getElementById('game');
-const view = new View(canvas, { quality: params.get('quality') || 'auto', preserve: params.has('shot') || params.has('bot') });
+const HERO = params.get('scene') === 'hero'; // look-development street for the remastered art direction
+const view = new (HERO ? HeroView : View)(canvas, { quality: params.get('quality') || 'auto', preserve: params.has('shot') || params.has('bot') });
 const input = new Input(canvas);
 const touch = new TouchControls(document.getElementById('touch'), Object.fromEntries(Object.entries(ABILITY_ICONS).map(([k, v]) => [k, icon(v, '#ffffff', 64, true)])));
 input.touch = touch;
@@ -80,7 +83,7 @@ export function startRun(seed, opts = {}) {
   // A fresh game every run so no state carries over. Default: the turf-war city. ?mode=classic keeps the retired
   // roguelike reachable (disconnected from the main game, left in place so nothing breaks).
   const startMinutes = opts.startMinutes ?? +(params.get('t') || 0);
-  const g = (app.game = params.get('mode') === 'classic'
+  const g = (app.game = HERO ? new HeroGame({ survivor: DEE }) : params.get('mode') === 'classic'
     ? new Game({ seed: app.seed, district: downtown, survivor: DEE, startMinutes })
     : new TurfGame({ seed: app.seed, survivor: DEE, startMinutes }));
   if (params.get('god') === '1' || opts.god) g.godMode = true;
@@ -96,9 +99,20 @@ export function startRun(seed, opts = {}) {
   app.paused = false;
   input.enabled = true;
   screens.show(null);
-  hud.setVisible(true);
+  hud.setVisible(!HERO);
+  if (HERO) heroCaption(g.city.district.name);
   input.lock();
   return g;
+}
+
+// Street-name caption (bottom centre), shown for a few seconds when the hero scene starts.
+function heroCaption(text) {
+  let el = document.getElementById('caption');
+  if (!el) { el = document.createElement('div'); el.id = 'caption'; document.body.appendChild(el); }
+  el.textContent = text;
+  el.style.cssText = 'position:fixed;left:0;right:0;bottom:4%;text-align:center;font:800 44px/1 "Arial Black",Arial,sans-serif;color:#fff;letter-spacing:0.5px;-webkit-text-stroke:2px #111;paint-order:stroke;text-shadow:0 2px 3px rgba(0,0,0,0.6);pointer-events:none;transition:opacity 1s;opacity:1;z-index:5';
+  clearTimeout(heroCaption.t);
+  heroCaption.t = setTimeout(() => { el.style.opacity = params.has('shot') ? 1 : 0; }, 6000);
 }
 
 function pause() {
@@ -134,7 +148,7 @@ addEventListener('resize', () => view.resize());
 function frame(now) {
   requestAnimationFrame(frame);
   const g = app.game;
-  let dt = Math.max(0, Math.min(0.1, (now - app.last) / 1000)); // the first rAF stamp can predate the load-time clock
+  let dt = Math.max(1e-4, Math.min(0.1, (now - app.last) / 1000)); // the first rAF stamp can predate the load-time clock (never 0: the animator divides by dt)
   app.last = now;
   // Recording: animate exactly the sim time that elapsed this frame.
   if (app.driver && app.fixedRenderDt) dt = app.stepsPerFrame * DT;
@@ -151,7 +165,7 @@ function frame(now) {
       let n = 0;
       // Free-fly: the leader stands still (empty control) while the camera roams.
       if (app.fly.active) app.fly.update(dt);
-      while (app.acc >= DT && n < 8) { g.step(app.fly.active ? { yaw: g.player.yaw, pitch: g.player.pitch } : input.sample()); app.acc -= DT; n++; }
+      while (app.acc >= DT && n < 8) { g.step(app.fly.active ? { yaw: g.player.yaw, pitch: g.player.pitch } : app.held ? { ...app.held, yaw: g.player.yaw, pitch: g.player.pitch } : input.sample()); app.acc -= DT; n++; }
       if (n === 8) app.acc = 0;
     }
   } else if (app.state !== 'playing' && g.state !== 'won') {
@@ -179,7 +193,7 @@ function steamNear(g) {
 }
 
 installDebug(app, { startRun });
-if (params.get('autostart') === '1' || params.has('bot') || params.has('shot')) startRun(app.seed);
+if (HERO || params.get('autostart') === '1' || params.has('bot') || params.has('shot')) startRun(app.seed);
 else {
   // Title screen over a live city backdrop.
   const g = (app.game = new Game({ seed: app.seed, district: downtown, survivor: DEE }));

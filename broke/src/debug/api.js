@@ -42,6 +42,9 @@ export function installDebug(app, { startRun }) {
       return app.fly.active;
     },
     overlay: (on = true) => app.toggleOverlay(on),
+    // Hold a control input every tick (e.g. { moveZ: 0.5 } to walk) until hold(null).
+    hold(input) { app.held = input; },
+    night(k = 1) { app.view.setNight?.(k); },
     map: () => app.showMap(),
     setMinutes(m) { app.game.clock.time = m * 60; app.game.clock.update(0); },
   };

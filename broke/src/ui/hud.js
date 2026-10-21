@@ -133,6 +133,7 @@ export class Hud {
   flashPrompt(title, sub) { this.forcePrompt = { title, sub, t: 1.8, info: true }; }
 
   update(dt) {
+    if (this.game.mode === 'hero') return; // the look-development street runs without a HUD
     const g = this.game, P = g.player, st = P.stats;
     const el = this.el;
     const turf = g.mode === 'turf'; // turf war: no shop money, clock or train; district + seed instead

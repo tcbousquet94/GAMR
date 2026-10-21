@@ -11,6 +11,8 @@ export class CameraRig {
     this.shake = 0;
     this.fovKick = 0;
     this.baseFov = 70;
+    this.side = 0.7; // over-the-shoulder offset (matches the sim's aim origin)
+    this.height = 1.65;
     this.pos = new THREE.Vector3();
   }
 
@@ -24,7 +26,7 @@ export class CameraRig {
     const cp = Math.cos(pitch);
     const fwd = new THREE.Vector3(-Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp);
     const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-    const pivot = new THREE.Vector3(p.x, p.y + 1.65, p.z).addScaledVector(right, 0.7);
+    const pivot = new THREE.Vector3(p.x, p.y + this.height, p.z).addScaledVector(right, this.side);
     // Collide the boom with the world.
     const back = fwd.clone().multiplyScalar(-1);
     const want = this.dist + (sprinting ? 0.5 : 0);

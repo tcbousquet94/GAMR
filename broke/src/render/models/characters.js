@@ -7,7 +7,7 @@ import { humanoid } from './humanoid.js';
 
 // ---- DEE OKAFOR (teal scrubs, white sneakers, dark hair in a big high bun) ------------------------------------
 export function deeModel() {
-  const TEAL = 0x1fa89a, TEAL_D = 0x168276, SKIN = 0xc28a63, HAIR = 0x34251e;
+  const TEAL = 0x3c837c, TEAL_D = 0x2f6c66, SKIN = 0xa8724f, HAIR = 0x2a1d17;
   const hair = [
     sball(0.133, HAIR, at(0, 0.235, 0.012, 0, 0, 0, 1, 1.05, 1.06), 18), // cap of hair, pulled back
     sball(0.115, HAIR, at(0, 0.18, 0.05, 0, 0, 0, 1.02, 1.0, 0.9), 14),

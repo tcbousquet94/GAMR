@@ -34,10 +34,10 @@ export function humanoid(s) {
   ]);
   for (const side of [-1, 1]) {
     const L = side < 0 ? 'L' : 'R';
-    part(`arm${L}`, 'torso', [side * sw, 0.47, 0], [sball(0.062 * k, s.sleeve ?? s.shirt, at(0, -0.01, 0), 12), scap(0.058 * k, 0.2, s.sleeve ?? s.shirt, at(0, -0.14, 0)), ...X(`arm${L}`)]);
+    part(`arm${L}`, 'torso', [side * sw, 0.47, 0], [sball(0.055 * k, s.sleeve ?? s.shirt, at(0, -0.01, 0), 12), scap(0.05 * k, 0.21, s.sleeve ?? s.shirt, at(0, -0.14, 0)), ...X(`arm${L}`)]);
     part(`fore${L}`, `arm${L}`, [0, -0.29, 0], [
-      scap(0.05 * k, 0.18, s.cuff ?? s.sleeve ?? s.shirt, at(0, -0.12, 0)),
-      s.noHands ? null : sball(0.047 * (s.handScale || 1), skin, at(0, -0.285, -0.005, 0, 0, 0, 0.8, 1.25, 0.62), 12),
+      scap(0.043 * k, 0.19, s.cuff ?? s.sleeve ?? s.shirt, at(0, -0.12, 0, 0, 0, 0, 1, 1, 0.85)),
+      s.noHands ? null : sball(0.052 * (s.handScale || 1), skin, at(0, -0.29, -0.005, 0, 0, 0, 0.72, 1.35, 0.55), 12),
       ...X(`fore${L}`),
     ]);
     const lr = (s.legWidth || 1) * k;

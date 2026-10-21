@@ -18,7 +18,7 @@ import { layoutRoads, rectHitsDiag } from './layout.js';
 import { Raster, R } from './raster.js';
 import { ground, furniture } from './ground.js';
 import { edges } from './edges.js';
-import { landmark, landmarkPlaza, park, civic, garage, perimeterBuildings, diagonalFrontage, interiors } from './fill.js';
+import { landmark, landmarkPlaza, park, civic, garage, perimeterBuildings, diagonalFrontage, interiors, kitTower } from './fill.js';
 import { buildBusiness, frame, footprint, businessName, TEMPLATE, TYPES } from './business.js';
 import { buildWarehouse, warehouseFootprint, WH, WAREHOUSE_NAMES, HQ_WAREHOUSE_NAMES } from './warehouse.js';
 import { wornCity } from './worn.js';
@@ -81,7 +81,7 @@ export function generateTurf(cfg, seed, opts = {}) {
     const I = city.inner, cxm = (I.x0 + I.x1) / 2, czm = (I.z0 + I.z1) / 2, R0 = Math.max(I.x1 - I.x0, I.z1 - I.z0) / 2;
     for (let k = 0; k < 22; k++) {
       const a = rng.range(0, Math.PI * 2), r = R0 + rng.range(140, 420);
-      KD.towers.push({ x: cxm + Math.cos(a) * r, z: czm + Math.sin(a) * r, y: 0, w: rng.range(18, 34), d: rng.range(18, 30), h: rng.range(35, 130), yaw: rng.range(0, Math.PI), setback: rng.chance(0.4), far: true, color: rng.pick([0xc8c2b6, 0xb8b4ac, 0xd0c8b8, 0xa8a49c, 0x9aa0a6]), glassTint: rng.pick([0xd8e0e8, 0xc8d4dc, 0xe0dcd0]) });
+      KD.towers.push({ ...kitTower(rng, cxm + Math.cos(a) * r, czm + Math.sin(a) * r, rng.range(18, 34), rng.range(18, 30), rng.range(35, 130), rng.range(0, Math.PI)), y: 0, far: true });
     }
     kitColliders(KD, (x0, y0, z0, x1, y1, z1, tag) => kit.collider(x0, y0, z0, x1, y1, z1, tag), TAG);
     city.kitData = KD;

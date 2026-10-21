@@ -172,8 +172,8 @@ const R = {
     return t;
   },
   // Running-bond brick: 8 courses x 4 bricks per tile, recessed mortar, per-brick colour and chips.
-  brick(N = 512) {
-    const t = new Tex(N), rows = 16, cols = 4;
+  brick(N = 512, rows = 16, cols = 4) {
+    const t = new Tex(N);
     t.each((u, v, i) => {
       const r = Math.floor(v * rows), off = r % 2 ? 0.5 : 0, cu = u * cols + off, c = Math.floor(cu);
       const fu = cu - c, fv = v * rows - r;
@@ -343,6 +343,43 @@ const R = {
     });
     return t;
   },
+  // Windowed walls for towers and mid-rises: the wall material with recessed windows baked in (one tile = bays x 2
+  // floors of 3.5 m). kind 'brick': narrow tall windows with lintels; 'plaster': wide windows with sills.
+  punch(N = 512, kind = 'brick') {
+    const t = kind === 'brick' ? R.brick(N, 92, 26) : R.stucco(N), bays = kind === 'brick' ? 4 : 3; // ~7.5 cm courses at 7 m
+    if (kind === 'brick') { t.each((u, v, i) => { const k = 0.86; t.C[i * 3] *= k; }); }
+    t.each((u, v, i) => {
+      const cu = u * bays, cv = v * 2, ci = Math.floor(cu), cj = Math.floor(cv), fu = cu - ci, fv = cv - cj;
+      const w0 = kind === 'brick' ? 0.3 : 0.16, w1 = 1 - w0, h0 = 0.3, h1 = kind === 'brick' ? 0.86 : 0.8;
+      const inW = fu > w0 && fu < w1 && fv > h0 && fv < h1;
+      const lintel = kind === 'brick' && fu > w0 - 0.04 && fu < w1 + 0.04 && fv >= h1 && fv < h1 + 0.05;
+      const sill = fu > w0 - 0.05 && fu < w1 + 0.05 && fv > h0 - 0.035 && fv <= h0;
+      const id = hash2(ci, cj, 21);
+      if (inW) {
+        const frame = fu < w0 + 0.03 || fu > w1 - 0.03 || fv < h0 + 0.03 || fv > h1 - 0.03 || Math.abs(fv - (h0 + h1) / 2) < 0.012;
+        let c = [0.1, 0.12, 0.14];
+        if (id < 0.3 && fv > (h0 + h1) / 2) { const sl = (fv * 80) % 1; const k = 0.6 + 0.2 * smooth(0, 0.3, sl); c = [k * 0.85, k * 0.82, k * 0.74]; }
+        else if (id < 0.5) { const k = 0.42 + Math.sin(fu * 70) * 0.05; c = [k * 0.95, k * 0.78, k * 0.6]; }
+        if (frame) c = [0.82, 0.8, 0.76];
+        t.col(i, c[0], c[1], c[2]); t.H[i] = frame ? 0.25 : 0; t.R[i] = frame ? 0.6 : 0.08;
+      } else if (lintel || sill) { t.col(i, 0.74, 0.72, 0.68); t.H[i] = 1.2; t.R[i] = 0.8; }
+      else t.H[i] = 0.6 + t.H[i] * 0.4;
+    });
+    return t;
+  },
+  // Glass curtain wall: big reflective panes, slim mullions, a spandrel band per floor, some panes tinted differently.
+  curtain(N = 512) {
+    const t = new Tex(N);
+    t.each((u, v, i) => {
+      const cu = u * 4, cv = v * 2, ci = Math.floor(cu), cj = Math.floor(cv), fu = cu - ci, fv = cv - cj;
+      const mull = fu < 0.025 || fu > 0.975, band = fv < 0.12;
+      const id = hash2(ci, cj, 5), sky = smooth(0.0, 1.0, fv) * 0.12 + fbm(u, v, 4, 3, 9) * 0.06;
+      if (mull) { t.col(i, 0.5, 0.52, 0.54); t.H[i] = 1; t.R[i] = 0.3; }
+      else if (band) { t.col(i, 0.2, 0.24, 0.27); t.H[i] = 0.5; t.R[i] = 0.25; }
+      else { const k = 0.16 + id * 0.06 + sky; t.col(i, k * 0.8, k * 0.95, k * 1.05); t.H[i] = 0; t.R[i] = 0.04; }
+    });
+    return t;
+  },
   // Tower facade: 4 window bays x 2 floors per tile (1.75 m x 3.5 m each): framed glass over a spandrel, a mullion,
   // and per-window blinds, curtains or a dark room so the grid never reads as wallpaper.
   facade(N = 512) {
@@ -386,12 +423,12 @@ const SPECS = {
   siding: { normal: 5 }, stucco: { normal: 0.6 }, brick: { normal: 4 }, shingles: { normal: 5 }, metal: { normal: 3 },
   garageDoor: { normal: 4 }, paint: { normal: 1 }, planks: { normal: 3 }, chainlink: { normal: 1, alpha: true },
   palmBark: { normal: 4 }, bark: { normal: 4 }, window: { normal: 1 }, frond: { normal: 1, alpha: true, wrap: false },
-  leaves: { normal: 2, alpha: true, wrap: false }, facade: { normal: 2 }, tile: { normal: 2 }, roadPaint: { normal: 1, alpha: true }, tuft: { normal: 1, alpha: true, wrap: false }, tarGravel: { normal: 3 },
+  leaves: { normal: 2, alpha: true, wrap: false }, facade: { normal: 2 }, tile: { normal: 2 }, punchBrick: { normal: 4, make: () => R.punch(1024, 'brick') }, punchPlaster: { normal: 3, make: () => R.punch(512, 'plaster') }, curtain: { normal: 1 }, roadPaint: { normal: 1, alpha: true }, tuft: { normal: 1, alpha: true, wrap: false }, tarGravel: { normal: 3 },
 };
 let cache = null;
 export function heroTextures() {
   if (cache) return cache;
   cache = {};
-  for (const [name, o] of Object.entries(SPECS)) cache[name] = upload(R[name](), o);
+  for (const [name, o] of Object.entries(SPECS)) cache[name] = upload(o.make ? o.make() : R[name](), o);
   return cache;
 }

@@ -185,7 +185,8 @@ function openings(h, w, floors, floorH) {
     out.push({ floor: 0, kind: 'door', u0: dc - 0.9, u1: dc + 0.9, v0: 0, v1: 2.3, glass: true });
     for (const [a, b] of [[0.7, dc - 1.3], [dc + 1.3, w.L - 0.7]]) { const n = Math.max(1, Math.round((b - a) / 2.6)), pw = (b - a) / n; for (let i = 0; i < n; i++) out.push({ floor: 0, kind: 'window', u0: a + i * pw + 0.06, u1: a + (i + 1) * pw - 0.06, v0: 0.45, v1: 2.75, shop: true }); }
     // Upper floors of a storefront block: ordinary windows.
-    for (let f = 1; f < floors; f++) { const n = Math.max(1, Math.floor(w.L / 3.2)), sp = w.L / n; for (let i = 0; i < n; i++) out.push({ floor: f, kind: 'window', u0: sp * (i + 0.5) - 0.6, u1: sp * (i + 0.5) + 0.6, v0: 0.9, v1: 2.35 }); }
+    const ww = h.winW ?? 1.2, wsp = h.winSp ?? 3.2;
+    for (let f = 1; f < floors; f++) { const n = Math.max(1, Math.floor(w.L / wsp)), sp = w.L / n; for (let i = 0; i < n; i++) out.push({ floor: f, kind: 'window', u0: sp * (i + 0.5) - ww / 2, u1: sp * (i + 0.5) + ww / 2, v0: h.winTall ? 0.6 : 0.9, v1: 2.35 }); }
     return out;
   }
   if (h.units && w.front) {

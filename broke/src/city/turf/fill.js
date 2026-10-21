@@ -14,6 +14,29 @@ import { mergeKitData, FRONT_YAW } from '../kitdata/data.js';
 
 const BUILD_AVOID = R.DIAG | R.RESERVED | R.BUILT | R.STREET;
 
+// Varied kit buildings for the downtown core (the look is shared, the buildings shouldn't be).
+const TOWER_STYLE = [['piers', 3], ['brick', 2.5], ['plaster', 2.5], ['glass', 2]];
+const STYLE_COLORS = {
+  piers: { color: [0xc8c2b6, 0xb8b4ac, 0xd0c8b8, 0xa8a49c, 0x9aa0a6], skin: [0xd8e0e8, 0xc8d4dc, 0xe0dcd0] },
+  brick: { color: [0xb8ae9c, 0xc8c0b0, 0xa89c88], skin: [0xffffff, 0xe8d0c0, 0xd8b8a0, 0xc8a898, 0xf0e0d0] },
+  plaster: { color: [0xd8d0c0, 0xc8c0b0, 0xe0d6c4], skin: [0xe8dcc0, 0xd8cfc4, 0xc8d0d4, 0xe8d0b8, 0xd0d8c8, 0xe0c8b0] },
+  glass: { color: [0x8a9098, 0x7a8088, 0xa0a6ac], skin: [0xffffff, 0xd8f0e8, 0xe0e8f8, 0xd0d8c8] },
+};
+const pickW = (rng, opts) => { let x = rng.range(0, opts.reduce((a, [, w]) => a + w, 0)); for (const [o, w] of opts) { x -= w; if (x <= 0) return o; } return opts[0][0]; };
+export function kitTower(rng, x, z, w, d, h, yaw) {
+  const style = pickW(rng, TOWER_STYLE), C = STYLE_COLORS[style];
+  const hh = style === 'brick' ? Math.min(h, 60) : h; // brick high-rises stay prewar-height
+  return { x, z, w, d, h: hh, yaw, style, color: rng.pick(C.color), skinTint: rng.pick(C.skin), shape: rng.chance(0.3) ? 'L' : 'rect', setback: rng.chance(0.4),
+    crown: pickW(rng, [['flat', 3], ['stepped', 2], ['hat', style === 'glass' || style === 'piers' ? 1.5 : 0.3], ['billboard', style === 'glass' ? 0.2 : 1.2]]) };
+}
+function kitBlock(rng, x, z, w, d, h, yaw) {
+  const wall = pickW(rng, [['brick', 3], ['stucco', 3], ['siding', 0.6]]);
+  const WALL = { brick: [0xffffff, 0xe8d0c0, 0xd8b8a0, 0xc8a898], stucco: [0xd8c3a0, 0xcfc6b4, 0xb8b6ae, 0xc8b89c, 0xe0cfb0, 0xd8d0c0, 0xc8d0c4, 0xe0c0a8, 0xb8c0c8], siding: [0x8a7a68, 0x7e8a92, 0x9a8a72] };
+  const floors = pickW(rng, [[2, 2], [3, 3], [4, 2.5], [5, 1.5], [6, 1]]); void h;
+  return { x, z, w, d, yaw, floors, wall, wallColor: rng.pick(WALL[wall]), trim: rng.pick([0xd8d0c0, 0xc8c0b0, 0xe8e0d0, 0x8a8478]), roofColor: 0x6a6660, bars: rng.chance(0.4),
+    winW: rng.pick([1.0, 1.2, 1.5, 2.0]), winSp: rng.pick([2.6, 3.2, 3.8]), winTall: rng.chance(0.35), fireEscape: wall === 'brick' ? rng.chance(0.7) : rng.chance(0.3), cornice: rng.pick([0xc8c0b0, 0xb8ae9c, 0xd8d0c0, 0x8a8478]) };
+}
+
 export function landmark(kit, city, raster, leavesRoom = () => true) {
   const cfg = city.district.landmark;
   const b = city.blocks[city.landmarkBlock];
@@ -192,8 +215,8 @@ export function perimeterBuildings(kit, city, b, raster) {
             const cx = (q.x0 + q.x1) / 2, cz = (q.z0 + q.z1) / 2, yaw = FRONT_YAW[side];
             const tower = rng.chance(Math.max(P.towerChance, 0.55)) && ww >= 16 && dpt >= 18;
             const h = tower ? rng.range(P.towerHeight[0], P.towerHeight[1]) : rng.range(P.height[0], P.height[1]);
-            if (tower) KP.towers.push({ x: cx, z: cz, w: Wf - 1.2, d: Dd - 1.2, h, yaw, setback: rng.chance(0.5), color: rng.pick([0xc8c2b6, 0xb8b4ac, 0xd0c8b8, 0xa8a49c]), glassTint: rng.pick([0xd8e0e8, 0xc8d4dc, 0xe0dcd0]) });
-            else KP.blocks.push({ x: cx, z: cz, w: Wf - 0.6, d: Dd - 0.6, yaw, floors: Math.max(2, Math.min(6, Math.round(h / 3.3))), wall: rng.pick(['brick', 'stucco', 'stucco']), wallColor: rng.pick([0xd8c3a0, 0xcfc6b4, 0xb8b6ae, 0xc8b89c]), trim: rng.pick([0xd8d0c0, 0xc8c0b0]), roofColor: 0x6a6660, bars: rng.chance(0.4) });
+            if (tower) KP.towers.push(kitTower(rng, cx, cz, Wf - 1.2, Dd - 1.2, h, yaw));
+            else KP.blocks.push(kitBlock(rng, cx, cz, Wf - 0.6, Dd - 0.6, h, yaw));
             raster.mark(q, R.BUILT);
             (city.buildings = city.buildings || []).push({ rect: q, h, block: b.id, side });
             u += ww + (rng.chance(0.22) ? rng.range(3.5, 5) : 0);

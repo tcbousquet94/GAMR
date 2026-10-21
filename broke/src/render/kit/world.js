@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { Batch } from './batch.js';
 import { kitMaterials } from './materials.js';
 import { buildHouse } from './houses.js';
-import { apartment, store, warehouse, shed, tower } from './buildings.js';
+import { apartment, store, warehouse, shed, tower, blockExtras } from './buildings.js';
 import { fence, prop, truck, manhole } from './props.js';
 import { pad, ribbonMesh, kerb, paint, tuftSpots } from './ground.js';
 import { palm, tree, shrub, tufts } from './vegetation.js';
@@ -39,9 +39,9 @@ export function buildKitWorld(D, { chunk = 0, seed = 'kit', kit = null } = {}) {
   for (const s of D.stores) store(B(s.x, s.z), s, rng, extras);
   for (const w of D.warehouses) warehouse(B(w.x, w.z), w, rng);
   for (const s of D.sheds) shed(B(s.x, s.z), s, rng);
-  for (const t of D.towers || []) tower(B(t.x, t.z), t, rng);
+  for (const t of D.towers || []) tower(B(t.x, t.z), t, rng, extras);
   // Mid-rise storefront blocks: shops on the ground floor, flats above, flat roof with parapet.
-  for (const b of D.blocks || []) buildHouse(B(b.x, b.z), { ...b, roof: 'flat', storefront: true, fl: 0.15, door: 0x2a2a2a }, rng);
+  for (const b of D.blocks || []) { buildHouse(B(b.x, b.z), { ...b, roof: 'flat', storefront: true, fl: 0.15, door: 0x2a2a2a }, rng); blockExtras(B(b.x, b.z), b, rng, extras); }
   for (const f of D.fences) fence(B(f.a.x, f.a.z), f);
   for (const p of D.palms) palm(B(p.x, p.z), p, rng);
   for (const t of D.trees) tree(B(t.x, t.z), t, rng);

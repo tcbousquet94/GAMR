@@ -80,6 +80,7 @@ export function generateTurf(cfg, seed, opts = {}) {
     streetData(KD, { cells, segs: L.segs, sw: cfg.roads.sidewalk, rng, cuts });
     // Staff and regulars inside furnished businesses (the diner).
     for (const b of city.businesses) for (const q of b.patrons || []) KD.people.push(q);
+    for (const q of kit.interiorPeople || []) KD.people.push(q); // walk-in cafes (modules/cafe.js)
     // Walk-in corner markets: a clerk behind the counter and a dim fluorescent room light (no rng: placed by position).
     for (const st of KD.stores) {
       if (!isWalkIn(st)) continue;

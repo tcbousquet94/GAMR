@@ -49,7 +49,7 @@ export class Kit {
   }
   // Render-only box from center/size with rotation.
   boxC(cx, cy, cz, sx, sy, sz, color, mat = MAT.STD, opts = {}) {
-    this.boxes.push({ cx, cy, cz, sx, sy, sz, ry: opts.ry || 0, rx: opts.rx || 0, rz: opts.rz || 0, color, mat, night: opts.night ?? color });
+    this.boxes.push({ cx, cy, cz, sx, sy, sz, ry: opts.ry || 0, rx: opts.rx || 0, rz: opts.rz || 0, color, mat, night: opts.night ?? color, ...(opts.surf ? { surf: opts.surf } : {}) });
   }
   quad(cx, cy, cz, w, h, nx, nz, day, night) { this.quads.push({ cx, cy, cz, w, h, nx, nz, day, night }); }
 

@@ -3,6 +3,7 @@
 
 import { MAT, TAG } from '../kit.js';
 import { shopName } from '../names.js';
+import { furnishCafe } from './cafe.js';
 
 export const FACES = {
   n: { nx: 0, nz: -1 }, s: { nx: 0, nz: 1 }, w: { nx: -1, nz: 0 }, e: { nx: 1, nz: 0 },
@@ -31,14 +32,16 @@ export function building(kit, r, h, opts = {}) {
   const style = opts.style || rng.pick(['brick', 'brick', 'concrete']);
   const color = opts.color ?? (style === 'glass' ? rng.pick(pal.tower) : style === 'brick' ? rng.pick(pal.brick) : rng.pick(pal.concrete));
   const base = opts.base ?? 0;
-  kit.solid(r.x0, base - 0.5, r.z0, r.x1, h, r.z1, color, MAT.STD, TAG.BUILDING);
+  const body = { solid: kit.solid(r.x0, base - 0.5, r.z0, r.x1, h, r.z1, color, MAT.STD, TAG.BUILDING), box: kit.boxes[kit.boxes.length - 1] };
   // Cornice band.
   const trim = style === 'glass' ? pal.trim : shade(color, 1.18);
   kit.box(r.x0 - 0.25, h - 0.6, r.z0 - 0.25, r.x1 + 0.25, h, r.z1 + 0.25, trim);
   const faces = opts.faces || ['n', 's', 'w', 'e'];
   const store = new Set(opts.storefront || []);
   for (const f of faces) windows(kit, r, f, h, style, store.has(f) ? 4.5 : 3.5, opts.windowStart);
-  for (const f of store) storefront(kit, r, f, opts);
+  const rooms = [];
+  for (const f of store) storefront(kit, r, f, opts, rooms);
+  if (rooms.length) carveRooms(kit, r, body, base, h, color, rooms);
   for (const f of opts.fireEscape || []) fireEscape(kit, r, f, h, opts.feAt);
   if (opts.roof !== false) roof(kit, r, h, opts);
   return { h, color };
@@ -73,7 +76,7 @@ function windows(kit, r, f, h, style, startY = 3.5, override) {
   }
 }
 
-function storefront(kit, r, f, opts) {
+function storefront(kit, r, f, opts, rooms) {
   const { rng, pal } = kit;
   const L = faceLine(r, f);
   const n = Math.max(1, Math.floor(L.len / 14));
@@ -82,25 +85,62 @@ function storefront(kit, r, f, opts) {
     const t = (seg * (i + 0.5)) / L.len;
     const p = facePoint(L, t, 0.04);
     const w = Math.min(seg - 3, 10);
+    // Draw this storefront's random choices in the original order (window glow, awning, sign, name, colour) before
+    // building anything, so whether it turns out to be a walk-in cafe never changes the rest of the city.
     const warm = rng.pick([0xffc98a, 0xffd8a8, 0xffe0b0]);
-    kit.quad(p.x, G + 1.7, p.z, w, 2.6, L.nx, L.nz, 0x4a5670, warm);
-    // Awning (environment accents only: purple / magenta / dusty mauve).
     const awn = rng.pick([0x5c3a78, 0x6e2f5c, 0x4b3f6e, 0x3f4f66]);
+    const hasSign = opts.signs !== false && rng.chance(0.85);
+    const name = hasSign ? shopName(rng) : null, neon = hasSign ? rng.pick(pal.neon) : null;
+    const depth = f === 'n' || f === 's' ? r.z1 - r.z0 : r.x1 - r.x0;
+    const cafe = name && / CAFE$/.test(name) && depth >= 9 && seg >= 8 && (opts.base ?? 0) === 0;
+    if (cafe) rooms.push({ L, s0: seg * i + 0.5, s1: seg * (i + 1) - 0.5, depth: Math.min(depth - 2.5, 10), name, f });
+    else kit.quad(p.x, G + 1.7, p.z, w, 2.6, L.nx, L.nz, 0x4a5670, warm);
+    // Awning (environment accents only: purple / magenta / dusty mauve).
     const ap = facePoint(L, t, 0.9);
     const along = L.nx === 0;
     kit.boxC(ap.x, G + 3.55, ap.z, along ? w + 0.6 : 1.8, 0.18, along ? 1.8 : w + 0.6, awn, MAT.STD, {
       rx: along ? L.nz * 0.32 : 0, rz: along ? 0 : -L.nx * 0.32,
     });
     // Neon sign above the awning.
-    if (opts.signs !== false && rng.chance(0.85)) {
+    if (hasSign) {
       const sp = facePoint(L, t, 0.12);
-      kit.sign(shopName(rng), 'neon', sp.x, G + 4.7, sp.z, Math.min(w, 8), 1.2, L.nx, L.nz, rng.pick(pal.neon));
+      kit.sign(name, 'neon', sp.x, G + 4.7, sp.z, Math.min(w, 8), 1.2, L.nx, L.nz, neon);
     }
     // Door and a spawn point in front of it.
     const dp = facePoint(L, t, 1.6);
     kit.spawn(dp.x, G, dp.z, 'door');
     kit.slot(facePoint(L, t + 2.8 / L.len, 0.9).x, G, facePoint(L, t + 2.8 / L.len, 0.9).z, Math.atan2(L.nx, L.nz), ['front']);
   }
+}
+
+// Walk-in rooms on the ground floor (cafes): the building's single solid body is replaced by an upper block from the
+// room ceiling up plus ground-floor blocks around the rooms, then each room is furnished (modules/cafe.js).
+const ROOM_H = 4.2;
+function carveRooms(kit, r, body, base, h, color, rooms) {
+  const si = kit.solids.indexOf(body.solid), bi = kit.boxes.indexOf(body.box);
+  if (si >= 0) kit.solids.splice(si, 1);
+  if (bi >= 0) kit.boxes.splice(bi, 1);
+  kit.solid(r.x0, ROOM_H, r.z0, r.x1, h, r.z1, color, MAT.STD, TAG.BUILDING);
+  const holes = rooms.map((q) => faceRect(q.L, q.s0, q.s1, -q.depth, 0));
+  for (const p of subtractRects(r, holes)) kit.solid(p.x0, base - 0.5, p.z0, p.x1, ROOM_H, p.z1, color, MAT.STD, TAG.BUILDING);
+  for (const q of rooms) furnishCafe(kit, q, ROOM_H);
+}
+
+// Footprint minus axis-aligned holes, as a list of axis-aligned rects (a simple grid split on the holes' edges).
+function subtractRects(r, holes) {
+  const xs = [...new Set([r.x0, r.x1, ...holes.flatMap((q) => [q.x0, q.x1])])].filter((x) => x >= r.x0 && x <= r.x1).sort((a, b) => a - b);
+  const zs = [...new Set([r.z0, r.z1, ...holes.flatMap((q) => [q.z0, q.z1])])].filter((z) => z >= r.z0 && z <= r.z1).sort((a, b) => a - b);
+  const out = [];
+  for (let i = 0; i < xs.length - 1; i++) {
+    // Merge runs of free cells down each column to keep the box count low.
+    let start = null;
+    for (let j = 0; j <= zs.length - 1; j++) {
+      const free = j < zs.length - 1 && !holes.some((q) => (xs[i] + xs[i + 1]) / 2 > q.x0 && (xs[i] + xs[i + 1]) / 2 < q.x1 && (zs[j] + zs[j + 1]) / 2 > q.z0 && (zs[j] + zs[j + 1]) / 2 < q.z1);
+      if (free && start == null) start = zs[j];
+      if (!free && start != null) { out.push({ x0: xs[i], x1: xs[i + 1], z0: start, z1: zs[j] }); start = null; }
+    }
+  }
+  return out.filter((p) => p.x1 - p.x0 > 0.01 && p.z1 - p.z0 > 0.01);
 }
 
 // Fire escape: landings every 4 m plus a ladder column beside them that runs from the street to the roof.

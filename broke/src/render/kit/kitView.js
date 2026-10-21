@@ -279,13 +279,13 @@ function personPose(p, kind, t) {
   } else if (kind === 'counter') {
     // Leaning on the back of the counter, hands on the top, one of them wiping it down now and then.
     const wipe = Math.max(0, Math.sin(t * 0.5)) * Math.sin(t * 4);
-    p.torso = [0.3, 0, 0];
+    p.torso = [-0.22, 0, 0]; // negative leans forward (see humanPose)
     p.armL = [0.35, 0, -0.18]; p.foreL = [0.95, 0, 0.15];
     p.armR = [0.35 + wipe * 0.1, 0, 0.18]; p.foreR = [0.95, 0, -0.15 - wipe * 0.25];
     p.head = [0.1, Math.sin(t * 0.35) * 0.35, 0];
   } else if (kind === 'cook') {
     // Working the flat-top: spatula hand moving, the other at the side.
-    p.torso = [0.15, 0, 0];
+    p.torso = [-0.12, 0, 0];
     p.armR = [0.9 + Math.sin(t * 3.1) * 0.2, 0, 0.12]; p.foreR = [0.7 + Math.sin(t * 3.1 + 1) * 0.2, 0, 0];
     p.armL = [0.6, 0, -0.1]; p.foreL = [0.9, 0, 0];
     p.head = [0.35, 0, 0];

@@ -214,6 +214,18 @@ cigarettes and sundries and the green BODEGA "THANK YOU, COME AGAIN!" sign behin
 CIGARETTES and ENERGIA signs; a chip rack, milk crates and boxes, a back door ("NO LOITERING"), mop, stool, trash can
 and a mat. Taco stands and discount stores stay closed for now.
 
+# WALK-IN CAFES
+
+Any generic-building storefront whose generated name ends in CAFE (e.g. LUMO CAFE) is a walk-in cafe after the
+user's reference image (style only). `modules/building.js` draws each storefront's random values in the original order
+before building, records cafe rooms, then replaces the building's single solid with an upper block from the room
+ceiling up plus ground-floor blocks around the rooms (`carveRooms`), so the rest of the city is unchanged.
+`modules/cafe.js` furnishes the room with its own random stream: polished concrete, warm concrete walls and a dark
+olive back wall with the cafe's name and a palm, floor-to-ceiling glass with a door, a column with a plant and a "GOOD
+COFFEE / BETTER DAYS" sign, a wood-fronted counter with a stone top, register and pastry case, the espresso bar and a
+chalk menu board, a rust banquette with tables, wood tables and chairs by the window, black pendant lights, a sunset
+print, a barista and two customers (`kit.interiorPeople`, added to the kit-data people).
+
 # THE TURF MAP (how Downtown is generated) — decisions
 
 - **District as data** (`src/city/turf/districts/downtown.js`): personality, landmark, road style, edges per side,

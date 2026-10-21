@@ -289,8 +289,10 @@ export function businessName(type, rng, used) {
 // stand in it (`biz.patrons`, drawn by the kit view). Layout in the template frame: u along the street (door at the
 // alley end), v into the block; the template's register counter by the door stays as the host stand.
 const DINER = {
-  red: 0xa8302a, cream: 0xd8ccb0, green: 0x5a6648, chrome: 0xc8ccd2, black: 0x1c1a20, white: 0xf2efe8, steel: 0x9aa0a8,
-  wood: 0x8a5a3a, vinyl: 0x9a2a26, laminate: 0x9a8a68, floor: 0x7a7064, floor2: 0x6c6358, warm: 0xfff0d0, board: 0x16161a,
+  // Sun-faded and grimy, after the reference: nothing in here has been repainted since the eighties.
+  red: 0x8e2a24, cream: 0xb8ab8a, green: 0x485440, chrome: 0xaeb2b6, black: 0x1c1a20, white: 0xe2ddd0, steel: 0x8a9098,
+  wood: 0x6e4a32, vinyl: 0x8a2622, laminate: 0x8a7a5c, floor: 0x5c5a54, floor2: 0x504e49, warm: 0xffe2b0, board: 0x16161a,
+  ceiling: 0x8c826e,
 };
 function buildDiner({ solid, box, cover, fr, F, D, GH, biz, kit, corner }) {
   // Its own random stream, so furnishing the diner never reshuffles the rest of the city.
@@ -304,7 +306,11 @@ function buildDiner({ solid, box, cover, fr, F, D, GH, biz, kit, corner }) {
   const dir = (du, dv) => ({ x: fr.tu.x * du + fr.tv.x * dv, z: fr.tu.z * du + fr.tv.z * dv });
   const yawOf = (du, dv) => { const d = dir(du, dv); return Math.atan2(-d.x, -d.z); };
   const sign = (text, kind, u, v, y, w, h, n, color) => { const p = fr.at(u, v); kit.sign(text, kind, p.x, y, p.z, w, h, n.x, n.z, color); };
-  const light = (u, v, y, color, r) => { const p = fr.at(u, v); kit.light(p.x, y, p.z, color, r, 'shop'); };
+  // Room lights: dim and warm (power scales the kit view's interior point light; tint is its colour).
+  const light = (u, v, y, color, r, power = 0.45) => { const p = fr.at(u, v); kit.light(p.x, y, p.z, color, r, 'shop'); Object.assign(kit.lights[kit.lights.length - 1], { power, tint: color }); };
+  // The template's own ceiling light too: dimmer and warmer in here.
+  const room = fr.rect(0, 0, F, D);
+  for (const l of kit.lights) if (l.kind === 'shop' && l.x >= room.x0 && l.x <= room.x1 && l.z >= room.z0 && l.z <= room.z1) Object.assign(l, { power: 0.35, tint: 0xffd8a8, y: 2.6 });
   const SEAT = 0.46; // seat top above the floor
   const PASS = 12.0, CV0 = 9.0, CV1 = 9.75, BAR0 = 11.55; // pass wall, counter, back counter (v)
   const toPass = dir(0, -1), fromCorner = dir(1, 0), fromAlley = dir(-1, 0); // sign normals per wall
@@ -361,17 +367,17 @@ function buildDiner({ solid, box, cover, fr, F, D, GH, biz, kit, corner }) {
   bx(1.3, PASS - 0.06, 1.9, PASS - 0.02, 2.55, 3.15, 0x8a8a86, 'metalPaint'); // vent grille
   for (let k = 0; k < 6; k++) bx(1.32, PASS - 0.07, 1.88, PASS - 0.06, 2.6 + k * 0.09, 2.63 + k * 0.09, 0x4a4a48);
 
-  bx(t, t, F - t, PASS, GH - 0.14, GH - 0.12, 0xcfc6b0, 'tile'); // drop-tile ceiling
+  bx(t, t, F - t, PASS, GH - 0.14, GH - 0.12, C.ceiling, 'tile'); // drop-tile ceiling, yellowed
 
   // ---- fluorescent tube fixtures on short rods ----------------------------------------------------------------------
   const tube = (u, v, len, alongU) => {
     const [a0, a1, b0, b1] = alongU ? [u - len / 2, u + len / 2, v - 0.16, v + 0.16] : [u - 0.16, u + 0.16, v - len / 2, v + len / 2];
     bx(a0, b0, a1, b1, 2.82, 2.92, 0xd8d8d4, 'metalPaint');
-    glow(a0 + 0.05, b0 + 0.06, a1 - 0.05, b1 - 0.06, 2.79, 2.82, 0xf8f6ec);
+    glow(a0 + 0.05, b0 + 0.06, a1 - 0.05, b1 - 0.06, 2.79, 2.82, 0xf2ead2);
     for (const k of [0.2, 0.8]) { const uu = alongU ? a0 + (a1 - a0) * k : u, vv = alongU ? v : b0 + (b1 - b0) * k; bx(uu - 0.015, vv - 0.015, uu + 0.015, vv + 0.015, 2.92, GH - 0.14, C.black); }
   };
   tube(3.2, 2.8, 1.8, true); tube(7.0, 2.8, 1.8, true); tube(4.4, 7.4, 1.8, true); tube(8.4, 7.4, 1.8, true);
-  light(5.2, 5.0, 2.7, 0xfff4e0, 9);
+  light(4.4, 7.4, 2.6, 0xffe2b8, 9); light(4.4, 2.8, 2.6, 0xffe2b8, 9, 0.35);
 
   // ---- booths: red tufted benches, wood-laminate tables on pedestals ------------------------------------------------
   const booth = (u0, v0, along) => {
@@ -520,7 +526,7 @@ function buildDiner({ solid, box, cover, fr, F, D, GH, biz, kit, corner }) {
   for (let k = 0; k < 4; k++) bx(9.15 + k * 0.08, KB - 0.55, 9.2 + k * 0.08, KB - 0.25, 0.9, 1.15, C.white, 'trim');
   sd(t + 0.05, 12.6, t + 0.55, 15.0, Gt, 1.9, 0x8a8478, 'metalPaint'); // dry storage shelving
   tube(4, 14.0, 1.8, true);
-  light(4, 14, 2.7, 0xf2f6ff, 7);
+  light(4, 14, 2.6, 0xf2f0e4, 7, 0.4);
 
   // ---- people: Sal behind the counter, a cook on the line, a waitress, the regulars ------------------------------
   const person = (u, v, y, fu, fv, pose, seed) => biz.patrons.push({ ...at3(u, v, y), yaw: yawOf(fu, fv), pose, seed });

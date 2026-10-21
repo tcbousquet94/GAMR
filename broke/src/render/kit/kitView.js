@@ -180,7 +180,7 @@ export class KitView extends View {
     if (this.indoor.length && this.frame % 15 === 0) {
       const cam = this.camera.position;
       const near = this.indoor.map((l) => ({ l, d: (l.x - cam.x) ** 2 + (l.z - cam.z) ** 2 })).filter((e) => e.d < 40 * 40).sort((p, q) => p.d - q.d);
-      this.indoorPts.forEach((p, i) => { const e = near[i]; if (!e) { p.intensity = 0; return; } p.position.set(e.l.x, e.l.y - 0.3, e.l.z); p.intensity = 14 + 10 * this.night; });
+      this.indoorPts.forEach((p, i) => { const e = near[i]; if (!e) { p.intensity = 0; return; } p.position.set(e.l.x, e.l.y - 0.3, e.l.z); p.intensity = (14 + 10 * this.night) * (e.l.power ?? 1); p.color.set(e.l.tint ?? 0xfff0dc); });
     }
     if (this.night > 0.1 && this.frame % 30 === 0) this.placeLamps();
     // Stream town chunks in around the camera: a couple per few frames while walking, all at once after a jump.

@@ -12,11 +12,25 @@ import { Screens } from './ui/screens.js';
 import { Audio } from './audio/audio.js';
 import { Perf } from './debug/perf.js';
 import { installDebug } from './debug/api.js';
+import { TouchControls } from './ui/touch.js';
+import { ABILITY_ICONS } from './ui/hud.js';
+import { icon } from './ui/icons.js';
 
 const params = new URLSearchParams(location.search);
 const canvas = document.getElementById('game');
 const view = new View(canvas, { quality: params.get('quality') || 'auto', preserve: params.has('shot') || params.has('bot') });
 const input = new Input(canvas);
+const touch = new TouchControls(document.getElementById('touch'), Object.fromEntries(Object.entries(ABILITY_ICONS).map(([k, v]) => [k, icon(v, '#ffffff', 64, true)])));
+input.touch = touch;
+touch.attach(canvas);
+if (touch.enabled) {
+  document.body.classList.add('touch');
+  const menu = document.createElement('button');
+  menu.className = 't-menu'; menu.textContent = '≡'; menu.setAttribute('aria-label', 'Pause');
+  menu.onclick = () => (app.paused ? resume() : pause());
+  document.getElementById('touch').appendChild(menu);
+}
+touch.setVisible(false);
 const hud = new Hud(document.getElementById('hud'));
 const audio = new Audio();
 const perf = new Perf(document.getElementById('perf'));
@@ -43,12 +57,12 @@ export function startRun(seed, opts = {}) {
   const g = (app.game = new Game({ seed: app.seed, district: downtown, survivor: DEE, startMinutes: opts.startMinutes ?? +(params.get('t') || 0) }));
   if (params.get('god') === '1' || opts.god) g.godMode = true;
   view.load(g);
-  hud.bind(g, DEE);
+  hud.bind(g, DEE, touch);
   audio.bind(g);
   input.yaw = g.player.yaw;
   input.pitch = 0;
-  g.events.on('playerDeath', (d) => setTimeout(() => { if (app.game === g) { app.state = 'dead'; input.enabled = false; input.unlock(); screens.show('dead', d); } }, 1600));
-  g.events.on('win', (r) => setTimeout(() => { if (app.game === g) { app.state = 'won'; input.enabled = false; input.unlock(); screens.show('won', r); } }, 900));
+  g.events.on('playerDeath', (d) => setTimeout(() => { if (app.game === g) { app.state = 'dead'; input.enabled = false; input.unlock(); touch.setVisible(false); screens.show('dead', d); } }, 1600));
+  g.events.on('win', (r) => setTimeout(() => { if (app.game === g) { app.state = 'won'; input.enabled = false; input.unlock(); touch.setVisible(false); screens.show('won', r); } }, 900));
   app.state = 'playing';
   app.paused = false;
   input.enabled = true;
@@ -60,6 +74,7 @@ export function startRun(seed, opts = {}) {
 
 function pause() {
   if (app.state !== 'playing') return;
+  touch.setVisible(false);
   app.paused = true;
   input.enabled = false;
   input.unlock();
@@ -67,6 +82,7 @@ function pause() {
 }
 function resume() {
   app.paused = false;
+  touch.setVisible(true);
   input.enabled = true;
   screens.show(null);
   input.lock();
@@ -132,7 +148,7 @@ else {
   const g = (app.game = new Game({ seed: app.seed, district: downtown, survivor: DEE }));
   g.director.enabled = false;
   view.load(g);
-  hud.bind(g, DEE);
+  hud.bind(g, DEE, touch);
   hud.setVisible(false);
   app.state = 'title';
   screens.show('title', { survivor: DEE, seed: app.seed });

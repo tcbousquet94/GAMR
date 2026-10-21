@@ -44,9 +44,9 @@ export const downtown = {
   lighting: {
     // Keyframes over the difficulty clock (minutes). Golden hour -> dusk (Rush Hour) -> night (Gridlock).
     keys: [
-      { t: 0, sky: [0x5d6fb8, 0xf2a46a, 0xffd59a], sun: 0xffc27a, sunI: 2.8, hemi: [0xb8c0ec, 0x8a6a60], hemiI: 1.7, fog: 0xd8a088, fogD: 0.0036, night: 0, sunEl: 24 },
-      { t: 2.5, sky: [0x3b3f8f, 0xd9706a, 0xf09a6a], sun: 0xff9a6a, sunI: 1.8, hemi: [0x9a90d8, 0x6a4a60], hemiI: 1.5, fog: 0xa06c86, fogD: 0.0042, night: 0.45, sunEl: 12 },
-      { t: 5.5, sky: [0x1d1c4a, 0x4a3b8f, 0xd0705a], sun: 0x8a7cff, sunI: 0.7, hemi: [0x6a66c8, 0x3a3050], hemiI: 1.25, fog: 0x3a3270, fogD: 0.0048, night: 1, sunEl: 40 },
+      { t: 0, sky: [0x7d8cc8, 0xe8b4b0, 0xffd8a8], sun: 0xffb46a, sunI: 4.2, hemi: [0xa8b0e0, 0x8a6a58], hemiI: 1.05, fog: 0xd8a088, fogD: 0.0036, night: 0, sunEl: 23, haze: 0x9690c8, hazeFar: 0xe0b0a8 },
+      { t: 2.5, sky: [0x4a4c98, 0xc8809a, 0xf0a47e], sun: 0xff8a5a, sunI: 2.8, hemi: [0x9a90d8, 0x6a4a60], hemiI: 1.0, fog: 0xa06c86, fogD: 0.0042, night: 0.45, sunEl: 11, haze: 0x7c6cae, hazeFar: 0xc67e92 },
+      { t: 5.5, sky: [0x1d1c4a, 0x4a3b8f, 0xd0705a], sun: 0x8a7cff, sunI: 0.7, hemi: [0x6a66c8, 0x3a3050], hemiI: 1.25, fog: 0x3a3270, fogD: 0.0048, night: 1, sunEl: 40, haze: 0x2c2a5e, hazeFar: 0x46387a },
     ],
   },
 };

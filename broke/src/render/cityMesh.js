@@ -42,9 +42,14 @@ export function makeNightMaterial(opts = {}) {
 // ---- geometry writer ----------------------------------------------------------------------------------------------
 class Writer {
   constructor() { this.p = []; this.n = []; this.c = []; this.k = []; }
-  tri(a, b, c, nx, ny, nz, col, night) {
+  // cols: one colour for the face, or an array of three per-vertex colours.
+  tri(a, b, c, nx, ny, nz, col, night, cols) {
     this.p.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
-    for (let i = 0; i < 3; i++) { this.n.push(nx, ny, nz); this.c.push(col.r, col.g, col.b); if (night) this.k.push(night.r, night.g, night.b); }
+    for (let i = 0; i < 3; i++) {
+      const cc = cols ? cols[i] : col;
+      this.n.push(nx, ny, nz); this.c.push(cc.r, cc.g, cc.b);
+      if (night) this.k.push(night.r, night.g, night.b);
+    }
   }
   geometry(withNight) {
     if (!this.p.length) return null;
@@ -90,10 +95,19 @@ function writeBox(w, b, night) {
     const k = 1 + (hash(b.cx + f * 1.7, b.cz + b.cy) - 0.5) * 0.09 + (f === 2 ? 0.05 : 0);
     const col = _c.clone().multiplyScalar(k);
     const [a, bb, c, d] = idx.map((i) => corners[i]);
+    // Ambient occlusion: walls darken toward their base so every building sits on the street.
+    if (!night && Math.abs(_nv.y) < 0.5 && b.sy > 1.2) {
+      const ao = (p) => col.clone().multiplyScalar(0.58 + 0.42 * smoothstep01((p[1] - (b.cy - hy)) / 3.2));
+      const ca = ao(a), cb = ao(bb), cc = ao(c), cd = ao(d);
+      w.tri(a, bb, c, _nv.x, _nv.y, _nv.z, null, null, [ca, cb, cc]);
+      w.tri(a, c, d, _nv.x, _nv.y, _nv.z, null, null, [ca, cc, cd]);
+      continue;
+    }
     w.tri(a, bb, c, _nv.x, _nv.y, _nv.z, col, night ? _n : null);
     w.tri(a, c, d, _nv.x, _nv.y, _nv.z, col, night ? _n : null);
   }
 }
+const smoothstep01 = (t) => { const x = Math.min(1, Math.max(0, t)); return x * x * (3 - 2 * x); };
 
 function writeQuad(w, q) {
   const hw = q.w / 2, hh = q.h / 2;
@@ -128,7 +142,7 @@ export function buildCity(city, scene, opts = {}) {
   }
   for (const q of kit.quads) writeQuad(chunk(q.cx, q.cz).win, q);
 
-  const stdMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.88, metalness: 0.02 });
+  const stdMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.86, metalness: 0.02, envMapIntensity: 0.7 });
   const glassMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.15, metalness: 0.4, transparent: true, opacity: 0.4, depthWrite: false });
   const nightMat = makeNightMaterial({ boost: 1.25 });
   const group = new THREE.Group();
@@ -181,6 +195,7 @@ export function buildCity(city, scene, opts = {}) {
     },
     tick(t) {
       lights.tick(t);
+      if (signs.uTime) signs.uTime.value = t;
       skyline.material.uniforms.uTime.value = t;
     },
     stats() {
@@ -239,31 +254,47 @@ function buildSigns(kit, scene) {
     slots.set(key, r);
     return r;
   };
-  const pos = [], uv = [], idx = [];
+  const pos = [], uv = [], idx = [], flick = [];
+  let si = 0;
   for (const s of kit.signs) {
+    // About one neon sign in six has a failing tube and flickers.
+    const f = s.kind === 'neon' && (si++ * 7919) % 6 === 0 ? 1 + (si % 13) : 0;
+    flick.push(f, f, f, f);
     const r = slotFor(s);
     // Fit width to the text aspect (slot is 8:1).
     const w = Math.min(s.w, s.h * 8), h = w / 8 * (s.kind === 'graffiti' ? 1.6 : 1);
-    const rx = -s.nz, rz = s.nx;
+    // Screen-right for a viewer facing the sign (looking along -n).
+    const rx = s.nz, rz = -s.nx;
     const base = pos.length / 3;
     const off = 0.06;
     for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) pos.push(s.cx + rx * a * w / 2 + s.nx * off, s.cy + b * h / 2, s.cz + rz * a * w / 2 + s.nz * off);
     uv.push(r.u0, r.v0, r.u1, r.v0, r.u1, r.v1, r.u0, r.v1);
-    idx.push(base, base + 2, base + 1, base, base + 3, base + 2);
+    idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setAttribute('aFlick', new THREE.Float32BufferAttribute(flick, 1));
   g.setIndex(idx);
   g.computeBoundingSphere();
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
   const material = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, fog: true });
+  const uTime = { value: 0 };
+  material.onBeforeCompile = (sh) => {
+    sh.uniforms.uTime = uTime;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aFlick; varying float vFlick;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvFlick = aFlick;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uTime; varying float vFlick;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        if (vFlick > 0.5) { float k = floor(uTime * 14.0 + vFlick * 31.0); float r = fract(sin(k * 12.9898 + vFlick) * 43758.5453);
+          float off = step(0.82, r) * step(0.6, fract(sin(floor(uTime * 0.7 + vFlick) * 78.233) * 4375.5));
+          diffuseColor.rgb *= 1.0 - 0.85 * off; }`);
+  };
   const mesh = new THREE.Mesh(g, material);
   mesh.renderOrder = 3;
   scene.add(mesh);
-  return { mesh, material, canvas };
+  return { mesh, material, canvas, uTime };
 }
 
 function hexCss(c) { return `#${(c >>> 0).toString(16).padStart(6, '0')}`; }

@@ -7,11 +7,14 @@ const assets = readdirSync('dist/assets');
 const css = readFileSync(`dist/assets/${assets.find((f) => f.endsWith('.css'))}`, 'utf8');
 const js = readFileSync(`dist/assets/${assets.find((f) => f.endsWith('.js'))}`, 'utf8').replace(/<\/script/gi, '<\\/script');
 const html = `<title>BROKE</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap">
 <style>:root { color-scheme: dark; } html, body { height: 100%; background: #120f1c; }
 ${css}</style>
 <canvas id="game"></canvas>
 <div id="fx-layer"></div>
 <div id="hud"></div>
+<div id="touch"></div>
 <div id="screens"></div>
 <div id="perf"></div>
 <script type="module">${js}</script>

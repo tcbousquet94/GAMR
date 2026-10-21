@@ -16,9 +16,9 @@ export async function startServer(port = 5199) {
   return { url: `http://localhost:${port}/`, stop: () => proc.kill() };
 }
 
-export async function openGame(url, query, { width = 1280, height = 720 } = {}) {
+export async function openGame(url, query, { width = 1280, height = 720, mobile = false } = {}) {
   const browser = await chromium.launch({ executablePath: CHROME, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
-  const page = await browser.newPage({ viewport: { width, height } });
+  const page = await browser.newPage(mobile ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : { viewport: { width, height } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e.stack || e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });

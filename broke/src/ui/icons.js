@@ -2,18 +2,23 @@
 
 const cache = new Map();
 
-export function icon(kind, color, size = 64) {
-  const key = `${kind}|${color}|${size}`;
+// bare: glyph only (no tile), for the translucent round buttons.
+export function icon(kind, color, size = 64, bare = false) {
+  const key = `${kind}|${color}|${size}|${bare}`;
   if (cache.has(key)) return cache.get(key);
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const g = c.getContext('2d');
   const s = size / 64;
   g.scale(s, s);
-  g.fillStyle = 'rgba(20,18,28,0.85)';
-  rr(g, 2, 2, 60, 60, 12); g.fill();
-  g.strokeStyle = color; g.lineWidth = 3; rr(g, 3, 3, 58, 58, 11); g.stroke();
-  g.fillStyle = color; g.strokeStyle = color; g.lineWidth = 4; g.lineCap = 'round'; g.lineJoin = 'round';
+  if (!bare) {
+    g.fillStyle = 'rgba(20,18,28,0.55)';
+    g.beginPath(); g.arc(32, 32, 30, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = color; g.lineWidth = 2.5; g.beginPath(); g.arc(32, 32, 29, 0, Math.PI * 2); g.stroke();
+    g.translate(32, 32); g.scale(0.72, 0.72); g.translate(-32, -32);
+  }
+  g.fillStyle = color; g.strokeStyle = color; g.lineWidth = bare ? 3 : 4; g.lineCap = 'round'; g.lineJoin = 'round';
+  g.shadowColor = 'rgba(0,0,0,0.35)'; g.shadowBlur = bare ? 3 : 0;
   (GLYPHS[kind] || GLYPHS.box)(g);
   const url = c.toDataURL();
   cache.set(key, url);
@@ -50,5 +55,7 @@ const GLYPHS = {
   dart: (g) => { line(g, [16, 48], [44, 20]); poly(g, [[44, 14], [50, 20], [44, 26], [38, 20]]); },
   clipboard: (g) => { g.fillRect(18, 14, 28, 38); g.fillStyle = '#1a1820'; g.fillRect(22, 22, 20, 26); g.fillStyle = 'currentColor'; },
   salsa: (g) => { g.beginPath(); g.arc(32, 32, 14, 0.3, Math.PI * 1.7); g.stroke(); poly(g, [[44, 22], [50, 30], [40, 32]]); },
+  jump: (g) => { line(g, [32, 50], [32, 18]); line(g, [20, 28], [32, 16], [44, 28]); line(g, [20, 52], [44, 52]); },
+  equip: (g) => { circ(g, 32, 32, 14, false); line(g, [32, 22], [32, 42]); line(g, [22, 32], [42, 32]); },
   codeblue: (g) => { g.fillRect(29, 12, 6, 22); circ(g, 32, 44, 4); for (const x of [18, 46]) line(g, [x, 16], [x - 4, 26]); },
 };

@@ -172,6 +172,7 @@ export class Actors {
         phase: e.anim * (e.type === 'hoa' ? 0.9 : 2.6), speed: Math.min(1, sp / 7), air: !e.body.onGround && !e.climbing && e.type !== 'scooter',
         climb: e.climbing, t: this.t + e.id, windup: e.telegraph, stun: e.stunned, crashed: e.state === 'crashed', latched: e.state === 'latched',
         attack: e.state === 'notices' || e.state === 'drones' || e.state === 'gavel' ? e.state : null,
+        cloth: M.CLOTH[e.type]?.length ? M.clothSpring(e, dt, e.body.vel, e._ry, this.t + e.id, M.CLOTH[e.type]) : null,
       };
       rootMatrix(p.x, p.y, p.z, e._ry, scale, m4);
       rig.add(m4, (POSE[e.type] || M.speakerphonePose)(st), this.flashOf(e));
@@ -203,6 +204,7 @@ export class Actors {
     const pose = M.deePose({
       phase: this.deePhase, speed: Math.min(1, hs / 10), air: !b.onGround && !P.climbing, climb: !!P.climbing, t: this.t,
       firing: this.fireT > 0, pitch: P.pitch, throwT: Math.max(0, this.throwT / 0.35), spin: Math.max(0, this.spinT / 0.4),
+      cloth: M.clothSpring(this, dt, b.vel, this.deeYaw, this.t, M.CLOTH.dee),
     });
     if (P.cart > 0) { pose.legL = [0.2, 0, 0]; pose.legR = [-0.1, 0, 0]; pose.armL = [1.3, 0, 0]; pose.armR = [1.3, 0, 0]; pose.foreL = [0.2, 0, 0]; pose.foreR = [0.2, 0, 0]; pose.torso = [-0.35, 0, 0]; }
     this.dee.begin();

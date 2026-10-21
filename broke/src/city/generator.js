@@ -143,7 +143,7 @@ function boundary(kit, city) {
   for (const side of ['n', 's', 'w', 'e']) {
     for (let t = -20; t < size + 20; ) {
       const w = r.range(18, 34);
-      const hh = r.range(30, 70);
+      const hh = r.range(16, 42); // low enough that the golden-hour sun still reaches the outer streets
       const d = 24;
       const c = r.pick(pal.brick.concat(pal.concrete));
       if (side === 'n') kit.box(t, -0.5, -d, t + w - 1, hh, 0, c);

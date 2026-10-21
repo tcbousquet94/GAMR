@@ -6,11 +6,13 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { AtmospherePass } from './post.js';
 import { buildCity } from './cityMesh.js';
 import { buildSky, sampleLighting } from './sky.js';
 import { CameraRig } from './camera.js';
 import { Actors } from './actors.js';
 import { Fx } from './fx.js';
+import { buildDetails } from './details.js';
 
 // Sun sits to the south-west so it lights the facades you see heading east toward the subway.
 const SUN_AZ = Math.PI * 0.82;
@@ -30,7 +32,7 @@ export class View {
     this.renderer.info.autoReset = false; // count every pass of the composer, reset once per frame
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; // soft-edged shadows; contact blobs (details.js) ground the rest
     this.renderer.shadowMap.autoUpdate = false;
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.1, 4000);
     this.qualityName = opts.quality || 'auto';
@@ -43,20 +45,26 @@ export class View {
     this.dispose();
     const scene = (this.scene = new THREE.Scene());
     this.game = game;
-    scene.fog = new THREE.FogExp2(0xd99a7a, 0.004);
+    scene.fog = null; // aerial perspective is done in the atmosphere pass (post.js)
     this.sky = buildSky(scene);
+    this.pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.envScene = new THREE.Scene();
+    this.envScene.add(new THREE.Mesh(this.sky.dome.geometry, this.sky.material));
+    this.envScene.children[0].scale.setScalar(100);
+    this.envNight = -1;
     this.hemi = new THREE.HemisphereLight(0x8fa0d8, 0x5a4048, 0.9);
     scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight(0xffc27a, 2.4);
     this.sun.castShadow = true;
-    this.sun.shadow.camera.left = -70; this.sun.shadow.camera.right = 70; this.sun.shadow.camera.top = 70; this.sun.shadow.camera.bottom = -70;
+    this.sun.shadow.camera.left = -55; this.sun.shadow.camera.right = 55; this.sun.shadow.camera.top = 55; this.sun.shadow.camera.bottom = -55;
     this.sun.shadow.camera.near = 1; this.sun.shadow.camera.far = 400;
-    this.sun.shadow.bias = -0.0006; this.sun.shadow.normalBias = 0.6;
+    this.sun.shadow.bias = -0.0004; this.sun.shadow.normalBias = 0.4; this.sun.shadow.radius = 6; this.sun.shadow.blurSamples = 12;
     scene.add(this.sun, this.sun.target);
     // A small pool of real point lights that follow the nearest streetlights / neon to the camera.
     this.points = [];
     for (let i = 0; i < 6; i++) { const l = new THREE.PointLight(0xffa34d, 0, 16, 1.6); scene.add(l); this.points.push(l); }
     this.city = buildCity(game.city, scene);
+    this.details = buildDetails(game.city, scene);
     this.lightList = game.city.kit.lights.filter((l) => l.radius > 0 && l.kind !== 'steam');
     this.rig = new CameraRig(this.camera);
     this.actors = new Actors(scene, game, this);
@@ -78,15 +86,16 @@ export class View {
     this.sun.castShadow = this.q.shadows > 0;
     if (this.q.shadows) { this.sun.shadow.mapSize.set(this.q.shadows, this.q.shadows); this.sun.shadow.map?.dispose(); this.sun.shadow.map = null; }
     this.composer?.dispose?.();
-    this.composer = null;
+    const c = new EffectComposer(r, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType }));
+    this.atmo = new AtmospherePass(this.scene, this.camera);
+    c.addPass(this.atmo);
+    this.bloom = null;
     if (this.q.bloom) {
-      const c = new EffectComposer(r);
-      c.addPass(new RenderPass(this.scene, this.camera));
-      this.bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.55, 0.5, 0.82);
+      this.bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.5, 0.6, 0.85);
       c.addPass(this.bloom);
-      c.addPass(new OutputPass());
-      this.composer = c;
     }
+    c.addPass(new OutputPass());
+    this.composer = c;
     this.resize();
   }
 
@@ -97,6 +106,8 @@ export class View {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.composer?.setSize(w, h);
+    const pr = this.renderer.getPixelRatio();
+    this.atmo?.setSize(Math.floor(w * pr), Math.floor(h * pr));
   }
 
   // Called once per rendered frame with real dt (seconds) and the interpolation alpha.
@@ -122,6 +133,7 @@ export class View {
     this.lodT -= dt;
     if (this.lodT <= 0) { this.lodT = 0.5; this.city.updateLod(cam); this.placePointLights(cam, L.night); }
     this.city.tick(g.time);
+    this.details.update(g.time);
     this.actors.update(dt);
     this.fx.update(dt);
     this.renderer.info.reset();
@@ -137,8 +149,21 @@ export class View {
     s.uSunDir.value.set(Math.cos(SUN_AZ) * Math.cos(el), Math.sin(el), Math.sin(SUN_AZ) * Math.cos(el));
     this.sun.color.copy(L.sun); this.sun.intensity = L.sunI;
     this.hemi.color.copy(L.hemiSky); this.hemi.groundColor.copy(L.hemiGround); this.hemi.intensity = L.hemiI;
-    this.scene.fog.color.copy(L.fog); this.scene.fog.density = L.fogD;
-    this.sky.cloudMat.color.copy(L.mid).lerp(L.hor, 0.35).multiplyScalar(1.1);
+    if (this.atmo) {
+      const u = this.atmo.uniforms;
+      u.haze.value.copy(L.haze); u.hazeFar.value.copy(L.hazeFar); u.sunColor.value.copy(L.sun);
+      u.sunDir.value.copy(s.uSunDir.value); u.night.value = L.night;
+      u.density.value = 0.0024 + 0.0008 * L.night;
+    }
+    this.sky.uniforms.uTime.value = this.game.time;
+    // Image-based light from the sky, refreshed as the time of day moves.
+    if (Math.abs(L.night - this.envNight) > 0.05 || this.envNight < 0) {
+      this.envNight = L.night;
+      this.envRT?.dispose();
+      this.envRT = this.pmrem.fromScene(this.envScene, 0.04);
+      this.scene.environment = this.envRT.texture;
+      this.scene.environmentIntensity = 0.55 - 0.25 * L.night;
+    }
     this.city.setNight(L.night);
     this.night = L.night;
     if (this.bloom) this.bloom.strength = 0.4 + 0.5 * L.night;

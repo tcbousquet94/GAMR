@@ -10,7 +10,7 @@ export function installDebug(app, { startRun }) {
     get game() { return app.game; },
     get view() { return app.view; },
     start: (seed, opts) => startRun(seed, opts),
-    perf: () => ({ ...app.perf.stats, ...app.view.city?.stats() }),
+    perf: () => ({ ...app.perf.stats, ...app.view.city?.stats(), details: app.view.details?.stats() }),
     // Run a bot scenario inside the live game. Resolves with its numeric results.
     run(name, { stepsPerFrame = 4, opts = {} } = {}) {
       const g = app.game;

@@ -16,7 +16,7 @@ export class RigType {
     this.meshes = [];
     this.flash = [];
     this.world = def.parts.map(() => new THREE.Matrix4());
-    const mat = facetMaterial({ flash: true, roughness: 0.8 });
+    const mat = facetMaterial({ flash: true, roughness: 0.72, flat: false });
     for (const p of def.parts) {
       const flash = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
       flash.setUsage(THREE.DynamicDrawUsage);

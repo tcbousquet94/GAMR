@@ -33,7 +33,7 @@ export class Input {
       this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch - e.movementY * this.sens));
     };
     this.onMouse = (e) => {
-      if (!this.enabled) return;
+      if (!this.enabled || this.touch?.enabled) return;
       const down = e.type === 'mousedown';
       if (e.button === 0) this.mouse.left = down;
       if (e.button === 2) { this.mouse.right = down; if (down) this.latched.secondary = true; }
@@ -50,7 +50,7 @@ export class Input {
     addEventListener('blur', () => { this.keys.clear(); this.mouse.left = this.mouse.right = false; });
   }
 
-  lock() { try { this.canvas.requestPointerLock?.(); } catch { /* ignored: some browsers refuse without a gesture */ } }
+  lock() { if (this.touch?.enabled) return; try { this.canvas.requestPointerLock?.(); } catch { /* ignored: some browsers refuse without a gesture */ } }
   unlock() { if (document.pointerLockElement) document.exitPointerLock(); }
 
   press(code) {
@@ -80,11 +80,21 @@ export class Input {
       if (b(10) && !this._gpSprint) this.sprintToggle = !this.sprintToggle;
       this._gpSprint = b(10);
     }
+    // Touch: thumbstick, drag-to-look and round buttons.
+    let touchSprint = false;
+    if (this.touch?.enabled) {
+      const t = this.touch.take();
+      mx += t.mx; mz += t.mz;
+      this.yaw -= t.look.dx * 0.0062; this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch - t.look.dy * 0.0055));
+      if (t.held.primary) primary = true;
+      for (const k of ['jump', 'secondary', 'utility', 'special', 'equipment', 'interact']) if (t.latched[k]) this.latched[k] = true;
+      touchSprint = t.sprint;
+    }
     // Sprint: hold Shift, or toggle; stopping cancels the toggle.
     if (mz <= 0.1) this.sprintToggle = false;
     const out = {
       moveX: Math.max(-1, Math.min(1, mx)), moveZ: Math.max(-1, Math.min(1, mz)), yaw: this.yaw, pitch: this.pitch,
-      sprint: this.sprintToggle || this.down('sprint'), jumpPressed: !!this.latched.jump, primary,
+      sprint: this.sprintToggle || this.down('sprint') || touchSprint, jumpPressed: !!this.latched.jump, primary,
       secondary: !!this.latched.secondary || this.mouse.right, utility: !!this.latched.utility, special: !!this.latched.special,
       equipment: !!this.latched.equipment, interact: !!this.latched.interact,
     };

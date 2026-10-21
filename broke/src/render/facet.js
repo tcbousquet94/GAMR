@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 const tmpC = new THREE.Color();
 
@@ -55,7 +56,7 @@ export function merge(list) {
 
 // Material used by every faceted mesh. Supports per-instance flash (hit flash / attack telegraph -> white).
 export function facetMaterial(opts = {}) {
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: opts.roughness ?? 0.82, metalness: opts.metalness ?? 0.0, ...opts.extra });
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: opts.flat ?? true, roughness: opts.roughness ?? 0.82, metalness: opts.metalness ?? 0.0, ...opts.extra });
   if (opts.flash) {
     mat.onBeforeCompile = (sh) => {
       sh.vertexShader = sh.vertexShader
@@ -66,7 +67,43 @@ export function facetMaterial(opts = {}) {
         .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0), clamp(vFlash, 0.0, 1.0));')
         .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0) * clamp(vFlash, 0.0, 1.0) * 1.4;');
     };
-    mat.customProgramCacheKey = () => 'facet-flash';
+    mat.customProgramCacheKey = () => `facet-flash-${opts.flat ?? true}`;
   }
   return mat;
+}
+
+// ---- Smooth (organic) primitives for characters: indexed geometry with smooth normals ---------------------------
+
+export function smooth(geo, color, m, shade = 0) {
+  const g = geo.clone();
+  if (m) g.applyMatrix4(m);
+  for (const k of Object.keys(g.attributes)) if (!['position', 'normal'].includes(k)) g.deleteAttribute(k);
+  g.computeVertexNormals();
+  const n = g.attributes.position.count;
+  const col = new Float32Array(n * 3);
+  const c = new THREE.Color(color);
+  for (let i = 0; i < n; i++) {
+    // Optional soft vertical shading (darker toward the bottom of the piece) for cloth folds.
+    const k = shade ? 1 - shade * 0.5 + shade * Math.min(1, Math.max(0, (g.attributes.position.getY(i) + 1) / 2)) : 1;
+    col[i * 3] = c.r * k; col[i * 3 + 1] = c.g * k; col[i * 3 + 2] = c.b * k;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  if (!g.index) { const idx = []; for (let i = 0; i < n; i++) idx.push(i); g.setIndex(idx); }
+  return g;
+}
+// Capsule along Y: radius r, straight length len, centred at the origin before m.
+export const scap = (r, len, color, m, seg = 10) => smooth(new THREE.CapsuleGeometry(r, len, 4, seg), color, m);
+export const sball = (r, color, m, seg = 16) => smooth(new THREE.SphereGeometry(r, seg, Math.max(8, seg * 0.75)), color, m);
+export const sbox = (w, h, d, color, m, r = 0.03) => smooth(new RoundedBoxGeometry(w, h, d, 2, Math.min(r, w / 2.01, h / 2.01, d / 2.01)), color, m);
+export const scyl = (rt, rb, h, color, m, seg = 14) => smooth(new THREE.CylinderGeometry(rt, rb, h, seg, 1), color, m);
+// Lathe from a profile of [radius, y] points; zScale flattens it front-to-back.
+export function slathe(profile, color, m, zScale = 1, seg = 18) {
+  const g = new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r, y)), seg);
+  g.scale(1, 1, zScale);
+  return smooth(g, color, m);
+}
+export function smoothMerge(list) {
+  const g = mergeGeometries(list.filter(Boolean), false);
+  g.computeBoundingSphere();
+  return g;
 }

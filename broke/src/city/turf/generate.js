@@ -14,7 +14,7 @@ import { World } from '../../sim/physics.js';
 import { buildFireEscapes } from '../modules/building.js';
 import { PROP_SIZE } from '../modules/streets.js';
 import { assignClimbWalls, validStandPoint } from '../generator.js';
-import { layoutRoads, rectHitsDiag } from './layout.js';
+import { layoutRoads, rectHitsDiag, diagDist } from './layout.js';
 import { Raster, R } from './raster.js';
 import { ground, furniture } from './ground.js';
 import { edges } from './edges.js';
@@ -77,7 +77,8 @@ export function generateTurf(cfg, seed, opts = {}) {
     delete city.kitPending; delete city.kitCuts;
     KD.pads.unshift({ surf: 'asphalt', poly: rectPoly(city.inner, 40), y0: -0.2, y1: 0, tint: 0xc4c2be });
     for (const c of cells) KD.pads.splice(1, 0, { surf: c.zone === 'residential' || c.zone === 'park' ? 'grass' : 'concrete', poly: rectPoly(c.rect, 0), y0: 0, y1: CURB - 0.004, tint: c.zone === 'industrial' ? 0xb8b4ac : 0xffffff });
-    streetData(KD, { cells, segs: L.segs, sw: cfg.roads.sidewalk, rng, cuts });
+    const across = L.diag ? (x, z) => diagDist(L.diag, x, z) < L.diag.width / 2 - 1.05 : null; // the boulevard runs through kerbs
+    streetData(KD, { cells, segs: L.segs, sw: cfg.roads.sidewalk, rng, cuts, across });
     // Staff and regulars inside furnished businesses (the diner).
     for (const b of city.businesses) for (const q of b.patrons || []) KD.people.push(q);
     for (const q of kit.interiorPeople || []) KD.people.push(q); // walk-in cafes (modules/cafe.js)

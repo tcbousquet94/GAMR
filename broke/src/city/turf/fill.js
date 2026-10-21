@@ -8,6 +8,7 @@ import { G, building } from '../modules/building.js';
 import { placeProp } from '../modules/streets.js';
 import { towerOnPodium, tree, planterTree, lowWall } from '../modules/common.js';
 import { R } from './raster.js';
+import { Rng } from '../../core/rng.js';
 import { rectHitsDiag } from './layout.js';
 import { lotFill } from '../kitdata/modules.js';
 import { mergeKitData, FRONT_YAW } from '../kitdata/data.js';
@@ -77,10 +78,12 @@ export function landmark(kit, city, raster, leavesRoom = () => true) {
 
 // Plaza dressing around the podium (after the block's business has claimed its corner).
 export function landmarkPlaza(kit, city, raster) {
-  for (const c of city.landmarkCells) plaza(kit, c.rect, raster);
+  for (const c of city.landmarkCells) { townGreen(kit, c.rect, raster); plaza(kit, c.rect, raster, true); }
 }
 
-function plaza(kit, r, raster) {
+// green: the town green (townGreen) dresses the cell; this pass only draws the old dressing's random values and
+// reserves its spots, so nothing else in the city moves.
+function plaza(kit, r, raster, green = false) {
   const { rng } = kit;
   for (let x = r.x0 + 5, ix = 0; x < r.x1 - 4; x += 9, ix++) for (let z = r.z0 + 5, iz = 0; z < r.z1 - 4; z += 9, iz++) {
     const q = { x0: x - 1.2, z0: z - 1.2, x1: x + 1.2, z1: z + 1.2 };
@@ -90,8 +93,8 @@ function plaza(kit, r, raster) {
     // draws its random values and keeps its spot reserved, so nothing else in the city moves.
     const edge = x - r.x0 < 7 || r.x1 - x < 7 || z - r.z0 < 7 || r.z1 - z < 7;
     if (k < 0.45 && !(edge && (ix + iz) % 2 === 0)) { rng.range(0, Math.PI * 2); rng.pick(kit.pal.foliage); }
-    else if (k < 0.45) planterTree(kit, x, z);
-    else if (k < 0.65) placeProp(kit, 'bench', x, G, z, rng.chance(0.5) ? 0 : Math.PI / 2);
+    else if (k < 0.45) { if (green) { rng.range(0, Math.PI * 2); rng.pick(kit.pal.foliage); } else planterTree(kit, x, z); }
+    else if (k < 0.65) { const yaw = rng.chance(0.5) ? 0 : Math.PI / 2; if (!green) placeProp(kit, 'bench', x, G, z, yaw); }
     else continue;
     raster.mark(q, R.BUILT);
   }
@@ -100,12 +103,92 @@ function plaza(kit, r, raster) {
   for (const [ox, oz] of [[0, 0], [10, 0], [-10, 0], [0, 10], [0, -10]]) {
     const q = { x0: cx + ox - 3.5, z0: cz + oz - 3.5, x1: cx + ox + 3.5, z1: cz + oz + 3.5 };
     if (!raster.test(q, R.BLOCK, BUILD_AVOID)) continue;
+    if (green) { raster.mark(q, R.BUILT); break; }
     kit.solid(q.x0, G, q.z0, q.x1, G + 0.6, q.z1, 0x8a8590, MAT.STD, TAG.PROP);
     kit.box(q.x0 + 0.4, G + 0.5, q.z0 + 0.4, q.x1 - 0.4, G + 0.62, q.z1 - 0.4, 0x5a8aa8, MAT.GLASS);
     kit.box(q.x0 + 3.2, G + 0.6, q.z0 + 3.2, q.x1 - 3.2, G + 2.2, q.z1 - 3.2, 0x8a8590);
     raster.mark(q, R.BUILT);
     break;
   }
+}
+
+// The landmark's town green: a border walk, lawns cut by a brick cross path to a round brick square with a statue, rows
+// of trees along the paths, park lamps, benches facing the paths, flower beds and bins. Everything keeps clear of the
+// podium, the block's business and the diagonal. Its own random stream: the rest of the city is unchanged.
+function townGreen(kit, r, raster) {
+  const rng = new Rng(`green:${r.x0},${r.z0}:${kit.rng.state}`);
+  const { pal } = kit;
+  const free = (x0, z0, x1, z1) => raster.test({ x0, z0, x1, z1 }, R.BLOCK, BUILD_AVOID);
+  const cx = Math.round((r.x0 + r.x1) / 2), cz = Math.round((r.z0 + r.z1) / 2);
+  const WALK = 4, PH = 1.8, SQ = 8; // border walk, path half-width, central square half-size
+  const ix0 = r.x0 + WALK, iz0 = r.z0 + WALK, ix1 = r.x1 - WALK, iz1 = r.z1 - WALK;
+  const onPath = (x, z) => Math.abs(x - cx) < PH || Math.abs(z - cz) < PH;
+  const inSquare = (x, z) => Math.abs(x - cx) + Math.abs(z - cz) < SQ * 1.25 && Math.abs(x - cx) < SQ && Math.abs(z - cz) < SQ;
+  // Ground: 1 m tiles, merged into runs along x; lawn, brick path or the brick square.
+  const T = 1, kind = (x, z) => (!free(x, z, x + T, z + T) ? null : inSquare(x + 0.5, z + 0.5) ? 'sq' : onPath(x + 0.5, z + 0.5) ? 'path' : 'lawn');
+  const lawnAt = new Set();
+  for (let z = iz0; z < iz1; z += T) {
+    let x = ix0;
+    while (x < ix1) {
+      const k = kind(x, z);
+      let e = x + T;
+      while (e < ix1 && kind(e, z) === k) e += T;
+      if (k === 'lawn') { kit.box(x, G, z, e, G + 0.035, z + T, 0x6a9a4c, MAT.STD, { surf: 'grass' }); for (let u = x; u < e; u += T) lawnAt.add(`${u},${z}`); }
+      else if (k) kit.box(x, G, z, e, G + 0.025, z + T, k === 'sq' ? 0xa86a54 : 0x9a5e4c, MAT.STD, { surf: 'brick' });
+      x = e;
+    }
+  }
+  const lawn = (x, z, h = 0.8) => { for (let u = Math.floor(x - h); u < x + h; u++) for (let v = Math.floor(z - h); v < z + h; v++) if (!lawnAt.has(`${u},${v}`)) return false; return true; };
+  // Statue on a stepped plinth in the square, ringed by four flower beds.
+  if (free(cx - 3, cz - 3, cx + 3, cz + 3)) {
+    kit.solid(cx - 2.2, G, cz - 2.2, cx + 2.2, G + 0.45, cz + 2.2, 0xb8b2a6, MAT.STD, TAG.PROP);
+    kit.solid(cx - 1.3, G + 0.45, cz - 1.3, cx + 1.3, G + 2.3, cz + 1.3, 0xc8c2b6, MAT.STD, TAG.PROP);
+    kit.box(cx - 1.45, G + 2.3, cz - 1.45, cx + 1.45, G + 2.5, cz + 1.45, 0xb8b2a6);
+    const BR = 0x4a5a4c, y = G + 2.5; // a bronze figure on the plinth
+    kit.box(cx - 0.45, y, cz - 0.22, cx - 0.05, y + 1.1, cz + 0.22, BR, MAT.METAL); kit.box(cx + 0.05, y, cz - 0.22, cx + 0.45, y + 1.1, cz + 0.22, BR, MAT.METAL);
+    kit.box(cx - 0.55, y + 1.1, cz - 0.3, cx + 0.55, y + 2.0, cz + 0.3, BR, MAT.METAL);
+    kit.box(cx - 0.75, y + 1.15, cz - 0.15, cx - 0.55, y + 1.95, cz + 0.15, BR, MAT.METAL);
+    kit.boxC(cx + 0.75, y + 2.05, cz, 0.2, 1.0, 0.2, BR, MAT.METAL, { rz: 0.5 }); // a raised arm
+    kit.box(cx - 0.22, y + 2.0, cz - 0.22, cx + 0.22, y + 2.45, cz + 0.22, BR, MAT.METAL);
+    kit.collider(cx - 0.6, y, cz - 0.35, cx + 0.6, y + 2.5, cz + 0.35);
+  }
+  const FLOWERS = [0xc8443c, 0xe0b040, 0xd86a9a, 0xe8e4dc, 0x8a5ac0];
+  for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+    const x = cx + sx * 5, z = cz + sz * 5;
+    if (!free(x - 1.6, z - 1.6, x + 1.6, z + 1.6)) continue;
+    kit.solid(x - 1.5, G, z - 1.5, x + 1.5, G + 0.4, z + 1.5, 0xb8b2a6, MAT.STD, TAG.PROP);
+    kit.box(x - 1.3, G + 0.4, z - 1.3, x + 1.3, G + 0.46, z + 1.3, 0x4a3a2e);
+    const col = rng.pick(FLOWERS);
+    for (let i = 0; i < 9; i++) kit.boxC(x - 0.9 + (i % 3) * 0.9 + rng.range(-0.15, 0.15), G + 0.6, z - 0.9 + Math.floor(i / 3) * 0.9 + rng.range(-0.15, 0.15), 0.6, 0.3, 0.6, i % 2 ? col : 0x4f7a3a);
+  }
+  // Down both sides of each arm of the cross: trees on the lawn, then a lamp and a bench at the path edge in turn.
+  const lamp = (x, z, lit) => {
+    kit.solid(x - 0.09, G, z - 0.09, x + 0.09, G + 3.6, z + 0.09, 0x2a2c2e, MAT.METAL, TAG.PROP);
+    kit.box(x - 0.2, G, z - 0.2, x + 0.2, G + 0.35, z + 0.2, 0x2a2c2e, MAT.METAL);
+    kit.box(x - 0.22, G + 3.6, z - 0.22, x + 0.22, G + 4.1, z + 0.22, 0xffe2a8, MAT.GLOW, { night: 0xffd890 });
+    kit.box(x - 0.28, G + 4.1, z - 0.28, x + 0.28, G + 4.2, z + 0.28, 0x2a2c2e, MAT.METAL);
+    if (lit) kit.light(x, G + 3.9, z, 0xffd9a0, 10, 'plaza');
+  };
+  let n = 0;
+  for (const along of ['x', 'z']) for (const dir of [-1, 1]) for (const side of [-1, 1]) {
+    const end = along === 'x' ? (dir > 0 ? ix1 - cx : cx - ix0) : (dir > 0 ? iz1 - cz : cz - iz0);
+    const P = (t, o) => (along === 'x' ? { x: cx + dir * t, z: cz + side * o } : { x: cx + side * o, z: cz + dir * t });
+    for (let t = SQ + 4, i = 0; t < end - 2; t += 6, i++) {
+      const tr = P(t + 3, PH + 2.4);
+      if (lawn(tr.x, tr.z, 1.2)) { kit.prop('tree', tr.x, G, tr.z, rng.range(0, Math.PI * 2), rng.pick(pal.foliage)); kit.collider(tr.x - 0.25, G, tr.z - 0.25, tr.x + 0.25, G + 3, tr.z + 0.25); }
+      const e = P(t, PH + 0.7);
+      if (!lawn(e.x, e.z, 0.3)) continue;
+      if (i % 2 === 0) lamp(e.x, e.z, n++ % 2 === 0);
+      else {
+        // Bench on the lawn edge facing the path (the model's back is its +x side).
+        placeProp(kit, 'bench', e.x, G, e.z, along === 'x' ? -side * Math.PI / 2 : side > 0 ? 0 : Math.PI);
+        if (rng.chance(0.4)) { const b = P(t + 1.6, PH + 0.7); if (lawn(b.x, b.z, 0.3)) placeProp(kit, 'trashcan', b.x, G, b.z); }
+      }
+    }
+  }
+  // Shade trees in loose rows round the outer lawn, inside the border walk.
+  for (let x = ix0 + 3; x < ix1 - 2; x += rng.range(7, 10)) for (const z of [iz0 + 3, iz1 - 3]) if (lawn(x, z, 1.5)) { kit.prop('tree', x, G, z, rng.range(0, Math.PI * 2), rng.pick(pal.foliage)); kit.collider(x - 0.25, G, z - 0.25, x + 0.25, G + 3, z + 0.25); }
+  for (let z = iz0 + 10; z < iz1 - 8; z += rng.range(7, 10)) for (const x of [ix0 + 3, ix1 - 3]) if (lawn(x, z, 1.5)) { kit.prop('tree', x, G, z, rng.range(0, Math.PI * 2), rng.pick(pal.foliage)); kit.collider(x - 0.25, G, z - 0.25, x + 0.25, G + 3, z + 0.25); }
 }
 
 export function park(kit, city, b, raster) {

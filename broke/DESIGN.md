@@ -103,8 +103,13 @@ Render — `src/render/kit/`:
   eave overhang, fascia, soffit, rake boards, gutters, downspouts; porches with posts, railings, steps, shed roofs;
   chimneys; security bars and window AC units), extended to walk-ups (unit doors per floor), storefronts, warehouses
   (roll-up doors, high windows) and yard buildings.
-- `buildings.js`: apartment walk-ups (walkway, railing, outside stair), corner stores (storefront, awning, lettered
-  sign board, posters), tilt-up warehouses (painted band, wall lamps, bollards), garages / sheds / site offices.
+- `buildings.js`: apartment walk-ups (walkway, railing, outside stair); stores of three kinds: market (storefront,
+  awning, lettered sign board, posters), taco stand (barred windows, stone-look base, a ring of lettered boards on the
+  roof edge), discount store (name, products and prices hand-painted on the street wall); high-rises (glazed podium,
+  window-bay facade between protruding piers, optional setback, crown, penthouse, antennas; windows glow at night);
+  mid-rise storefront blocks (shops below, flats above); tilt-up warehouses (painted band, wall lamps, bollards);
+  garages / sheds / site offices. Style references: references/buildings-storefronts.webp, buildings-towers.webp
+  (style only; names and designs are original).
 - `ground.js`: pads (extruded polygons), ribbons, kerbs (2 m blocks, red where painted), paint, tuft spots.
 - `vegetation.js`: palms (curved ringed trunks, folded frond cards, dead-frond skirt), broadleaf trees and shrubs
   (leaf cards, normals bent out of the crown), grass tufts.
@@ -145,7 +150,8 @@ camera. `tests/browser/heroshots.mjs` renders it (plus an aerial, one view per m
 ## The generated city in the kit look (default; `generateTurf(cfg, seed, { kit: false })` for the old look)
 Free whole cells get a module by zone (residential: crescent / cul-de-sac / alley / corner store; commercial: corner
 store / alley; industrial: warehouse block). Frontage left around businesses and warehouse bases outside the core is
-filled by `lotFill` (houses, walk-ups, workshops). The downtown core keeps its towers, drawn with kit materials.
+filled by `lotFill` (houses, walk-ups, shops, workshops). The downtown core is built from kit high-rises and storefront
+blocks; a ring of distant kit towers beyond the map edges replaces the old flat skyline.
 Streets, kerbs, verges and furniture come from `streets.js`; the old ground visuals stay as colliders only. All
 kit-data items add their own colliders.
 

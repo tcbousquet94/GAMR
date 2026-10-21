@@ -35,11 +35,17 @@ export function signMesh(text, w, h, bg, fg, opts = {}) {
   const g = c.getContext('2d');
   if (!opts.painted) { g.fillStyle = bg; g.fillRect(0, 0, c.width, c.height); g.fillStyle = 'rgba(0,0,0,0.18)'; for (let i = 0; i < 40; i++) g.fillRect(Math.random() * c.width, Math.random() * c.height, 20 + Math.random() * 60, 2); }
   const main = opts.sub ? 0.5 : 0.62;
-  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.textBaseline = 'middle';
   g.fillStyle = fg; g.font = `${opts.painted ? 'italic 800' : '900'} ${Math.round(c.height * main)}px ${opts.painted ? 'Georgia, serif' : 'Arial Black, Arial, sans-serif'}`;
-  g.fillText(text, c.width / 2, c.height * (opts.sub ? 0.32 : 0.54), c.width * 0.92);
-  if (opts.sub) { g.fillStyle = opts.subColor || fg; g.font = `900 ${Math.round(c.height * 0.36)}px Arial Black, Arial, sans-serif`; g.fillText(opts.sub, c.width / 2, c.height * 0.76, c.width * 0.9); }
-  if (opts.icons) for (let i = 0; i < 7; i++) { g.fillStyle = ['#2a5aa8', '#c83a2a', '#e8e4dc', '#3a8a4a', '#d8b030'][i % 5]; const x = c.width * (0.08 + i * 0.045), y = c.height * 0.72; g.fillRect(x, y - (i % 2 ? 26 : 34), 16, i % 2 ? 26 : 34); }
+  if (opts.painted) {
+    // Hand-painted wall layout: the name across the top, painted products bottom-left, prices bottom-right.
+    g.textAlign = 'left'; g.fillText(text, c.width * 0.04, c.height * 0.3, c.width * 0.92);
+    if (opts.icons) for (let i = 0; i < 8; i++) { const hgt = c.height * (i % 2 ? 0.26 : 0.34), x = c.width * (0.05 + i * 0.05); g.fillStyle = ['#2a5aa8', '#c83a2a', '#e8e4dc', '#3a8a4a', '#d8b030'][i % 5]; g.fillRect(x, c.height * 0.94 - hgt, c.width * 0.032, hgt); g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(x, c.height * 0.94 - hgt, c.width * 0.032, c.height * 0.04); }
+    if (opts.sub) { g.fillStyle = opts.subColor || fg; g.textAlign = 'right'; g.font = `900 ${Math.round(c.height * 0.4)}px Arial Black, Arial, sans-serif`; g.fillText(opts.sub, c.width * 0.96, c.height * 0.75, c.width * 0.5); }
+  } else {
+    g.textAlign = 'center'; g.fillText(text, c.width / 2, c.height * (opts.sub ? 0.32 : 0.54), c.width * 0.92);
+    if (opts.sub) { g.fillStyle = opts.subColor || fg; g.font = `900 ${Math.round(c.height * 0.36)}px Arial Black, Arial, sans-serif`; g.fillText(opts.sub, c.width / 2, c.height * 0.76, c.width * 0.9); }
+  }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
   return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: t, roughness: opts.painted ? 0.9 : 0.7, transparent: !!opts.painted, alphaTest: opts.painted ? 0.05 : 0, polygonOffset: true, polygonOffsetFactor: -2 }));
 }
@@ -67,8 +73,7 @@ export function store(B, s, rng, extras) {
   if (kind === 'discount') {
     const H = 4.6;
     buildHouse(B, { ...s, roof: 'flat', height: H, floors: 1, wall: 'stucco', wallColor: s.wallColor ?? 0xdccaa4, trim: 0xc8bca4, door: 0x2a2a2a, fl: 0.12, bars: true }, rng);
-    sign(s.name, W * 0.62, 1.4, -W * 0.12, H - 1.2, z0 + 0.03, 0, null, '#a8281e', { painted: true, sub: '99¢ & UP', subColor: '#b8261e', icons: true });
-    box('trim', W * 0.18, 1.0, z0 - 0.02, W * 0.38, 2.2, z0 + 0.02, 0xb82a22); // painted price board
+    sign(s.name, W * 0.8, 1.9, 0, H - 1.35, z0 + 0.03, 0, null, '#a8281e', { painted: true, sub: '99¢ & UP', subColor: '#b8261e', icons: true });
     return;
   }
   const H = 4.4;

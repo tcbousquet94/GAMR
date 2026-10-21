@@ -59,10 +59,10 @@ try {
   const { browser, page } = await openGame(srv.url, 'scene=none&quality=low', { width: 1940, height: 1100 });
   await page.setContent(`<body style="margin:0;background:#111;display:grid;grid-template-columns:repeat(3,640px);gap:6px;padding:6px;font:600 18px sans-serif;color:#eee">${imgs.map(([t, p]) => `<div><img src="${b64(p)}" style="width:640px;display:block"><div style="padding:3px 0">${t}</div></div>`).join('')}</body>`);
   await page.waitForTimeout(500);
-  await page.screenshot({ path: `${OUT}grid.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}grid.png`, fullPage: true, timeout: 180000 });
   await page.setContent(`<body style="margin:0;background:#111;display:grid;grid-template-columns:repeat(3,640px);gap:6px;padding:6px;font:600 18px sans-serif;color:#eee">${imgsB.map(([t, p]) => `<div><img src="${b64(p)}" style="width:640px;display:block"><div style="padding:3px 0">${t}</div></div>`).join('')}</body>`);
   await page.waitForTimeout(500);
-  await page.screenshot({ path: `${OUT}grid-buildings.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}grid-buildings.png`, fullPage: true, timeout: 180000 });
   await Promise.race([browser.close(), new Promise((r) => setTimeout(r, 3000))]);
 } finally { srv.stop(); }
 if (errs.length) console.log('PAGE ERRORS:\n' + errs.join('\n'));

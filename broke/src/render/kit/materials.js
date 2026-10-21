@@ -98,6 +98,8 @@ export function heroMaterials() {
   mats.carPaint = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.2, clearcoat: 0.6, clearcoatRoughness: 0.25 });
   mats.carGlass = new THREE.MeshStandardMaterial({ color: 0x1a2026, roughness: 0.05, metalness: 0.1, envMapIntensity: 1.5 });
   mats.chrome = new THREE.MeshStandardMaterial({ color: 0xc8c8c8, roughness: 0.25, metalness: 1 });
+  // Clear shop-front glass: furnished interiors (the diner) are seen through it.
+  mats.shopGlass = new THREE.MeshStandardMaterial({ color: 0xa8c0cc, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.16, depthWrite: false, envMapIntensity: 1.4 });
   mats.lamp = new THREE.MeshStandardMaterial({ color: 0xfff2d6, emissive: 0xffd9a0, emissiveIntensity: 0, roughness: 0.3 });
   mats.wire = new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 0.6 });
   return mats;

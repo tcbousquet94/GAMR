@@ -177,6 +177,19 @@ and `CAM` in `src/core/config.js`; the gun: `src/sim/gun.js`.
 - HUD: dot reticle sized by spread (red on a target), hit markers (white body, gold head, red kill), the cylinder.
 - **G** spawns practice hostiles in front of you (until battles exist).
 
+# SAL'S DINER (the HQ diner as a real place)
+
+Every diner (each gang HQ's front room, and any other diner) is a furnished, walk-in place built in
+`buildDiner` (`src/city/turf/business.js`), seen from the street through clear glass (`shopGlass`):
+checkerboard floor, red wainscot and chrome rail, three window booths plus three along the side wall, a 7-stool
+counter, a back bar (coffee machines, milkshake mixer, soda taps, lit pie case), the menu board over the kitchen pass,
+clock, restrooms door, jukebox, and the **memorial wall** (photos, a candle shelf, "NEVER FORGOTTEN") on the alley
+wall across from the booths (`biz.memorialWall`). Behind the pass: the kitchen (fryers, flat-top, range under a hood,
+prep table, fridge, dish sink, shelving) with a clear path from the kitchen door to the back door.
+People (`biz.patrons`, drawn by the kit view with seated / counter / cook poses): Sal behind the counter, a cook, a
+waitress, three regulars in booths and two at the counter. The diner uses its own random stream so furnishing it never
+changes the rest of the city. Re-bake Palmetto Bay after changing it: `node tools/bakemap.mjs 396873 palmetto`.
+
 # THE TURF MAP (how Downtown is generated) — decisions
 
 - **District as data** (`src/city/turf/districts/downtown.js`): personality, landmark, road style, edges per side,

@@ -66,7 +66,7 @@ export function buildKitWorld(D, { chunk = 0, seed = 'kit', kit = null } = {}) {
   const group = new THREE.Group();
   group.name = 'kit-world';
   const M = kitMaterials(), shared = new Set(Object.values(M));
-  const noCast = ['roadPaint', 'grass', 'asphalt', 'tuft', 'curb', 'redCurb'];
+  const noCast = ['roadPaint', 'grass', 'asphalt', 'tuft', 'curb', 'redCurb', 'shopGlass'];
   const FOLIAGE = ['leaves', 'frond', 'chainlink', 'tuft'];
   const foliage = []; // live list of leaf-card meshes (hidden from the AO pass)
   const build = (k) => {

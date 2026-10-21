@@ -77,6 +77,8 @@ export function generateTurf(cfg, seed, opts = {}) {
     KD.pads.unshift({ surf: 'asphalt', poly: rectPoly(city.inner, 40), y0: -0.2, y1: 0, tint: 0xc4c2be });
     for (const c of cells) KD.pads.splice(1, 0, { surf: c.zone === 'residential' || c.zone === 'park' ? 'grass' : 'concrete', poly: rectPoly(c.rect, 0), y0: 0, y1: CURB - 0.004, tint: c.zone === 'industrial' ? 0xb8b4ac : 0xffffff });
     streetData(KD, { cells, segs: L.segs, sw: cfg.roads.sidewalk, rng, cuts });
+    // Staff and regulars inside furnished businesses (the diner).
+    for (const b of city.businesses) for (const q of b.patrons || []) KD.people.push(q);
     // The rest of the city beyond the edges: a ring of real high-rises (the old flat skyline is not drawn in the kit look).
     const I = city.inner, cxm = (I.x0 + I.x1) / 2, czm = (I.z0 + I.z1) / 2, R0 = Math.max(I.x1 - I.x0, I.z1 - I.z0) / 2;
     for (let k = 0; k < 22; k++) {

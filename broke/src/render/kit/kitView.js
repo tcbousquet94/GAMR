@@ -211,6 +211,7 @@ export class KitView extends View {
       pose.foreL = [0.25, 0, 0]; pose.foreR = [0.25, 0, 0];
       if (i % 2 === 1) { pose.armR = [0.9 + Math.sin(this.t * 2 + i) * 0.25, 0, 0.3]; pose.foreR = [1.0, 0, 0]; }
       pose.head = [0.05, Math.sin(this.t * 0.4 + i * 2) * 0.4, 0];
+      if (p.pose) personPose(pose, p.pose, this.t + i * 1.7);
       rootMatrix(p.x, p.y ?? 0.15, p.z, p.yaw, 1, m);
       p.rig.add(m, pose);
       p.rig.end();
@@ -262,4 +263,31 @@ function buildHeroSky() {
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(1500, 32, 16), material);
   mesh.frustumCulled = false; mesh.renderOrder = -1;
   return { mesh, uniforms };
+}
+
+// Poses for people placed in interiors (the diner's staff and regulars). Seated: thighs forward and shins down (the
+// generator puts the root 0.82 m under the seat top so the thighs rest on it), forearms on the table or counter.
+function personPose(p, kind, t) {
+  if (kind === 'sit' || kind === 'sitCounter') {
+    p.hips = { r: [0, 0, 0], t: [0, 0, 0] };
+    p.legL = [1.5, 0, -0.06]; p.legR = [1.5, 0, 0.06]; p.shinL = [-1.5, 0, 0]; p.shinR = [-1.5, 0, 0];
+    p.torso = [0.08, 0, 0];
+    const sip = Math.max(0, Math.sin(t * 0.45)) ** 6; // now and then, a sip of coffee
+    p.armL = [0.55, 0, -0.15]; p.foreL = [1.15, 0, 0.1];
+    p.armR = [0.55 + sip * 0.5, 0, 0.15]; p.foreR = [1.15 + sip * 0.9, 0, -0.1];
+    p.head = [0.12 - sip * 0.2, Math.sin(t * 0.3) * 0.25, 0];
+  } else if (kind === 'counter') {
+    // Leaning on the back of the counter, hands on the top, one of them wiping it down now and then.
+    const wipe = Math.max(0, Math.sin(t * 0.5)) * Math.sin(t * 4);
+    p.torso = [0.3, 0, 0];
+    p.armL = [0.35, 0, -0.18]; p.foreL = [0.95, 0, 0.15];
+    p.armR = [0.35 + wipe * 0.1, 0, 0.18]; p.foreR = [0.95, 0, -0.15 - wipe * 0.25];
+    p.head = [0.1, Math.sin(t * 0.35) * 0.35, 0];
+  } else if (kind === 'cook') {
+    // Working the flat-top: spatula hand moving, the other at the side.
+    p.torso = [0.15, 0, 0];
+    p.armR = [0.9 + Math.sin(t * 3.1) * 0.2, 0, 0.12]; p.foreR = [0.7 + Math.sin(t * 3.1 + 1) * 0.2, 0, 0];
+    p.armL = [0.6, 0, -0.1]; p.foreL = [0.9, 0, 0];
+    p.head = [0.35, 0, 0];
+  }
 }

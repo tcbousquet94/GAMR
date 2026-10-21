@@ -431,6 +431,11 @@ function drawSign(ctx, s, x, y, w, h) {
     ctx.fillStyle = col; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 5;
     ctx.translate(cx, cy); ctx.rotate(-0.06);
     ctx.strokeText(s.text, 0, 0); ctx.fillText(s.text, 0, 0);
+  } else if (s.kind === 'menu') {
+    // Interior lettering (menu boards, door signs): coloured text on a transparent ground, set on a board.
+    ctx.font = font(size, 700);
+    ctx.fillStyle = col;
+    ctx.fillText(s.text, cx, cy);
   } else {
     ctx.fillStyle = 'rgba(30,28,34,0.85)';
     ctx.fillText(s.text, cx, cy);
@@ -457,8 +462,9 @@ function buildLights(kit, scene) {
   pm.renderOrder = 1;
   pm.computeBoundingSphere();
   scene.add(pm);
-  // Bulbs: small glowing boxes, brighter at night (bloom picks them up).
-  const bulbs = kit.lights.filter((l) => l.kind !== 'steam');
+  // Bulbs: small glowing boxes, brighter at night (bloom picks them up). A neon sign is its own light source: a bulb
+  // there would hang in front of the lettering (and reads as a black square by day).
+  const bulbs = kit.lights.filter((l) => l.kind !== 'steam' && l.kind !== 'neon');
   const bulbMat = new THREE.ShaderMaterial({
     uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uNight: { value: 0 }, uTime: { value: 0 } }]),
     vertexShader: `uniform float uNight; uniform float uTime; varying vec3 vC;

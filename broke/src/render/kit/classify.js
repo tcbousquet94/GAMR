@@ -17,7 +17,9 @@ export function surfOf(b) {
   _c.set(b.color);
   const { r, g, b: bl } = _c, lum = 0.3 * r + 0.59 * g + 0.11 * bl;
   const top = b.cy + b.sy / 2, area = b.sx * b.sz, vol = area * b.sy, maxd = Math.max(b.sx, b.sz);
-  if (b.sy < 0.06 && top < 0.35) return 'roadPaint';
+  // Thin at street level: lane lines and markings are paint; a big thin surface (the diagonal boulevard's strips,
+  // exit ramps, park paths) is road or paving, not a paint decal stretched over the whole street.
+  if (b.sy < 0.06 && top < 0.35) return area <= 6 ? 'roadPaint' : lum < 0.15 ? 'asphalt' : 'concrete';
   if (top <= 0.3 && b.sy < 1.6 && area > 25) return g > r * 1.15 && g > bl ? 'grass' : lum < 0.12 ? 'asphalt' : 'concrete';
   if (vol < 1.5 && maxd < 8) return lum < 0.2 && Math.abs(r - bl) < 0.05 ? 'metalPaint' : 'trim';
   if (b.sy > 2.0 && maxd > 2.5) {
@@ -33,6 +35,7 @@ function tintOf(surf, color) {
   _c.set(color);
   if (surf === 'brick') { const l = 0.3 * _c.r + 0.59 * _c.g + 0.11 * _c.b; return new THREE.Color(1, 1, 1).multiplyScalar(0.7 + l * 1.4); }
   if (surf === 'roadPaint' || surf === 'carGlass') return _c.clone();
+  if (surf === 'asphalt') return new THREE.Color(0x4e535c); // cool neutral (streetlight pools add warmth), so generator roads match the kit's streets
   // Pull the old palette's stylised hues toward grey: the remastered look is sun-faded and natural.
   const l = 0.3 * _c.r + 0.59 * _c.g + 0.11 * _c.b;
   return _c.clone().lerp(new THREE.Color(l, l, l), 0.4).multiplyScalar(1.35);

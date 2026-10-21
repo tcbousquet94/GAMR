@@ -44,7 +44,7 @@ export function buildSky(scene) {
         }
         // Stars.
         vec3 q = floor(d * 380.0);
-        c += vec3(step(0.9965, h3(q)) * smoothstep(0.12, 0.5, y) * uNight * 0.9);
+        c += vec3(step(0.9965, h3(q)) * smoothstep(0.12, 0.5, y) * smoothstep(0.55, 1.0, uNight) * 0.9); // only once the sky is truly dark
         gl_FragColor = vec4(c, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>

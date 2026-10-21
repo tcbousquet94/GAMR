@@ -155,7 +155,7 @@ function boundary(kit, city) {
   // renderer runs trains and traffic over them (city.edges).
   const off = 16; // gap between the map edge and the facades behind the viaduct / overpass
   city.edges = {
-    rail: { x: size + 8, y: 10.5, z0: -40, z1: size + 40 },
+    rail: { x: size + 10, y: 10.5, z0: -40, z1: size + 40 },
     road: { x: -8, y: 8.5, z0: -40, z1: size + 40 },
   };
   edgeStructure(kit, city.edges.rail, 4.2, 0x8a8078, true);

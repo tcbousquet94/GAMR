@@ -77,8 +77,15 @@ export function towerOnPodium(kit, r, podH, towerH, opts = {}) {
   // Faceted crown so towers read like the reference skyline.
   const cx = (t.x0 + t.x1) / 2, cz = (t.z0 + t.z1) / 2, w = (t.x1 - t.x0) * 0.75;
   const crown = rng.pick(pal.tower);
-  if (rng.chance(0.5)) kit.boxC(cx, towerH + w * 0.35, cz, w, w * 0.7, w, crown, MAT.STD, { ry: Math.PI / 4, rx: 0.35 });
-  else kit.boxC(cx, towerH + 3, cz, w * 0.8, 6, w * 0.8, crown, MAT.STD, { ry: Math.PI / 4 });
+  // Crowns: a stepped cap or a mechanical penthouse with a roof band; never tilted (that read as broken).
+  if (rng.chance(0.5)) {
+    kit.boxC(cx, towerH + 1.5, cz, w * 0.9, 3, w * 0.9, crown, MAT.STD);
+    kit.boxC(cx, towerH + 4.5, cz, w * 0.62, 3, w * 0.62, crown, MAT.STD);
+    kit.boxC(cx, towerH + 7, cz, w * 0.34, 2, w * 0.34, crown, MAT.STD);
+  } else {
+    kit.boxC(cx, towerH + 3, cz, w * 0.8, 6, w * 0.8, crown, MAT.STD, { ry: Math.PI / 4 });
+    kit.boxC(cx, towerH + 6.2, cz, w * 0.86, 0.5, w * 0.86, pal.metal, MAT.METAL, { ry: Math.PI / 4 });
+  }
   kit.box(cx - 0.15, towerH, cz - 0.15, cx + 0.15, towerH + 14, cz + 0.15, pal.metal, MAT.METAL);
   kit.light(cx, towerH + 14, cz, 0xff3355, 0, 'beacon');
   if (opts.name !== false) {

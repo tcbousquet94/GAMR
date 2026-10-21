@@ -18,7 +18,7 @@ export function buildDetails(city, scene) {
 
   // ---- sample street-level ground points, tagged by whether they hug a wall ----------------------------------
   const pts = [];
-  for (let i = 0; i < 26000; i++) {
+  for (let i = 0; i < 40000; i++) {
     const x = rng.range(4, S - 4), z = rng.range(4, S - 4);
     const gy = world.groundBelow(x, 1.2, z, 0.05, 6);
     if (!Number.isFinite(gy) || gy > 0.5) continue;
@@ -54,7 +54,7 @@ export function buildDetails(city, scene) {
   add(blobs).receiveShadow = false;
 
   // ---- litter: paper scraps, cups, cans, flyers -------------------------------------------------------------
-  const litter = pick((p) => p.wall || p.curb || rng.chance(0.25), 5200);
+  const litter = pick((p) => p.wall || p.curb || rng.chance(0.55), 7500);
   const paperGeo = new THREE.PlaneGeometry(0.22, 0.28).rotateX(-Math.PI / 2);
   const cupGeo = new THREE.CylinderGeometry(0.045, 0.035, 0.11, 8).rotateZ(Math.PI / 2).translate(0, 0.045, 0);
   const smooth = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85 });
@@ -114,7 +114,7 @@ export function buildDetails(city, scene) {
   add(weeds).castShadow = false;
 
   // ---- puddles: glossy, they reflect the sky through the environment map --------------------------------------
-  const puddlePts = pick((p) => !p.wall && rng.chance(0.06), 260);
+  const puddlePts = pick((p) => !p.wall && rng.chance(0.1), 420);
   const puddleMat = new THREE.MeshStandardMaterial({ color: 0x1a1822, roughness: 0.06, metalness: 0.4, envMapIntensity: 1.1, transparent: true, opacity: 0.85, polygonOffset: true, polygonOffsetFactor: -2 });
   const puddles = new THREE.InstancedMesh(puddleShape(), puddleMat, puddlePts.length);
   puddlePts.forEach((p, i) => {
@@ -248,7 +248,7 @@ export function windMaterial(mat, time, amp, freq, hangDown = false, flag = fals
   return mat;
 }
 
-function blob() {
+export function blob() {
   const c = document.createElement('canvas'); c.width = c.height = 64;
   const g = c.getContext('2d');
   const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);

@@ -143,6 +143,7 @@ export function buildCity(city, scene, opts = {}) {
   for (const q of kit.quads) writeQuad(chunk(q.cx, q.cz).win, q);
 
   const stdMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.86, metalness: 0.02, envMapIntensity: 0.7 });
+  addWear(stdMat);
   const glassMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.15, metalness: 0.4, transparent: true, opacity: 0.4, depthWrite: false });
   const nightMat = makeNightMaterial({ boost: 1.25 });
   const group = new THREE.Group();
@@ -226,7 +227,7 @@ function buildProps(kit, scene) {
       mesh.setMatrixAt(i, m4);
       mesh.setColorAt(i, col.set(p.color ?? 0xffffff));
     });
-    mesh.castShadow = type !== 'streetlight' && type !== 'trafficlight';
+    mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.computeBoundingSphere();
     scene.add(mesh);
@@ -297,6 +298,39 @@ function buildSigns(kit, scene) {
   return { mesh, material, canvas, uTime };
 }
 
+// World-space procedural wear so big flat surfaces aren't blank colour fields: on the ground, oil stains, asphalt
+// patches, hairline cracks and grain; on walls, grime at the base and faint rain streaks.
+function addWear(mat) {
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos; varying vec3 vWNrm;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz; vWNrm = normalize(mat3(modelMatrix) * objectNormal);');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying vec3 vWPos; varying vec3 vWNrm;
+        float wh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float wn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(wh(i), wh(i + vec2(1, 0)), f.x), mix(wh(i + vec2(0, 1)), wh(i + vec2(1, 1)), f.x), f.y); }`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        {
+          vec2 xz = vWPos.xz;
+          if (vWNrm.y > 0.9 && vWPos.y < 0.5) {
+            float stain = smoothstep(0.55, 0.85, wn(xz * 0.09) * 0.65 + wn(xz * 0.31) * 0.35);
+            float patchA = step(0.74, wn(floor(xz / 3.0) * 0.37 + 11.0));
+            float crack = (1.0 - smoothstep(0.0, 0.018, abs(wn(xz * 0.45) - 0.5))) * step(0.55, wn(xz * 0.07 + 3.0));
+            float grain = wh(floor(xz * 9.0)) - 0.5;
+            diffuseColor.rgb *= (1.0 - 0.16 * stain) * (1.0 + 0.07 * (patchA - 0.5)) * (1.0 - 0.3 * crack) * (1.0 + 0.06 * grain);
+          } else if (abs(vWNrm.y) < 0.3) {
+            float along = dot(xz, vec2(abs(vWNrm.z), abs(vWNrm.x)));
+            float base = 1.0 - smoothstep(0.0, 1.4, vWPos.y);
+            float streak = smoothstep(0.6, 0.95, wn(vec2(along * 0.9, vWPos.y * 0.04))) * smoothstep(30.0, 4.0, vWPos.y);
+            diffuseColor.rgb *= (1.0 - 0.18 * base) * (1.0 - 0.1 * streak);
+          }
+        }`);
+  };
+  mat.customProgramCacheKey = () => 'city-wear';
+}
+
 function hexCss(c) { return `#${(c >>> 0).toString(16).padStart(6, '0')}`; }
 
 function drawSign(ctx, s, x, y, w, h) {
@@ -319,10 +353,24 @@ function drawSign(ctx, s, x, y, w, h) {
     ctx.shadowBlur = 0;
     ctx.fillStyle = col; ctx.globalAlpha = 0.55; ctx.fillText(s.text, cx, cy); ctx.globalAlpha = 1;
   } else if (s.kind === 'wayfind') {
-    ctx.fillStyle = '#24324a'; ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = '#e8eef6';
-    ctx.font = font(40, 700);
-    ctx.fillText(s.text, cx, cy);
+    // Transit green with a white roundel and a big arrow: readable from across an intersection, glows at night.
+    ctx.fillStyle = '#1f6a4a'; ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#e8f4ee'; ctx.lineWidth = 3; ctx.strokeRect(x + 4, y + 4, w - 8, h - 8);
+    if (!s.text.startsWith('SUBWAY')) { ctx.fillStyle = '#ffffff'; ctx.font = font(h * 0.42, 800); ctx.fillText(s.text, cx, cy); }
+    else {
+    const [word, arrow] = s.text.split(' ');
+    const tall = h > w;
+    const r = Math.min(h, w) * (tall ? 0.28 : 0.32);
+    const rx = tall ? cx : x + h * 0.55, ry = tall ? y + h * 0.3 : cy;
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(rx, ry, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1f6a4a'; ctx.font = font(r * 1.3, 900); ctx.fillText('M', rx, ry + r * 0.05);
+    ctx.fillStyle = '#ffffff';
+    if (tall) { ctx.font = font(w * 0.2, 800); ctx.fillText(word, cx, y + h * 0.72); }
+    else {
+      ctx.font = font(h * 0.5, 800); ctx.fillText(word, x + w * 0.5, cy);
+      if (arrow) { ctx.font = font(h * 0.8, 900); ctx.fillText(arrow, x + w - h * 0.5, cy); }
+    }
+    }
   } else if (s.kind === 'graffiti') {
     ctx.font = `italic ${font(size + 4, 900)}`;
     ctx.fillStyle = col; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 5;
@@ -366,7 +414,7 @@ function buildLights(kit, scene) {
         vec4 wp = instanceMatrix * vec4(0.,0.,0.,1.);
         blink = c.r > 0.9 && c.g < 0.3 ? step(0.5, fract(uTime*0.7 + wp.x*0.013)) : 1.0;
         #endif
-        vC = c * mix(0.6, 2.6, uNight) * blink;
+        vC = c * mix(0.35, 2.6, smoothstep(0.15, 0.8, uNight)) * blink; // dim by day so bloom doesn't blow lamps out
         vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(position,1.); gl_Position = projectionMatrix*mvPosition;
         #include <fog_vertex>
       }`,
@@ -392,10 +440,10 @@ function buildLights(kit, scene) {
   const all = bulbs.concat(strings);
   const bm = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), bulbMat, all.length);
   all.forEach((l, i) => {
-    const sz = l.kind === 'street' ? 0.45 : l.kind === 'string' ? 0.12 : l.kind === 'beacon' ? 0.5 : 0.3;
+    const sz = l.kind === 'street' ? 0.45 : l.kind === 'string' ? 0.12 : l.kind === 'beacon' ? 0.5 : l.kind === 'totem' ? 1.1 : 0.3;
     m4.compose(v.set(l.x, l.y, l.z), q.identity(), s.set(sz, sz * (l.kind === 'street' ? 0.4 : 1), sz));
     bm.setMatrixAt(i, m4);
-    bm.setColorAt(i, col.set(l.kind === 'beacon' ? 0xff2244 : l.color));
+    bm.setColorAt(i, col.set(l.color));
   });
   bm.computeBoundingSphere();
   scene.add(bm);

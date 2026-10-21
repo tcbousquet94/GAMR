@@ -136,6 +136,7 @@ export class Fx {
       this.barks.set(d.id, b);
     }
     b.el.textContent = d.text;
+    b.w = 0;
     b.age = 0;
     b.life = e.boss ? 2.8 : 2.2;
   }
@@ -202,12 +203,17 @@ export class Fx {
       d.el.style.opacity = d.age > 0.6 ? (0.9 - d.age) / 0.3 : 1;
       return true;
     });
+    // Barks stack upward instead of overlapping when speakers stand close together on screen.
+    const placed = [];
     for (const [id, b] of this.barks) {
       b.age += dt;
       if (b.age > b.life || !b.e.alive) { b.el.remove(); this.barks.delete(id); continue; }
       const c = b.e.center();
-      const p = proj(c.x, b.e.pos.y + b.e.body.h * (b.e.boss ? 1.15 : 1.25) + 0.3, c.z);
+      const p = proj(c.x, b.e.pos.y + b.e.body.h * (b.e.boss ? 1.15 : 1.25) + 0.5, c.z);
       if (!p) { b.el.style.opacity = 0; continue; }
+      const w = (b.w ||= b.el.offsetWidth || 120);
+      for (let k = 0; k < 6 && placed.some((q) => Math.abs(q.x - p.x) < (q.w + w) / 2 && Math.abs(q.y - p.y) < 26); k++) p.y -= 28;
+      placed.push({ x: p.x, y: p.y, w });
       b.el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -100%)`;
       b.el.style.opacity = b.age > b.life - 0.3 ? (b.life - b.age) / 0.3 : 1;
     }
@@ -222,4 +228,4 @@ export class Fx {
 }
 
 const STEAM = new THREE.Color(0x8a8aa0);
-const KILL_COL = { speakerphone: 0x5d6145, scooter: 0x676b72, canvasser: 0x9a8862, hoa: 0x837f5d, drone: 0x6a6a5a };
+const KILL_COL = { speakerphone: 0xb04a3c, scooter: 0x2f6fbf, canvasser: 0xe0a922, hoa: 0x837f5d, drone: 0x6a6a5a };

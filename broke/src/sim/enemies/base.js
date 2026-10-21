@@ -101,6 +101,18 @@ export class Enemy {
     const g = this.game;
     const b = this.body;
     let dx = 0, dz = 0;
+    // Player overhead (fire-escape landing, walkway, roof): head for a ladder that reaches them and climb it.
+    const T = this.target();
+    let ladder = null;
+    const onLadder = (c) => c && b.pos.x > c.minX - 0.6 && b.pos.x < c.maxX + 0.6 && b.pos.z > c.minZ - 0.6 && b.pos.z < c.maxZ + 0.6;
+    if (goal && this.def.climbs !== false && !this.def.flies) {
+      if (onLadder(this._ladder) && b.pos.y < T.pos.y + 0.3 && b.pos.y < this._ladder.maxY) ladder = this._ladder; // keep climbing
+      else if (T.pos.y > b.pos.y + 2.5 && this.distToPlayer() < 16) ladder = this.ladderToward(T.pos);
+      if (ladder) {
+        // Near the player's height: step off toward them; otherwise make for the ladder.
+        goal = b.pos.y > T.pos.y - 1.2 && onLadder(ladder) ? T.pos : { x: (ladder.minX + ladder.maxX) / 2, y: ladder.minY, z: (ladder.minZ + ladder.maxZ) / 2 };
+      }
+    }
     if (goal) {
       const P = goal;
       const toX = P.x - b.pos.x, toZ = P.z - b.pos.z;
@@ -130,11 +142,35 @@ export class Enemy {
       if (wantUp) { b.vel.y = 6.5; this.climbing = true; }
       else if (b.onGround) b.vel.y = 8.5;
     }
+    if (ladder && onLadder(ladder) && b.pos.y < T.pos.y + 0.3) {
+      // On the ladder: climb to the player's height (slow sideways drift so it stays on the rungs).
+      b.vel.y = 6.5; if (b.pos.y < T.pos.y - 1.2) { b.vel.x *= 0.5; b.vel.z *= 0.5; } this.climbing = true;
+    }
     if (!this.climbing && !this.def.flies) b.vel.y = Math.max(-PHYS.maxFallSpeed, b.vel.y - PHYS.gravity * dt);
     moveBody(b, g.world, dt);
     b.vel.x -= kvx; b.vel.z -= kvz;
     this.anim += Math.hypot(b.vel.x, b.vel.z) * dt;
     this.checkStuck(dt, goal);
+  }
+
+  // Nearest ladder (re-chosen at most once a second) whose base is near this enemy's level and which reaches the
+  // player's height within a few metres of them.
+  ladderToward(P) {
+    const b = this.body;
+    if (this._ladderT > 0 && this._ladder !== undefined) { this._ladderT -= 1 / 60; return this._ladder; }
+    this._ladderT = 1;
+    let best = null, bestD = Infinity;
+    const list = this.game.world.climbs.query(P.x - 24, P.z - 24, P.x + 24, P.z + 24, []);
+    for (const c of list) {
+      if (c.maxY < P.y - 0.3 || c.minY > b.pos.y + 1.5) continue;
+      const cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2;
+      const dp = Math.hypot(cx - P.x, cz - P.z);
+      if (dp > 24) continue;
+      const d = Math.hypot(cx - b.pos.x, cz - b.pos.z) + dp;
+      if (d < bestD) { bestD = d; best = c; }
+    }
+    this._ladder = best;
+    return best;
   }
 
   checkStuck(dt, goal) {
@@ -144,9 +180,13 @@ export class Enemy {
     if (!goal) return;
     this.lastProgress.t += dt;
     if (this.lastProgress.t > 4) {
-      const moved = Math.hypot(b.pos.x - this.lastProgress.x, b.pos.z - this.lastProgress.z);
-      if (moved < 1.5 && this.distToPlayer() > 8 && this.state === 'chase') g.director.relocate(this);
-      this.lastProgress = { x: b.pos.x, z: b.pos.z, t: 0 };
+      const moved = Math.hypot(b.pos.x - this.lastProgress.x, b.pos.z - this.lastProgress.z) + Math.abs(b.pos.y - (this.lastProgress.y ?? b.pos.y)); // climbing counts
+      // Stuck: no progress while far away, or parked under a player standing on something it can't climb
+      // (horizontal distance alone never fired there, which made ledges and landings a free safe spot).
+      const P = this.target();
+      const below = P.pos.y > b.pos.y + 2.5 && !this.def.flies;
+      if (moved < 1.5 && this.state === 'chase' && (this.distToPlayer() > 8 || below)) g.director.relocate(this, { level: below });
+      this.lastProgress = { x: b.pos.x, y: b.pos.y, z: b.pos.z, t: 0 };
     }
     // Inside geometry: relocate.
     if (!g.world.fits(b.pos.x, b.pos.y + 0.05, b.pos.z, b.r * 0.8, b.h * 0.9)) {

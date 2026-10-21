@@ -37,6 +37,14 @@ export function subway(kit, lot) {
   kit.quad(P.x1 - 0.25, PIT + 1.9, doorZ, 7, 3.6, -1, 0, 0x3a3f55, 0xfff1c8);
   kit.box(P.x1 - 0.6, PIT + 4.6, doorZ - 7, P.x1 + 0.6, PIT + 5.2, doorZ + 7, 0x8a8590);
   kit.sign(stationName(rng), 'station', P.x1 - 0.65, PIT + 5.9, doorZ, 12, 1.3, -1, 0, 0x33e0ff);
+  // Station pylon: a tall lit totem on the spawn-facing corner of the pit, so the station reads from blocks away.
+  const tx0 = P.x0 - 4, tz0 = P.z0 - 4;
+  kit.solid(tx0 - 0.35, G, tz0 - 0.35, tx0 + 0.35, G + 9, tz0 + 0.35, 0x3a3d48, MAT.METAL, TAG.PROP);
+  kit.box(tx0 - 0.6, G + 9, tz0 - 1.6, tx0 + 0.6, G + 13.5, tz0 + 1.6, 0x1f6a4a);
+  for (const [nx, nz, dx, dz] of [[-1, 0, -0.62, 0], [1, 0, 0.62, 0]]) kit.sign('SUBWAY', 'wayfind', tx0 + dx, G + 11.25, tz0 + dz, 2.9, 4.2, nx, nz, 0xffffff);
+  kit.box(tx0 - 1.6, G + 9, tz0 - 0.6, tx0 + 1.6, G + 13.5, tz0 + 0.6, 0x1f6a4a);
+  for (const [nx, nz, dx, dz] of [[0, -1, 0, -0.62], [0, 1, 0, 0.62]]) kit.sign('SUBWAY', 'wayfind', tx0 + dx, G + 11.25, tz0 + dz, 2.9, 4.2, nx, nz, 0xffffff);
+  kit.light(tx0, G + 14.3, tz0, 0x3cff9a, 0, 'totem');
   // Canopy over the entrance at street level.
   kit.solid(P.x1 - 6, G + 4.2, doorZ - 8, P.x1 + 4, G + 4.5, doorZ + 8, 0x3a3842, MAT.METAL, TAG.PLATFORM);
   kit.box(P.x1 - 6, G + 4.5, doorZ - 8, P.x1 + 4, G + 4.55, doorZ + 8, 0x7fa4c8, MAT.GLASS);

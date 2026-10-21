@@ -62,22 +62,65 @@ export class Director {
       cands.push(s);
     }
     if (!cands.length) {
-      // Fall back to anything in range.
-      for (let tries = 0; tries < 60; tries++) {
-        const s = pts[Math.floor(g.rng.next() * pts.length)];
+      // Fall back to a full scan (random sampling misses when only a handful of points are in range, e.g. in a
+      // map corner): the in-range point closest to the player's height, else null.
+      let best = null, bestScore = Infinity;
+      for (const s of pts) {
         const d = Math.hypot(s.x - P.x, s.z - P.z);
-        if (d >= minD * 0.6 && d <= maxD * 1.5) return s;
+        if (d < minD * 0.6 || d > maxD * 1.5) continue;
+        const score = Math.abs(s.y - P.y) + g.rng.next() * 2;
+        if (score < bestScore) { bestScore = score; best = s; }
       }
-      return null;
+      return best;
     }
     return cands[Math.floor(g.rng.next() * cands.length)];
   }
 
+  // A point on the same surface as the player (continuous ground between them, e.g. the same roof), taken from
+  // spawn points and ladder tops. Used when an enemy is parked below a player it can't climb to.
+  levelSpawnPoint(minD, maxD) {
+    const g = this.game, w = g.world, P = g.player.pos;
+    const cands = [];
+    for (const s of g.city.spawnPoints) cands.push(s);
+    for (const c of w.climbs.items) {
+      if (!c.wall) continue;
+      cands.push({ x: (c.minX + c.maxX) / 2 + c.wall.x * 1.3, y: c.maxY - 0.7, z: (c.minZ + c.maxZ) / 2 + c.wall.z * 1.3 });
+    }
+    const sameSurface = (s) => {
+      const d = Math.hypot(s.x - P.x, s.z - P.z), n = Math.ceil(d);
+      for (let i = 0; i <= n; i++) {
+        const t = i / Math.max(1, n), x = s.x + (P.x - s.x) * t, z = s.z + (P.z - s.z) * t;
+        if (Math.abs(w.groundBelow(x, P.y + 1, z, 0.05, 3) - P.y) > 1.0) return false;
+      }
+      return true;
+    };
+    let best = null, bestD = Infinity;
+    for (const s of cands) {
+      const gy = w.groundBelow(s.x, s.y + 1, s.z, 0.05, 3);
+      if (Math.abs(gy - P.y) > 1.0) continue;
+      const d = Math.hypot(s.x - P.x, s.z - P.z);
+      if (d < minD || d > maxD || d >= bestD) continue;
+      if (!w.fits(s.x, gy + 0.05, s.z, 0.5, 1.9) || !sameSurface({ x: s.x, z: s.z })) continue;
+      bestD = d; best = { x: s.x, y: gy, z: s.z };
+    }
+    return best;
+  }
+
   // Move a stuck / fallen enemy to a fresh spawn point near the player.
-  relocate(e) {
-    const pt = this.pickSpawnPoint(20, 55);
+  // opts.level: the enemy couldn't reach a player above it, so prefer points at the player's height (roof doors).
+  relocate(e, opts = {}) {
+    const pt = opts.level ? this.levelSpawnPoint(6, 45) || this.pickSpawnPoint(20, 55) : this.pickSpawnPoint(20, 55);
     this.relocations++;
-    if (!pt) { e.alive = false; return; }
+    if (!pt) {
+      // Never delete the boss (that silently skipped the fight and its item). If it left the world, put it back
+      // at its arena spawn; otherwise leave it where it is.
+      if (e.boss) {
+        const bs = this.game.city.exit.bossSpawn;
+        if (e.body.pos.y < -20 || !Number.isFinite(e.body.pos.x + e.body.pos.y + e.body.pos.z)) Object.assign(e.body.pos, { x: bs.x, y: bs.y + 0.05, z: bs.z });
+        return;
+      }
+      e.alive = false; return;
+    }
     e.body.pos.x = pt.x; e.body.pos.y = pt.y + 0.05; e.body.pos.z = pt.z;
     e.body.vel.x = e.body.vel.y = e.body.vel.z = 0;
     e.lastProgress = { x: pt.x, z: pt.z, t: 0 };

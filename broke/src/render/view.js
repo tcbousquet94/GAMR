@@ -14,6 +14,7 @@ import { Actors } from './actors.js';
 import { Fx } from './fx.js';
 import { buildDetails } from './details.js';
 import { buildEdges } from './edges.js';
+import { Telegraphs } from './telegraphs.js';
 
 // Sun sits to the south-west so it lights the facades you see heading east toward the subway.
 const SUN_AZ = Math.PI * 0.82;
@@ -71,6 +72,7 @@ export class View {
     this.rig = new CameraRig(this.camera);
     this.actors = new Actors(scene, game, this);
     this.fx = new Fx(scene, game, this);
+    this.tele = new Telegraphs(scene, game);
     this.setQuality(this.qualityName === 'auto' ? 'high' : this.qualityName);
     this.lodT = 0;
     this.pointT = 0;
@@ -141,6 +143,7 @@ export class View {
     this.edges.update(g.time);
     this.actors.update(dt);
     this.fx.update(dt);
+    this.tele.update(dt);
     this.renderer.info.reset();
     if (this.composer) this.composer.render(dt); else this.renderer.render(this.scene, this.camera);
     const ms = performance.now() - t0;
@@ -216,6 +219,7 @@ export class View {
   dispose() {
     if (!this.scene) return;
     this.fx?.dispose();
+    this.tele?.dispose();
     this.actors?.dispose();
     this.scene.traverse((o) => {
       if (o.geometry) o.geometry.dispose();

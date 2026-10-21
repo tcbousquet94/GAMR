@@ -235,8 +235,8 @@ function wayfinding(kit, city) {
       const fwd = (dx * -nx + dz * -nz) / l, right = (dx * nz + dz * -nx) / l;
       const arrow = Math.abs(fwd) >= Math.abs(right) ? (fwd > 0 ? '\u2191' : '\u2193') : right > 0 ? '\u2192' : '\u2190';
       kit.box(px - 0.05, 0, pz - 0.05, px + 0.05, h + 0.4, pz + 0.05, kit.pal.metal, MAT.METAL);
-      kit.box(px - (nz ? 0.9 : 0.04), h - 0.3, pz - (nx ? 0.9 : 0.04), px + (nz ? 0.9 : 0.04), h + 0.3, pz + (nx ? 0.9 : 0.04), 0x24324a);
-      kit.sign(`SUBWAY ${arrow}`, 'wayfind', px + nx * 0.06, h, pz + nz * 0.06, 1.7, 0.5, nx, nz, 0xe8eef6);
+      kit.box(px - (nz ? 1.35 : 0.04), h - 0.42, pz - (nx ? 1.35 : 0.04), px + (nz ? 1.35 : 0.04), h + 0.42, pz + (nx ? 1.35 : 0.04), 0x1f6a4a);
+      kit.sign(`SUBWAY ${arrow}`, 'wayfind', px + nx * 0.06, h, pz + nz * 0.06, 2.6, 0.78, nx, nz, 0xffffff);
     }
   }
 }

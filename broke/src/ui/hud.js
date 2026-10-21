@@ -42,7 +42,7 @@ export class Hud {
       <div class="vignette" id="h-vig"></div>`;
     this.el = {
       money: $('#h-money', root), pop: $('#h-pop', root), tier: $('#h-tier', root), clock: $('#h-clock', root), tierfill: $('#h-tierfill', root),
-      top: $('#h-top', root), obj: $('#h-obj', root), strip: $('#h-strip', root), mark: $('#h-mark', root), dist: $('#h-dist', root), cross: $('#h-cross', root),
+      top: $('#h-top', root), obj: $('#h-obj', root), strip: $('#h-strip', root), mark: $('#h-mark', root), compass: $('#h-compass', root), dist: $('#h-dist', root), cross: $('#h-cross', root),
       prompt: $('#h-prompt', root), latch: $('#h-latch', root), hpfill: $('#h-hpfill', root), barrier: $('#h-barrier', root), hptext: $('#h-hptext', root),
       abil: $('#h-abil', root), items: $('#h-items', root), intro: $('#h-intro', root), banner: $('#h-banner', root), toasts: $('#h-toasts', root), vig: $('#h-vig', root),
     };
@@ -129,7 +129,8 @@ export class Hud {
     this._bcT = setTimeout(() => this.bossNameEl?.classList.remove('call'), 1600);
   }
 
-  flashPrompt(title, sub) { this.forcePrompt = { title, sub, t: 1.8 }; }
+  // Informational banner: no key pill, since there is nothing to press.
+  flashPrompt(title, sub) { this.forcePrompt = { title, sub, t: 1.8, info: true }; }
 
   update(dt) {
     const g = this.game, P = g.player, st = P.stats;
@@ -207,11 +208,15 @@ export class Hud {
     const dist = Math.hypot(dx, dz);
     let rel = Math.atan2(dx, -dz) * DEG - heading;
     rel = ((rel + 540) % 360) - 180;
-    const half = 92;
+    // Keep the marker inside the unfaded middle of the bar (the mask fades the outer 18% on each side); when the
+    // target is further round, it parks at the edge with an arrow pointing the way to turn.
+    if (!this.compassW) { this.compassW = el.compass.clientWidth || 440; addEventListener('resize', () => { this.compassW = 0; }, { once: true }); }
+    const half = (this.compassW * 0.31) / PX_PER_DEG;
     const clampRel = Math.max(-half, Math.min(half, rel));
     el.mark.style.transform = `translateX(${clampRel * PX_PER_DEG}px)`;
-    el.mark.classList.toggle('edge', Math.abs(rel) > half);
-    el.dist.textContent = `${Math.round(dist)} m`;
+    const edge = Math.abs(rel) > half;
+    el.mark.classList.toggle('edge', edge);
+    el.dist.textContent = edge ? (rel < 0 ? `‹ ${Math.round(dist)} m` : `${Math.round(dist)} m ›`) : `${Math.round(dist)} m`;
     const objText = ex.state === 'idle' ? (dist < 12 ? 'Call the train at the panel' : 'Find the subway') : ex.state === 'called' ? 'Survive until the train arrives' : 'Board the train';
     if (objText !== this._obj) { this._obj = objText; el.obj.textContent = objText; }
     // Interact banner.
@@ -227,7 +232,7 @@ export class Hud {
       }
     }
     if (this.forcePrompt) { this.forcePrompt.t -= dt; pr = this.forcePrompt; if (this.forcePrompt.t <= 0) this.forcePrompt = null; }
-    const html = pr ? `<button class="pill" id="h-use">${this.touch?.enabled ? 'Use' : 'E'}</button><div><b>${pr.title}</b><em>${pr.sub}</em></div>` : '';
+    const html = pr?.info ? `<div><b>${pr.title}</b><em>${pr.sub}</em></div>` : pr ? `<button class="pill" id="h-use">${this.touch?.enabled ? 'Use' : 'E'}</button><div><b>${pr.title}</b><em>${pr.sub}</em></div>` : '';
     if (html !== this._prompt) {
       this._prompt = html;
       el.prompt.innerHTML = html;

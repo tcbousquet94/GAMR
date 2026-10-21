@@ -104,8 +104,8 @@ export class Projectiles {
           if (!p.ghost) { this.expire(p, true); continue; }
         }
       }
-      // World.
-      if (!p.ghost) {
+      // World: everything stops on walls, including the soundwaves (ghost only means they pass through the player).
+      {
         const d = sub(b, a);
         const len = Math.hypot(d.x, d.y, d.z);
         if (len > 1e-5) {

@@ -2,12 +2,13 @@
 //   node tests/run-all.mjs [--quick]   (--quick: node-mode bot, 10-seed fps sweep, no screenshots)
 
 import { spawnSync } from 'node:child_process';
+import { readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const quick = process.argv.includes('--quick');
 const steps = [
-  ['unit tests', ['node', '--test', 'tests/unit/']],
+  ['unit tests', ['node', '--test', ...readdirSync(new URL('./unit/', import.meta.url)).filter((f) => f.endsWith('.test.js')).map((f) => `tests/unit/${f}`)]],
   ['100-seed city', ['node', 'tests/city/city100.mjs']],
   ['bot (sim)', ['node', 'tests/browser/bot.mjs', '--node']],
   ...(quick ? [] : [['bot (browser)', ['node', 'tests/browser/bot.mjs', '--seeds', '1']]]),

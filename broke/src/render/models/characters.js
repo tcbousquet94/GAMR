@@ -11,8 +11,8 @@ export function deeModel() {
   const hair = [
     sball(0.133, HAIR, at(0, 0.235, 0.012, 0, 0, 0, 1, 1.05, 1.06), 18), // cap of hair, pulled back
     sball(0.115, HAIR, at(0, 0.18, 0.05, 0, 0, 0, 1.02, 1.0, 0.9), 14),
-    sball(0.115, HAIR, at(0, 0.45, 0.06), 16), // signature bun, exaggerated for readability from behind
-    scap(0.025, 0.16, 0x2a1d18, at(0, 0.39, 0.06, 0, 0, Math.PI / 2), 8), // hair tie
+    sball(0.088, HAIR, at(0, 0.385, 0.1, 0, 0, 0, 1.05, 0.95, 1.05), 16), // signature high bun, set back so it doesn't stack like a snowman
+    scap(0.02, 0.1, 0x2a1d18, at(0, 0.315, 0.085, 0.5, 0, Math.PI / 2), 8), // hair tie
   ];
   return humanoid({
     skin: SKIN, shirt: TEAL, sleeve: TEAL, cuff: SKIN, pants: TEAL, pantsLow: TEAL, shoes: 0xf0efea, sole: 0xd6d4ce,
@@ -46,7 +46,7 @@ export function deeOverlay(p, st) {
 
 // ---- SPEAKERPHONE GUY (muted: olive puffer vest, dusty maroon-brown shirt, phone held up to his mouth) ---------
 export function speakerphoneModel() {
-  const VEST = 0x5d6145, VEST_D = 0x4f5339, SHIRT = 0x6b4f47, SKIN = 0xb98a6a, HAIR = 0x3b2c24;
+  const VEST = 0x2f3340, VEST_D = 0x262a35, SHIRT = 0xb04a3c, SKIN = 0xb98a6a, HAIR = 0x3b2c24;
   const vest = [];
   for (let i = 0; i < 4; i++) vest.push(slathe([[0.0, -0.05], [0.205, -0.05], [0.215, 0.0], [0.205, 0.05], [0.0, 0.05]], i % 2 ? VEST : VEST_D, at(0, 0.13 + i * 0.1, 0), 0.68));
   return humanoid({
@@ -72,9 +72,9 @@ export function speakerphoneOverlay(p, st) {
 
 // ---- SCOOTER BRO (muted: slate hoodie, brown backwards cap, khaki cargos, sunglasses, e-scooter) ----------------
 export function scooterModel() {
-  const HOOD = 0x676b72, HOOD_D = 0x575b62, SKIN = 0xc09576, CAP = 0x4a4038;
+  const HOOD = 0x2f6fbf, HOOD_D = 0x285fa6, SKIN = 0xc09576, CAP = 0x4a4038;
   const m = humanoid({
-    skin: SKIN, shirt: HOOD, sleeve: HOOD, pants: 0x7c785c, shoes: 0x8a8682, sole: 0xc8c4bc, legWidth: 1.15,
+    skin: SKIN, shirt: HOOD, sleeve: HOOD, pants: 0x34343b, shoes: 0x8a8682, sole: 0xc8c4bc, legWidth: 1.15,
     face: { shades: true, mouth: 'grin', brows: 'happy' },
     extra: {
       head: [
@@ -82,7 +82,7 @@ export function scooterModel() {
         sbox(0.17, 0.02, 0.11, 0x3c342e, at(0, 0.24, 0.16, -0.15, 0, 0), 0.01), // brim, worn backwards
       ],
       torso: [slathe([[0.0, 0.0], [0.15, 0.0], [0.19, 0.08], [0.14, 0.16], [0.0, 0.18]], HOOD_D, at(0, 0.48, 0.1), 0.6)], // hood
-      legL: [sbox(0.05, 0.12, 0.13, 0x6a664c, at(-0.09, -0.24, 0), 0.02)], legR: [sbox(0.05, 0.12, 0.13, 0x6a664c, at(0.09, -0.24, 0), 0.02)],
+      legL: [sbox(0.05, 0.12, 0.13, 0x2a2a30, at(-0.09, -0.24, 0), 0.02)], legR: [sbox(0.05, 0.12, 0.13, 0x2a2a30, at(0.09, -0.24, 0), 0.02)],
     },
     cloth: [
       // Hoodie drawstrings.
@@ -117,7 +117,7 @@ export function scooterOverlay(p, st, hipsT) {
 
 // ---- THE CANVASSER (muted: dusty tan jacket, sage shirt, lanyard and ID, clipboard, huge grin) -----------------
 export function canvasserModel() {
-  const JACKET = 0x9a8862, JACKET_D = 0x87764f, SHIRT = 0x848c7a, SKIN = 0xcf9f7c, HAIR = 0x5b3e2a;
+  const JACKET = 0xe0a922, JACKET_D = 0xc8941a, SHIRT = 0x3e4856, SKIN = 0xcf9f7c, HAIR = 0x5b3e2a;
   const flap = (side) => slathe([[0.0, 0.0], [0.09, 0.0], [0.1, -0.2], [0.11, -0.3], [0.0, -0.32]], side < 0 ? JACKET : JACKET_D, at(0, 0, 0, 0, 0, 0, 1, 1, 0.5), 1, 10);
   return humanoid({
     skin: SKIN, shirt: SHIRT, sleeve: JACKET, pants: 0x38383d, shoes: 0x5e4a38,

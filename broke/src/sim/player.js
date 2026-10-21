@@ -98,7 +98,7 @@ export class Player {
     // Abilities and equipment.
     if (this.cart <= 0) this.kit.update(this, dt, input, g);
     if (input.equipment && this.equipment && this.equipCd <= 0) g.useEquipment(this);
-    if (input.interact) g.economy.tryInteract(this);
+    if (input.interact && !this.climbing) g.economy.tryInteract(this);
 
     // Safe ground for fall recovery.
     const b = this.body;
@@ -347,6 +347,9 @@ export class Player {
     const l = Math.hypot(vx, vy, vz);
     const k = l > COMBAT.knockbackMaxSpeed ? COMBAT.knockbackMaxSpeed / l : 1;
     b.vel.x += vx * k; b.vel.y = Math.max(b.vel.y, vy * k); b.vel.z += vz * k;
+    // The cap applies to the result too, so several hits in one volley can't stack into a launch.
+    const h = Math.hypot(b.vel.x, b.vel.z), cap = COMBAT.knockbackMaxSpeed;
+    if (h > cap) { b.vel.x *= cap / h; b.vel.z *= cap / h; }
     this.stagger = Math.max(this.stagger, stagger);
     this.climbing = null;
   }

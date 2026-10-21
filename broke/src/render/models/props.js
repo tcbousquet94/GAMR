@@ -8,7 +8,7 @@ let cache = null;
 export function propGeometries() {
   if (cache) return cache;
   const W = 0xffffff, DARK = 0x222228, GLASS = 0x2c3446, METAL = 0x2a2a30;
-  const wheel = (x, z, r = 0.34) => fcyl(r, r, 0.24, 0x1b1b1e, at(x, r, z, 0, 0, Math.PI / 2), { n: 8 });
+  const wheel = (x, z, r = 0.34) => fcyl(r, r, 0.24, 0x1b1b1e, at(x, r, z, 0, 0, Math.PI / 2), { n: 14 });
   cache = {
     car: merge([
       fbox(1.9, 0.62, 4.4, W, at(0, 0.62, 0)),
@@ -37,7 +37,7 @@ export function propGeometries() {
     bikerack: merge([0, 1, 2].map((i) => fbox(0.06, 0.8, 0.7, METAL, at(0, 0.4, -0.9 + i * 0.9), { jitter: 0 }))),
     bench: merge([fbox(0.55, 0.08, 1.9, 0x5a4636, at(0, 0.46, 0)), fbox(0.08, 0.45, 1.9, 0x5a4636, at(0.28, 0.75, 0)), fbox(0.5, 0.45, 0.08, METAL, at(0, 0.22, -0.85)), fbox(0.5, 0.45, 0.08, METAL, at(0, 0.22, 0.85))]),
     planter: merge([fbox(2.0, 0.9, 2.0, 0x6a6672, at(0, 0.45, 0)), fbox(1.8, 0.1, 1.8, 0x3a2e26, at(0, 0.88, 0))]),
-    tree: merge([fcyl(0.12, 0.18, 2.4, 0x4a3a2c, at(0, 1.2, 0)), fball(1.25, W, at(0, 2.9, 0), { detail: 0, jitter: 0.25 }), fball(0.9, W, at(0.5, 3.6, 0.2), { detail: 0, jitter: 0.2 })]),
+    tree: merge([fcyl(0.12, 0.18, 2.4, 0x4a3a2c, at(0, 1.2, 0), { n: 9 }), fball(1.2, W, at(0, 2.9, 0), { detail: 2, jitter: 0.12 }), fball(0.9, W, at(0.55, 3.6, 0.2), { detail: 1, jitter: 0.1 }), fball(0.8, W, at(-0.5, 3.4, -0.35), { detail: 1, jitter: 0.1 })]),
     streetlight: merge([
       fcyl(0.1, 0.14, 6.4, METAL, at(0, 3.2, 0), { n: 6 }), fbox(0.12, 0.12, 1.8, METAL, at(0, 6.3, -0.85)),
       fbox(0.5, 0.18, 0.6, 0x3a3a40, at(0, 6.2, -1.6)),

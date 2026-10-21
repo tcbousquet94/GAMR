@@ -8,6 +8,7 @@ import * as M from './models/characters.js';
 import { interactableGeometry } from './models/props.js';
 import { Animator } from './anim/animator.js';
 import { Ragdoll } from './anim/ragdoll.js';
+import { blob } from './details.js';
 
 const ANIM_OPTS = {
   dee: { fidgets: ['watch'] },
@@ -119,6 +120,11 @@ export class Actors {
 
   buildPickups() {
     const coinGeo = merge([fcyl(0.14, 0.14, 0.035, 0xffd34a, at(0, 0, 0, Math.PI / 2, 0, 0), { n: 8, jitter: 0 })]);
+    // Contact shadows under every character (the soft sun shadow alone washes out at golden hour).
+    this.blobs = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ map: blob(), color: 0x000000, transparent: true, opacity: 0.5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 }), 192);
+    this.blobs.frustumCulled = false; this.blobs.renderOrder = 1; this.blobs.count = 0;
+    this.scene.add(this.blobs);
     this.coins = new THREE.InstancedMesh(coinGeo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, metalness: 0.8, roughness: 0.3, emissive: 0x6a4a00, emissiveIntensity: 0.6 }), 512);
     this.coins.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.coins.frustumCulled = false;
@@ -240,11 +246,32 @@ export class Actors {
       c.rig.addWorld(mats, Math.max(0, 0.5 - c.age * 2));
     }
     for (const r of Object.values(this.rigs)) r.end();
+    this.updateBlobs();
     this.notices.count = nn;
     this.notices.instanceMatrix.needsUpdate = true;
     this.updateProjectiles();
     this.updatePickups();
     this.updateInteractables();
+  }
+
+  updateBlobs() {
+    const g = this.game, w = g.world, m4 = this.m4;
+    let n = 0;
+    const put = (p, r, onGround) => {
+      if (n >= 192) return;
+      // Airborne: project onto the ground below and shrink/fade with height.
+      const gy = onGround ? p.y : w.groundBelow(p.x, p.y + 0.1, p.z, 0.05, 30);
+      const h = Number.isFinite(gy) ? Math.max(0, p.y - gy) : 99;
+      if (h > 12) return;
+      const k = 1 / (1 + h * 0.25);
+      m4.makeScale(r * 2.4 * k, 1, r * 2.4 * k).setPosition(p.x, (Number.isFinite(gy) ? gy : p.y) + 0.03, p.z);
+      this.blobs.setMatrixAt(n++, m4);
+    };
+    const P = g.player;
+    if (!P.dead) put(P.pos, 0.42, P.body.onGround);
+    for (const e of g.enemies) if (e.alive && e.type !== 'notice' && !e.def.flies) put(e.pos, e.def.radius, e.body.onGround);
+    this.blobs.count = n;
+    this.blobs.instanceMatrix.needsUpdate = true;
   }
 
   // Full ragdoll from the entity's last rendered pose, pushed by the killing blow.

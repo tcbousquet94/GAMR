@@ -218,6 +218,7 @@ export class Game {
   useEquipment(p) { return this.equipment.use(p); }
 
   onBossKilled(e) {
+    this.bossKilled = true;
     const item = this.rng.pick(POOLS.boss);
     this.pickups.spawnItem(e.center(), item);
     this.events.emit('bossDefeated', { item });
@@ -241,7 +242,7 @@ export class Game {
     return {
       earned: this.economy.earned, spent: this.economy.spent, cents: this.economy.cents, bought: this.economy.bought,
       kills: this.stats.kills, time: this.clock.time, items: { ...this.player.inv }, tier: this.clock.label, seed: this.seed,
-      bossDefeated: !!(this.boss && !this.boss.alive),
+      bossDefeated: !!this.bossKilled, // from the actual kill, not just `alive` (which other paths can clear)
     };
   }
 }

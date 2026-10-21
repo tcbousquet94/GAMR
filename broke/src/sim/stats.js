@@ -40,9 +40,9 @@ export function computeStats(base, inv, ctx = {}) {
     snackHeal: n('sample') ? 8 + 4 * n('sample') : 0,
     bandaidHeal: n('bandaids') ? 12 + 0.05 * maxHp * n('bandaids') : 0,
     pizzaHealPct: clamp(0.045 * n('pizza'), 0, 0.5), // of max hp per second while still
-    pizzaRadius: n('pizza') ? 3 + 1.5 * (n('pizza') - 1) : 0,
+    pizzaRadius: n('pizza') ? Math.min(8, 3 + 1.5 * (n('pizza') - 1)) : 0, // capped: a whole-block heal zone is no longer "standing still"
     coinMul: 1 + 0.25 * n('coinjar'),
-    gavelRadius: n('gavel') ? 6 + 2 * (n('gavel') - 1) : 0,
+    gavelRadius: n('gavel') ? Math.min(16, 6 + 2 * (n('gavel') - 1)) : 0, // capped at the boss's own slam radius
     citeChance: n('violation') ? clamp(0.1 + 0.05 * (n('violation') - 1), 0, 0.6) : 0,
     luck: clamp(finite(ctx.luck || 0), 0, 3),
   };

@@ -36,7 +36,9 @@ try {
       for (const [k, v] of Object.entries(views)) {
         if (!v) continue;
         B.pose({ x: v.x, y: 0.3, z: v.z, yaw: v.yaw, pitch: v.pitch || 0.08 });
-        await new Promise((r) => setTimeout(r, 1200));
+        await new Promise((r) => setTimeout(r, 500)); // camera settles
+        B.app.perf.frames = []; // measure this viewpoint only
+        await new Promise((r) => setTimeout(r, 2000));
         const p = B.perf();
         out[k] = { fps: p.fps, p95Ms: p.p95Ms, calls: p.calls, tris: p.triangles, enemies: p.enemies };
       }

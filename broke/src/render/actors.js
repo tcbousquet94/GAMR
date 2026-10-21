@@ -9,8 +9,10 @@ import { interactableGeometry } from './models/props.js';
 import { Animator } from './anim/animator.js';
 import { Ragdoll } from './anim/ragdoll.js';
 import { blob } from './details.js';
+import { loModel } from './people/lo.js';
 
 const ANIM_OPTS = {
+  custom: { fidgets: ['watch'] },
   beacon: { fidgets: [] },
   dee: { fidgets: ['watch'] },
   speakerphone: { fidgets: ['gesture'], armSwing: 0.8 },
@@ -34,8 +36,11 @@ export class Actors {
     this.view = view;
     this.t = 0;
     this.objects = [];
-    this.heroId = M[`${game.player.kit?.id}Model`] ? game.player.kit.id : 'dee'; // the player character's model
-    this.dee = new RigType(M[`${this.heroId}Model`](), 1, scene);
+    // The player character's model: a creator look (a Person spec) or one of the named characters.
+    const look = game.player.kit?.look;
+    this.heroId = look ? 'custom' : M[`${game.player.kit?.id}Model`] ? game.player.kit.id : 'dee';
+    this.dee = new RigType(look ? loModel(look) : M[`${this.heroId}Model`](), 1, scene);
+    this.heroScale = look ? Math.max(0.88, Math.min(1.08, (look.height || 1.8) / 1.8)) : 1;
     this.rigs = {
       speakerphone: new RigType(M.speakerphoneModel(), 64, scene),
       scooter: new RigType(M.scooterModel(), 64, scene),
@@ -53,6 +58,7 @@ export class Actors {
     const P = game.player;
     this.off = [
       E.on('ability', (a) => {
+        if (a.kind === 'revolver') { this.fireT = 0.3; this.deeAnim.onRecoil(0.7); this.view.rig.addShake(0.12); return; } // the aim itself climbs (sim recoil)
         if (a.slot === 'primary') { this.fireT = 0.3; this.deeAnim.onRecoil(1); this.view.rig.recoil(0.012); }
         if (a.slot === 'secondary') { this.throwT = 0.35; this.deeAnim.onRecoil(1.6); this.view.rig.recoil(0.02); }
         if (a.slot === 'utility') this.spinT = 0.4;
@@ -319,12 +325,16 @@ export class Actors {
       pos: b.pos, vel: b.vel, onGround: b.onGround, climbing: !!P.climbing, climbWall: P.climbing?.wall, crouch: P.crouch, vault: P.vault,
       aimYaw: P.yaw, aimPitch: P.pitch, face: firing || P.cart > 0 ? 'aim' : 'move', firing, world: g.world, lookAt: look,
       overlay: M.OVERLAY[this.heroId],
-      extra: { throwT: Math.max(0, this.throwT / 0.35), spin: Math.max(0, this.spinT / 0.4), cart: P.cart > 0, flying: !!P.hero?.flying },
+      extra: { throwT: Math.max(0, this.throwT / 0.35), spin: Math.max(0, this.spinT / 0.4), cart: P.cart > 0, flying: !!P.hero?.flying, aimK: P.aimBlend, reload: !!P.gun?.reloading, kick: Math.max(0, this.fireT / 0.3), climb: !!P.climbing },
       cloth: this.heroCloth(dt, b.vel, A.yaw ?? P.yaw, P),
     });
     // GTA-style: the dart only appears in her hand while she's in the aim stance (or mid-throw).
     this.dartK = (this.dartK ?? 0) + ((firing || this.throwT > 0 ? 1 : 0) - (this.dartK ?? 0)) * Math.min(1, 14 * dt);
     pose.dart = { r: [0, 0, 0], s: Math.max(0.001, this.dartK) };
+    // The revolver: holstered (scaled away) until the gun comes up to aim, fire or reload.
+    const gunUp = P.aimBlend > 0 || this.fireT > 0 || P.gun?.reloading;
+    this.gunK = (this.gunK ?? 0) + ((gunUp ? 1 : 0) - (this.gunK ?? 0)) * Math.min(1, 16 * dt);
+    pose.gun = { r: [0, 0, 0], s: Math.max(0.001, this.gunK) };
     this.dee.begin();
     const hidden = this.view.rig.cur < 1.1; // camera jammed against her: don't fill the screen with scrubs
     if (!P.dead && !hidden) {
@@ -334,7 +344,7 @@ export class Actors {
       const want = P.hero?.flying && sp > 4 ? -Math.min(2.0, Math.atan2(hs, b.vel.y)) * Math.min(1, (sp - 4) / 6) : 0;
       this.flyTilt = (this.flyTilt || 0) + (want - (this.flyTilt || 0)) * Math.min(1, 5 * dt);
       const th = -this.flyTilt, HIP = 0.95, oy = HIP * (1 - Math.cos(th)), ob = HIP * Math.sin(th);
-      rootMatrix(b.pos.x + Math.sin(A.yaw) * ob, b.pos.y + (P.cart > 0 ? 0.35 : 0) + oy, b.pos.z + Math.cos(A.yaw) * ob, A.yaw, 1, this.m4, A.rootRoll || 0, (A.rootPitch || 0) + this.flyTilt);
+      rootMatrix(b.pos.x + Math.sin(A.yaw) * ob, b.pos.y + (P.cart > 0 ? 0.35 : 0) + oy, b.pos.z + Math.cos(A.yaw) * ob, A.yaw, this.heroScale, this.m4, A.rootRoll || 0, (A.rootPitch || 0) + this.flyTilt);
       this.dee.add(this.m4, pose, P.invuln > 0 ? 0.25 : 0);
       this.deeLast = { root: this.m4.clone(), pose };
     }

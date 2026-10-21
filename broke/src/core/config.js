@@ -65,3 +65,26 @@ export const EXIT = {
   bossDelay: 2.5,
   spawnRateMul: 2.6,
 };
+
+// Third-person camera, shared by the sim (aim ray) and the view (camera boom) so the reticle is always honest: the
+// camera sits on the ray from the shoulder pivot, so a shot from the pivot along the aim lands under the reticle.
+// hip: walking around; ads: holding aim (pulled in over the right shoulder, narrower field of view).
+export const CAM = {
+  hip: { side: 0.25, height: 1.95, dist: 3.4, fov: 48 },
+  ads: { side: 0.72, height: 1.78, dist: 2.1, fov: 36 },
+  classic: { side: 0.7, height: 1.65, dist: 4.6, fov: 70 }, // the retired roguelike's camera
+  adsTime: 0.16, // seconds to raise / lower the aim
+  adsMoveMul: 0.5, // walking speed while aiming
+  adsSensMul: 0.6, // mouse sensitivity while aiming
+};
+
+// Guns. Angles in radians. Damage falls off linearly from `falloff[0]` to `falloff[1]` metres, down to `minMul`.
+export const GUNS = {
+  revolver: {
+    name: 'Revolver', damage: 34, headMul: 2.6, range: 140, falloff: [25, 70], minMul: 0.6,
+    cylinder: 6, cock: 0.3, reloadRound: 0.36, reloadStart: 0.25,
+    spreadAds: 0.002, spreadHip: 0.04, spreadMove: 0.025, spreadAir: 0.05, bloom: 0.018, bloomMax: 0.06, bloomDecay: 0.12,
+    recoil: 0.045, recoilYaw: 0.012, recoilReturn: 9, // the muzzle climbs, then mostly settles back
+    knock: 3,
+  },
+};

@@ -22,7 +22,10 @@ export class CameraRig {
 
   update(dt, player, world, sprinting) {
     const p = player.pos;
-    const yaw = player.yaw, pitch = player.pitch;
+    // The player's camera pose (hip / aimed, with recoil) is the same one its aim ray uses, so the reticle is honest.
+    const cam = player.camPose?.();
+    if (cam) { this.side = cam.side; this.height = cam.height; this.dist = cam.dist; this.baseFov = cam.fov; }
+    const yaw = cam ? cam.yaw : player.yaw, pitch = cam ? cam.pitch : player.pitch;
     const cp = Math.cos(pitch);
     const fwd = new THREE.Vector3(-Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp);
     const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
@@ -32,7 +35,7 @@ export class CameraRig {
     const want = this.dist + (sprinting ? 0.5 : 0);
     const hit = world.raycast(pivot.x, pivot.y, pivot.z, back.x, back.y, back.z, want + 0.3);
     const target = Math.max(0.8, Math.min(want, hit - 0.3));
-    this.cur = target < this.cur ? target : this.cur + (target - this.cur) * Math.min(1, dt * 4);
+    this.cur = target < this.cur ? target : this.cur + (target - this.cur) * Math.min(1, dt * (player.aimBlend > 0 && player.aimBlend < 1 ? 30 : 4));
     this.pos.copy(pivot).addScaledVector(back, this.cur);
     if (this.shake > 0) {
       const s = this.shake * this.shake * 0.25;

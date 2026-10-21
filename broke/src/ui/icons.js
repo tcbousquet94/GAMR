@@ -59,5 +59,8 @@ const GLYPHS = {
   equip: (g) => { circ(g, 32, 32, 14, false); line(g, [32, 22], [32, 42]); line(g, [22, 32], [42, 32]); },
   beam: (g) => { g.beginPath(); g.ellipse(32, 32, 14, 8, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#1a1820'; circ(g, 32, 32, 4); g.fillStyle = 'currentColor'; line(g, [46, 32], [58, 26]); line(g, [46, 34], [58, 40]); },
   fly: (g) => { poly(g, [[32, 10], [40, 28], [36, 28], [38, 44], [32, 54], [26, 44], [28, 28], [24, 28]]); line(g, [14, 46], [22, 36]); line(g, [50, 46], [42, 36]); },
+  revolver: (g) => { g.fillRect(14, 22, 30, 7); g.fillRect(24, 20, 12, 13); poly(g, [[24, 33], [32, 33], [28, 50], [19, 50]]); circ(g, 34, 35, 3, false); },
+  aim: (g) => { circ(g, 32, 32, 13, false); line(g, [32, 10], [32, 22]); line(g, [32, 42], [32, 54]); line(g, [10, 32], [22, 32]); line(g, [42, 32], [54, 32]); circ(g, 32, 32, 2.5); },
+  reload: (g) => { for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; circ(g, 32 + Math.cos(a) * 12, 32 + Math.sin(a) * 12, 4.5); } circ(g, 32, 32, 3); },
   codeblue: (g) => { g.fillRect(29, 12, 6, 22); circ(g, 32, 44, 4); for (const x of [18, 46]) line(g, [x, 16], [x - 4, 26]); },
 };

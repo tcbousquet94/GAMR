@@ -18,7 +18,7 @@ import { FlowField } from './flow.js';
 import { ENEMY_CLASSES, ENEMY_DEFS } from './enemies/types.js';
 import { POOLS } from './items.js';
 
-export const EMPTY_INPUT = { moveX: 0, moveZ: 0, yaw: 0, pitch: 0, sprint: false, jumpPressed: false, primary: false, secondary: false, utility: false, special: false, equipment: false, interact: false };
+export const EMPTY_INPUT = { moveX: 0, moveZ: 0, yaw: 0, pitch: 0, sprint: false, jumpPressed: false, primary: false, secondary: false, utility: false, special: false, equipment: false, interact: false, aim: false, reload: false };
 
 export class Game {
   constructor({ seed = 1, district, survivor, city = null, flow = null, startMinutes = 0 }) {

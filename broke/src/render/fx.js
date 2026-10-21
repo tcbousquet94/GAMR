@@ -24,6 +24,14 @@ export class Fx {
     this.ringGeo = new THREE.RingGeometry(0.85, 1, 40, 1).rotateX(-Math.PI / 2);
     // Lightning arcs.
     this.bolts = [];
+    // Gunfire: tracer streaks and a muzzle flash (a short-lived light plus a bright star).
+    this.tracers = [];
+    this.flash = new THREE.PointLight(0xffc27a, 0, 9, 1.6);
+    scene.add(this.flash);
+    this.flashStar = new THREE.Mesh(merge([fcone(0.09, 0.42, 0xffffff, at(0, 0, 0, Math.PI / 2, 0, 0), { n: 5, jitter: 0 })]), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffd9a0).multiplyScalar(3), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.flashStar.visible = false;
+    scene.add(this.flashStar);
+    this.flashT = 0;
     // DOM layer for numbers and barks.
     this.layer = document.getElementById('fx-layer');
     this.nums = [];
@@ -44,6 +52,7 @@ export class Fx {
       E.on('gavelSlam', (d) => this.ring(d.pos, d.radius, 0xffd34a, 0.5)),
       E.on('bossSlam', (d) => { this.ring(d.pos, 16, 0xffffff, 0.8, true); this.burst({ ...d.pos, y: d.pos.y + 0.3 }, 60, 0x9a9488, 10); this.view.rig.addShake(0.9); }),
       E.on('lightning', (d) => this.bolt(d.pts)),
+      E.on('shot', (d) => this.gunshot(d)),
       E.on('impact', (d) => this.burst(d.pos, d.kind === 'syringe' ? 5 : 8, d.kind === 'syringe' ? 0x7cf5e4 : d.kind === 'notice' ? 0xece4cf : 0xdddddd, 4)),
       E.on('crash', (d) => { this.burst(d.pos, 18, 0x8a8682, 6); this.ring(d.pos, 2.5, 0xffffff, 0.3); }),
       E.on('playerHurt', (d) => { this.view.rig.addShake(Math.min(0.6, 0.15 + d.amount / 40)); }),
@@ -65,8 +74,9 @@ export class Fx {
   headPos() { const p = this.game.player.pos; return { x: p.x, y: p.y + 2.1, z: p.z }; }
 
   onHit(d) {
-    if (d.source !== 'burn' || Math.random() < 0.25) this.number(d.pos, Math.max(1, Math.round(d.amount)), d.crit ? 'crit' : d.source === 'burn' ? 'burn' : d.part === 'phone' ? 'crit' : '');
-    this.burst(d.pos, d.crit ? 8 : 4, d.source === 'burn' ? 0xff7a2a : 0xffffff, d.crit ? 6 : 4);
+    const head = d.part === 'head' && d.source === 'revolver';
+    if (d.source !== 'burn' || Math.random() < 0.25) this.number(d.pos, Math.max(1, Math.round(d.amount)), d.crit || head ? 'crit' : d.source === 'burn' ? 'burn' : d.part === 'phone' ? 'crit' : '');
+    this.burst(d.pos, d.crit || head ? 8 : 4, d.source === 'burn' ? 0xff7a2a : d.source === 'revolver' ? 0x8a2a24 : 0xffffff, d.crit || head ? 6 : 4);
   }
 
   burst(pos, n, color, speed) {
@@ -103,6 +113,23 @@ export class Fx {
     const line = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: new THREE.Color(0x9fd8ff).multiplyScalar(3), transparent: true }));
     this.scene.add(line);
     this.bolts.push({ line, age: 0 });
+  }
+
+  // A revolver shot: tracer from the muzzle to where it landed, a flash at the muzzle, a puff of smoke.
+  gunshot(d) {
+    const a = d.from, b = d.to;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute([a.x, a.y, a.z, b.x, b.y, b.z], 3));
+    const line = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: new THREE.Color(0xffe2b0).multiplyScalar(2.2), transparent: true, depthWrite: false }));
+    this.scene.add(line);
+    this.tracers.push({ line, age: 0 });
+    const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, l = Math.hypot(dx, dy, dz) || 1;
+    this.flash.position.set(a.x + (dx / l) * 0.15, a.y + (dy / l) * 0.15, a.z + (dz / l) * 0.15);
+    this.flashStar.position.copy(this.flash.position);
+    this.flashStar.lookAt(a.x + dx, a.y + dy, a.z + dz);
+    this.flashStar.rotateZ(Math.random() * Math.PI);
+    this.flashT = 0.06;
+    for (let i = 0; i < 3; i++) this.parts.push({ x: a.x + (dx / l) * 0.3, y: a.y + (dy / l) * 0.3, z: a.z + (dz / l) * 0.3, vx: (dx / l) * 1.2 + (Math.random() - 0.5), vy: 0.6 + Math.random() * 0.5, vz: (dz / l) * 1.2 + (Math.random() - 0.5), life: 0.5 + Math.random() * 0.3, age: 0, size: 0.07 + Math.random() * 0.06, c: new THREE.Color(0xbdb8b0), rot: Math.random() * 6, g: -0.5 });
   }
 
   shake(pos, k) {
@@ -182,6 +209,16 @@ export class Fx {
       if (k >= 1) { this.scene.remove(r.m); r.m.material.dispose(); return false; }
       return true;
     });
+    this.tracers = this.tracers.filter((b) => {
+      b.age += dt;
+      b.line.material.opacity = Math.max(0, 1 - b.age / 0.07);
+      if (b.age > 0.07) { this.scene.remove(b.line); b.line.geometry.dispose(); b.line.material.dispose(); return false; }
+      return true;
+    });
+    this.flashT -= dt;
+    this.flash.intensity = this.flashT > 0 ? 40 * (this.flashT / 0.06) : 0;
+    this.flashStar.visible = this.flashT > 0;
+    if (this.flashStar.visible) this.flashStar.scale.setScalar(0.6 + 0.6 * (this.flashT / 0.06));
     this.bolts = this.bolts.filter((b) => {
       b.age += dt;
       b.line.material.opacity = 1 - b.age / 0.25;

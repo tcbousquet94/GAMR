@@ -12,6 +12,7 @@ export function sanitizeControl(i = {}) {
     moveX: NUM(i.moveX, -1, 1), moveZ: NUM(i.moveZ, -1, 1), yaw: NUM(i.yaw, -1e6, 1e6), pitch: NUM(i.pitch, -1.6, 1.6),
     sprint: BOOL(i.sprint), jumpPressed: BOOL(i.jumpPressed), primary: BOOL(i.primary), secondary: BOOL(i.secondary),
     utility: BOOL(i.utility), special: BOOL(i.special), equipment: BOOL(i.equipment), interact: BOOL(i.interact),
+    aim: BOOL(i.aim), reload: BOOL(i.reload),
   };
 }
 

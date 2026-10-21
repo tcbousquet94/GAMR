@@ -74,6 +74,13 @@ export class Audio {
     const t = this.ctx.currentTime;
     const r = (a, b) => a + Math.random() * (b - a);
     switch (name) {
+      // Revolver: a sharp crack, a low body thump and a short tail that rings off the street.
+      case 'revolver': this.noiseHit(t, 0.05, 0.9, 'highpass', 900); this.noiseHit(t, 0.32, 0.55, 'lowpass', 2600, 0.8, undefined, 250); this.osc('sine', 120, t, 0.16, 0.6, undefined, 45); this.noiseHit(t + 0.06, 0.5, 0.08, 'bandpass', 700, 0.6, undefined, 300); break;
+      case 'dryFire': this.noiseHit(t, 0.025, 0.25, 'highpass', 5000); break;
+      case 'reloadRound': this.noiseHit(t, 0.03, 0.2, 'bandpass', r(2800, 3400), 4); this.osc('triangle', r(1900, 2200), t, 0.03, 0.04); break;
+      case 'reloadStart': this.noiseHit(t, 0.06, 0.18, 'bandpass', 1500, 3); break;
+      case 'reloadDone': this.noiseHit(t, 0.04, 0.25, 'bandpass', 1200, 3); this.noiseHit(t + 0.08, 0.05, 0.25, 'highpass', 2500); break;
+      case 'headshot': this.osc('triangle', 1700, t, 0.05, 0.12, undefined, 2400); this.noiseHit(t, 0.06, 0.3, 'highpass', 3000); break;
       case 'dart': this.noiseHit(t, 0.06, 0.18, 'bandpass', r(3500, 4500), 2); this.osc('triangle', 1800, t, 0.05, 0.05, undefined, 900); break;
       case 'hit': this.noiseHit(t, 0.05, 0.3, 'highpass', 1800); this.osc('square', p.crit ? 900 : r(380, 460), t, 0.07, p.crit ? 0.16 : 0.1, undefined, p.crit ? 1400 : 200); break;
       case 'kill': this.osc('sine', 140, t, 0.22, 0.45, undefined, 50); this.noiseHit(t, 0.14, 0.25, 'lowpass', 900); break;
@@ -256,7 +263,8 @@ export class Audio {
     const near = (pos, r = 45) => !pos || Math.hypot(pos.x - P.pos.x, pos.z - P.pos.z) < r;
     this.offs = [
       E.on('ability', (a) => this.play(a.kind === 'dart' ? 'dart' : a.kind)),
-      E.on('hit', (d) => { if (d.source !== 'burn') this.play('hit', { crit: d.crit }); }),
+      E.on('hit', (d) => { if (d.source !== 'burn') this.play(d.source === 'revolver' && d.part === 'head' ? 'headshot' : 'hit', { crit: d.crit }); }),
+      ...['dryFire', 'reloadRound', 'reloadStart', 'reloadDone'].map((k) => E.on(k, () => this.play(k))),
       E.on('kill', (d) => { if (near(d.pos)) this.play(d.type === 'notice' ? 'notice' : 'kill'); }),
       E.on('bounce', (d) => this.play('bounce', d)),
       E.on('impact', (d) => { if (d.kind === 'syringe' && Math.random() < 0.3) this.play('syringe'); }),

@@ -4,7 +4,7 @@
 const BINDS = {
   forward: ['KeyW', 'ArrowUp'], back: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
   jump: ['Space'], sprint: ['ShiftLeft', 'ShiftRight'], secondary: [], utility: ['KeyQ'], special: ['KeyR'],
-  equipment: ['KeyF'], interact: ['KeyE'],
+  equipment: ['KeyF'], interact: ['KeyE'], reload: ['KeyR'],
 };
 
 export class Input {
@@ -14,6 +14,7 @@ export class Input {
     this.yaw = 0;
     this.pitch = 0;
     this.sens = 0.0022;
+    this.sensMul = 1; // the game lowers this while aiming down the sights and when the reticle is on a target
     this.mouse = { left: false, right: false };
     this.latched = {};
     this.sprintToggle = false;
@@ -29,13 +30,13 @@ export class Input {
     };
     this.onMouseMove = (e) => {
       if (!this.enabled || !this.locked) return;
-      this.yaw -= e.movementX * this.sens;
-      this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch - e.movementY * this.sens));
+      this.yaw -= e.movementX * this.sens * this.sensMul;
+      this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch - e.movementY * this.sens * this.sensMul));
     };
     this.onMouse = (e) => {
       if (!this.enabled || this.touch?.enabled) return;
       const down = e.type === 'mousedown';
-      if (e.button === 0) this.mouse.left = down;
+      if (e.button === 0) { this.mouse.left = down; if (down) this.latched.fire = true; } // a click shorter than a sim step still fires
       if (e.button === 2) { this.mouse.right = down; if (down) this.latched.secondary = true; }
       if (down && !this.locked) this.lock();
     };
@@ -58,7 +59,7 @@ export class Input {
       if (!codes.includes(code)) continue;
       if (action === 'jump') this.latched.jump = true;
       if (action === 'sprint') this.sprintToggle = !this.sprintToggle;
-      if (['secondary', 'utility', 'special', 'equipment', 'interact'].includes(action)) this.latched[action] = true;
+      if (['secondary', 'utility', 'special', 'equipment', 'interact', 'reload'].includes(action)) this.latched[action] = true;
     }
   }
 
@@ -69,14 +70,17 @@ export class Input {
     const gp = navigator.getGamepads?.()[0];
     let mx = (this.down('right') ? 1 : 0) - (this.down('left') ? 1 : 0);
     let mz = (this.down('forward') ? 1 : 0) - (this.down('back') ? 1 : 0);
-    let primary = this.mouse.left;
+    let primary = this.mouse.left || !!this.latched.fire;
+    let aim = this.mouse.right; // hold to aim (kits without a gun read the same button as their M2 ability)
     if (gp) {
       const dz = (v) => (Math.abs(v) < 0.15 ? 0 : v);
       mx += dz(gp.axes[0]); mz -= dz(gp.axes[1]);
-      this.yaw -= dz(gp.axes[2]) * 0.05; this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch - dz(gp.axes[3]) * 0.04));
+      this.yaw -= dz(gp.axes[2]) * 0.05 * this.sensMul; this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch - dz(gp.axes[3]) * 0.04 * this.sensMul));
       const b = (i) => gp.buttons[i]?.pressed;
       if (b(7)) primary = true;
+      if (b(6)) aim = true;
       this.edge(gp, 0, 'jump'); this.edge(gp, 6, 'secondary'); this.edge(gp, 1, 'utility'); this.edge(gp, 3, 'special'); this.edge(gp, 2, 'interact'); this.edge(gp, 5, 'equipment');
+      if (b(2)) this.latched.reload = true;
       if (b(10) && !this._gpSprint) this.sprintToggle = !this.sprintToggle;
       this._gpSprint = b(10);
     }
@@ -86,8 +90,10 @@ export class Input {
       const t = this.touch.take();
       mx += t.mx; mz += t.mz;
       this.yaw -= t.look.dx * 0.0062; this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch - t.look.dy * 0.0055));
-      if (t.held.primary) primary = true;
+      if (t.held.primary || t.latched.primary) primary = true;
       for (const k of ['jump', 'secondary', 'utility', 'special', 'equipment', 'interact']) if (t.latched[k]) this.latched[k] = true;
+      if (t.held.secondary) aim = true;
+      if (t.latched.special) this.latched.reload = true;
       touchSprint = t.sprint;
     }
     // Sprint: hold Shift, or toggle; stopping cancels the toggle.
@@ -96,7 +102,7 @@ export class Input {
       moveX: Math.max(-1, Math.min(1, mx)), moveZ: Math.max(-1, Math.min(1, mz)), yaw: this.yaw, pitch: this.pitch,
       sprint: this.sprintToggle || this.down('sprint') || touchSprint, jumpPressed: !!this.latched.jump, primary,
       secondary: !!this.latched.secondary || this.mouse.right, utility: !!this.latched.utility, special: !!this.latched.special,
-      equipment: !!this.latched.equipment, interact: !!this.latched.interact,
+      equipment: !!this.latched.equipment, interact: !!this.latched.interact, aim, reload: !!this.latched.reload,
     };
     this.latched = {};
     return out;

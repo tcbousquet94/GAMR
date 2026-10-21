@@ -3,6 +3,11 @@
 import { formatMoney, formatTime } from '../core/math.js';
 import { ITEMS } from '../sim/items.js';
 import { drawTownMap } from './townmap.js';
+import { CHOICES, setChoice, getChoice, randomLook } from './look.js';
+import { CreatorPreview } from './creatorPreview.js';
+
+const hex = (c) => '#' + (c >>> 0).toString(16).padStart(6, '0');
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 export class Screens {
   constructor(root, handlers) {
@@ -12,6 +17,7 @@ export class Screens {
   }
 
   show(name, data = {}) {
+    this.preview?.dispose(); this.preview = null;
     this.current = name;
     this.root.innerHTML = '';
     this.root.className = `screen ${name}`;
@@ -20,7 +26,8 @@ export class Screens {
     this[name](data);
   }
 
-  title({ survivor, seed }) {
+  title({ survivor, seed, creator }) {
+    if (survivor.aims) return this.gunTitle({ survivor, seed, creator });
     const A = survivor.abilities, T = survivor.title || {};
     const sw = '#' + (survivor.accent ?? 0x1fa89a).toString(16).padStart(6, '0');
     this.root.innerHTML = `
@@ -46,7 +53,82 @@ export class Screens {
     this.root.querySelector('#s-start').onclick = () => this.h.start(this.root.querySelector('#s-seed').value.trim() || String(seed));
   }
 
-  pause({ seed, quality, volume, sens }) {
+  // Title for the turf war played as your own character: who you are, how the gun works, and the creator.
+  gunTitle({ survivor, seed, creator }) {
+    const sw = hex(survivor.accent ?? 0x8a6a44);
+    this.root.innerHTML = `
+      <div class="title-wrap">
+        <h1>BROKE</h1>
+        <p class="tagline">Two crews. One city. Every block counts.</p>
+        <div class="lore">
+          <div class="lore-head"><span class="swatch" style="background:${sw}"></span><div><b>${esc(survivor.name)}</b><span>${esc(survivor.role)}</span></div></div>
+          <p>${esc(survivor.lore)}</p>
+          <ul>
+            <li><b>Right mouse · Aim</b> Hold to raise the revolver. The shot tightens and you walk.</li>
+            <li><b>Left click · Fire</b> One click, one shot. Aim for the head.</li>
+            <li><b>R · Reload</b> Six in the cylinder, loaded a round at a time. Firing stops the reload.</li>
+            <li><b>G · Practice</b> Spawns a few hostiles out in front of you.</li>
+          </ul>
+        </div>
+        <button class="primary-btn" id="s-start">Start</button>
+        ${creator ? '<button id="s-create">Edit character</button>' : ''}
+        <div class="seed-row"><label>Seed <input id="s-seed" value="${seed}" spellcheck="false"></label></div>
+        <p class="controls">WASD move · Mouse look · Shift sprint · Space jump · M town map · Esc pause</p>
+      </div>`;
+    this.root.querySelector('#s-start').onclick = () => this.h.start(this.root.querySelector('#s-seed').value.trim() || String(seed));
+    const c = this.root.querySelector('#s-create');
+    if (c) c.onclick = () => this.h.creator();
+  }
+
+  // Character creator: a live preview on the left, the choices on the right. Done saves; Cancel keeps the old look.
+  creator({ look }) {
+    let cur = structuredClone(look);
+    const rows = [
+      ['Body', [['sex', 'Body type'], ['build', 'Build'], ['height', 'Height'], ['age', 'Age']]],
+      ['Face', [['skin', 'Skin', 'swatches'], ['hairStyle', 'Hair'], ['hairColor', 'Hair colour', 'swatches'], ['facial', 'Facial hair']]],
+      ['Clothes', [['top', 'Top'], ['topColor', 'Top colour', 'swatches'], ['bottom', 'Bottoms'], ['bottomColor', 'Bottoms colour', 'swatches'], ['shoes', 'Shoes'], ['shoeColor', 'Shoe colour', 'swatches']]],
+    ];
+    this.root.innerHTML = `
+      <div class="creator">
+        <div class="cr-preview"><canvas></canvas><span class="cr-hint">Drag to turn</span></div>
+        <div class="cr-panel">
+          <h2>Your character</h2>
+          <label class="cr-name">Name <input id="c-name" maxlength="24" spellcheck="false" placeholder="Your name"></label>
+          ${rows.map(([title, keys]) => `<h3>${title}</h3>${keys.map(([k, label, kind]) => `
+            <div class="cr-row"><span>${label}</span><div class="cr-opts ${kind || ''}" data-k="${k}">${CHOICES[k].map(([v, l], i) => kind === 'swatches'
+              ? `<button data-i="${i}" title="${esc(l)}" style="background:${hex(v)}"></button>`
+              : `<button data-i="${i}">${esc(l)}</button>`).join('')}</div></div>`).join('')}`).join('')}
+          <div class="cr-actions"><button id="c-rand">Randomise</button><button id="c-cancel">Cancel</button><button class="primary-btn" id="c-done">Done</button></div>
+        </div>
+      </div>`;
+    const $ = (q) => this.root.querySelector(q);
+    this.preview = new CreatorPreview($('.cr-preview canvas'));
+    const name = $('#c-name');
+    const sync = () => {
+      this.preview.setLook(cur);
+      name.value = cur.name || '';
+      for (const box of this.root.querySelectorAll('.cr-opts')) {
+        const k = box.dataset.k, v = getChoice(cur, k);
+        // Highlight the option nearest the current value (numbers like height and age are snapped to the choices).
+        let best = -1, bd = Infinity;
+        CHOICES[k].forEach(([cv], i) => { const d = typeof cv === 'number' && typeof v === 'number' && k !== 'skin' && !/Color$/.test(k) ? Math.abs(cv - v) : cv === v ? 0 : Infinity; if (d < bd) { bd = d; best = i; } });
+        box.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === best));
+      }
+    };
+    this.root.querySelectorAll('.cr-opts').forEach((box) => box.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      cur = setChoice(cur, box.dataset.k, CHOICES[box.dataset.k][+b.dataset.i][0]);
+      sync();
+    }));
+    name.oninput = () => { cur = setChoice(cur, 'name', name.value); };
+    $('#c-rand').onclick = () => { cur = { ...randomLook(), name: cur.name }; sync(); };
+    $('#c-cancel').onclick = () => this.h.creatorDone(null);
+    $('#c-done').onclick = () => this.h.creatorDone(cur);
+    sync();
+  }
+
+  pause({ seed, quality, volume, sens, aimAssist }) {
     this.root.innerHTML = `
       <div class="panel">
         <h2>Paused</h2>
@@ -61,6 +143,7 @@ export class Screens {
           <label>Quality <select id="p-q">${['auto', 'high', 'medium', 'low'].map((q) => `<option ${q === quality ? 'selected' : ''}>${q}</option>`).join('')}</select></label>
           <label>Volume <input type="range" id="p-vol" min="0" max="1" step="0.05" value="${volume}"></label>
           <label>Mouse <input type="range" id="p-sens" min="0.0008" max="0.005" step="0.0002" value="${sens}"></label>
+          ${aimAssist != null ? `<label>Aim assist <input type="checkbox" id="p-aa" ${aimAssist ? 'checked' : ''}></label>` : ''}
         </div>
       </div>`;
     const $ = (s) => this.root.querySelector(s);
@@ -72,6 +155,7 @@ export class Screens {
     $('#p-q').onchange = (e) => this.h.quality(e.target.value);
     $('#p-vol').oninput = (e) => this.h.volume(+e.target.value);
     $('#p-sens').oninput = (e) => this.h.sens(+e.target.value);
+    if ($('#p-aa')) $('#p-aa').onchange = (e) => this.h.aimAssist(e.target.checked);
   }
 
   // Town map (pause menu, M): drawn from the territory data, back returns to wherever you came from.

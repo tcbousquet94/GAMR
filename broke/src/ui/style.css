@@ -220,3 +220,50 @@ button:hover, button:focus-visible { background: var(--glass-hi); outline: none;
 .map-bar .primary-btn { margin: 0; }
 .panel .seed-row { display: flex; gap: 8px; justify-content: center; align-items: center; margin-top: 10px; }
 .panel .seed-row button { margin: 0; padding: 6px 14px; }
+
+/* Gun reticle: a small dot with a faint ring that opens with the spread; red on a target. Hit markers: four ticks. */
+.reticle { position: absolute; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; transition: opacity 0.12s; pointer-events: none; --spread: 10px; }
+.reticle.on { opacity: 1; }
+.reticle b { position: absolute; left: -2.5px; top: -2.5px; width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, 0.95); box-shadow: 0 0 2px rgba(0, 0, 0, 0.8); transition: background 0.08s; }
+.reticle::after { content: ''; position: absolute; left: calc(var(--spread) / -2); top: calc(var(--spread) / -2); width: var(--spread); height: var(--spread); border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.28); transition: all 0.08s; }
+.reticle.target b { background: #e8433a; }
+.reticle.target::after { border-color: rgba(232, 67, 58, 0.5); }
+.hitmark { position: absolute; left: -13px; top: -13px; width: 26px; height: 26px; opacity: 0; transform: scale(1.4); }
+.hitmark.show { opacity: 1; transform: scale(1); transition: transform 0.08s; }
+.hitmark i { position: absolute; width: 2px; height: 8px; background: #fff; box-shadow: 0 0 2px rgba(0, 0, 0, 0.7); left: 12px; top: 9px; }
+.hitmark i:nth-child(1) { transform: rotate(45deg) translateY(-11px); } .hitmark i:nth-child(2) { transform: rotate(135deg) translateY(-11px); }
+.hitmark i:nth-child(3) { transform: rotate(225deg) translateY(-11px); } .hitmark i:nth-child(4) { transform: rotate(315deg) translateY(-11px); }
+.hitmark.head i { background: #ffd34a; height: 10px; }
+.hitmark.kill i { background: #e8433a; height: 11px; width: 3px; }
+/* Revolver cylinder: six chambers, spent ones hollow. */
+.ammo { position: absolute; right: 34px; bottom: 34px; display: flex; align-items: center; gap: 12px; font-family: var(--serif); color: var(--ink); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); font-size: 18px; }
+.ammo .cyl { position: relative; width: 34px; height: 34px; border-radius: 50%; background: rgba(20, 16, 28, 0.35); border: 1.5px solid rgba(255, 255, 255, 0.45); }
+.ammo .cyl i { position: absolute; left: 13px; top: 13px; width: 8px; height: 8px; border-radius: 50%; background: #e8d9b0; }
+.ammo .cyl i.spent { background: transparent; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.45); }
+.ammo.empty span { color: #ffb0a8; }
+body.touch .ammo { right: auto; left: 18px; bottom: auto; top: 70px; }
+
+/* Character creator: preview left, choices right; stacked on narrow screens. */
+.screen.creator { background: rgba(22, 18, 32, 0.62); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); align-items: stretch; }
+.creator { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(320px, 520px); gap: 18px; width: min(1100px, 100%); height: min(780px, 100%); }
+.cr-preview { position: relative; border-radius: 26px; background: radial-gradient(ellipse at 50% 40%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03) 70%); border: 1px solid rgba(255, 255, 255, 0.14); min-height: 420px; }
+.cr-preview canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+.cr-hint { position: absolute; bottom: 12px; left: 0; right: 0; text-align: center; color: var(--dim); font-style: italic; font-size: 15px; pointer-events: none; }
+.cr-panel { border-radius: 26px; padding: 22px 24px; background: var(--glass); border: 1px solid rgba(255, 255, 255, 0.16); overflow: auto; }
+.cr-panel h2 { font-size: 32px; font-weight: 600; margin: 0 0 10px; letter-spacing: 1px; }
+.cr-panel h3 { font-size: 15px; letter-spacing: 3px; text-transform: uppercase; color: var(--dim); margin: 16px 0 6px; font-weight: 600; }
+.cr-name { display: flex; align-items: center; gap: 10px; font-size: 18px; color: var(--dim); }
+.cr-name input { flex: 1; min-width: 0; font-family: var(--serif); font-size: 20px; background: rgba(0, 0, 0, 0.22); border: 1px solid var(--line); color: var(--ink); border-radius: 999px; padding: 6px 14px; }
+.cr-row { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 8px; margin: 4px 0; }
+.cr-row > span { color: var(--dim); font-size: 16px; }
+.cr-opts { display: flex; flex-wrap: wrap; gap: 4px; }
+.cr-opts button { margin: 0; padding: 4px 11px; font-size: 15px; letter-spacing: 0; }
+.cr-opts button.on { background: rgba(31, 168, 154, 0.55); border-color: rgba(160, 255, 240, 0.8); }
+.cr-opts.swatches button { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.3); }
+.cr-opts.swatches button.on { border-color: #fff; box-shadow: 0 0 0 2px rgba(31, 168, 154, 0.9); }
+.cr-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; margin-top: 16px; }
+@media (max-width: 760px) {
+  .creator { grid-template-columns: 1fr; }
+  .cr-preview { min-height: 300px; }
+  .cr-row { grid-template-columns: 1fr; gap: 2px; }
+}

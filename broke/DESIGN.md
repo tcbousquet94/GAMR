@@ -1,6 +1,413 @@
 # BROKE — Design Document
 
-This file is the source of truth. It contains the full original build prompt (Part 1), every later direction (Part 2), reference notes (Part 3) and a log of decisions and changes (Part 4). Reread before each phase.
+This file is the source of truth. Reread it before each phase. The current game is the **turf war** (top). The
+original roguelike design and its log are kept below under HISTORY: much of the tech carried over.
+
+---
+
+# THE GAME (current concept)
+
+Two gangs fight for control of a procedurally generated city in real time. You play a gang leader in third person,
+fighting alongside a small crew of named members with permadeath. Orders go through an in-game phone; pulling it
+out slows time for tactical orders. Combat is deliberate and mostly melee; guns are rare.
+
+**Bases are warehouses** (think Mount & Blade: warehouses are the castles, businesses are the villages). Every base
+uses the same warehouse layout. Each warehouse controls 1–3 nearby businesses (bodega, boxing gym, auto shop, pawn
+shop, laundromat, clinic); whoever holds the warehouse gets their income and functions. Businesses can't be captured,
+only **raided**: a small fight that cuts the owning warehouse's income for a while and weakens its defenders'
+supplies. A warehouse cut off from its businesses weakens over time (defender morale and supplies), so raiding the
+surrounding businesses before a siege is a real strategy. Each gang's **HQ is its home warehouse**, with the diner
+next door as its linked business (the memorial wall lives in the diner). Lose your HQ and you lose.
+
+**Battle sizes:** RAID (4–6 per side) on a business's block; SIEGE (8–12 per side) on a warehouse, the main battle;
+TURF WAR (larger) at a district landmark or a gang HQ, with several capture points.
+
+The city map works both as a 3D world and as strategy data (the territory graph).
+
+---
+
+# PIVOT PLAN (roguelike -> turf war)
+
+**Keep**
+- Rendering pipeline: chunked city meshes, night blending, sign atlas, instanced props and detail layer, sky,
+  atmosphere pass, shadows, post (art direction is being revised, see below).
+- Character models and rigs; the procedural animation system (momentum, IK, look-at, contextual moves, hit springs,
+  ragdolls, idle life, RDR-style twist chain); combat feel (GTA-style aim stance, recoil, crosshair).
+- Physics (AABB world, climbing, mantling), the nav graph and flow field, the player controller.
+- The test harness: unit tests, headless browser bot, screenshots, frame strips, render sweeps.
+- City generation building blocks: Kit, building/fire-escape/roof modules, props, street furniture, towerOnPodium.
+
+**Change**
+- The map: a new deterministic turf generator (`src/city/turf/`) replaces the stage generator as the main map.
+- The main loop: `TurfGame` (commands in, no director/clock/exit) replaces `Game` as the default.
+- HUD: district + seed instead of money/clock; compass points to the landmark; block/territory objective line.
+- Pause menu: town map, seed entry; debug tools (free-fly camera, overlay).
+
+**Retire** (disconnected from the main game, left in place so nothing breaks; reachable with `?mode=classic`)
+- Item shops and the roguelike item system, the difficulty clock, the subway exit event, the roguelike stage loop
+  (director waves, boss timing, receipt/missed-train screens).
+
+---
+
+# ARCHITECTURE RULES (from the pivot on)
+
+1. Game state lives separately from rendering (`src/sim`, `src/city` run in Node; the view only reads state/events).
+2. Every game action is a **command** sent into the simulation (`src/sim/commands.js`): validated, sanitised, queued
+   for a tick and logged. The local player's input is a `control` command too. The rival AI and a second human
+   use the same commands, so lockstep multiplayer and replays need no rewrite. Reserved: move, attack, capture,
+   recruit (rejected until their systems exist).
+3. Map generation is fully deterministic from a seed (verified across 100 seeds: same seed, identical data).
+
+---
+
+# ART DIRECTION (current: v3, PS2-era crime-game look)
+
+Target: PlayStation 2 era open-world crime games (style reference only; no assets, names or designs copied).
+Realistic human proportions; low-poly models with the detail in procedural textures (cracked asphalt, stained
+concrete, graffiti, faded paint, rust, grime); heavy atmospheric haze with a warm smoggy tint by day, distance fading
+into haze; sun-faded, slightly desaturated palette with gang colours as the strongest accents; moody but simple
+lighting (long sunsets, sodium streetlights, neon at night); a worn, lived-in city (chain-link, power lines, dumpsters,
+beat-up cars, billboards, litter); satirical characters who look like real people, the comedy in behaviour and barks.
+The Arkenfall screenshots are dropped as a target, but their lessons stay: dense small detail, atmospheric depth,
+constant subtle motion. (The direction arrived cut off at "constant sub"; read as "constant subtle motion".)
+
+---
+
+# THE TURF MAP (how Downtown is generated) — decisions
+
+- **District as data** (`src/city/turf/districts/downtown.js`): personality, landmark, road style, edges per side,
+  neighbours, zoning, warehouse count, business mix, building styles, palette. A new district is a new config.
+- **Order (landmark-first):** identity -> road skeleton -> landmark cell -> zoning (warehouses, HQs, territories) ->
+  ground and edges -> landmark -> warehouses -> businesses -> fill -> connections -> physics -> strategy data.
+- **Roads:** a 5x5 grid of 58–76 m cells with jittered sizes; interior street segments are pedestrianised into
+  paved mews (never leaving a dead end or splitting the network) so cells merge into 12–16 territory blocks; one
+  diagonal boulevard runs corner to corner at curb height (AABB physics stays axis-aligned; paint, curbs, trees and
+  lamps follow the diagonal; buildings step along it).
+- **Landmark:** "First National Debt", a 170–190 m stepped spire on a plaza in the most central cell the diagonal
+  doesn't cut; the podium sits toward one corner so the block keeps room for a business. Median 67% of street
+  sample points can see it (worst seed 53%).
+- **Edges (never invisible walls):** east river (promenade, railing, quay drop into the water = "you fell"), north rail
+  yard behind a 6 m chain-link fence with barbed wire, south highway behind a 6 m sound wall, west row of warehouses
+  with fenced gaps. Two streets per side leave the map and end at a closed gate/barrier under a green sign naming
+  the neighbouring district (The Yards, Southside, Old Neighborhood, Waterfront). Colliders are 8 m so a stacked
+  jump + mantle can't clear them.
+- **Warehouses:** 6–8 (capped at half the block count), on cell corners with streets on two sides, preferring the
+  ring, river and rail-yard edges; one per block, spread out. The two HQs are the eligible pair furthest apart
+  (hops, then distance) whose diners can sit in distinct neighbouring blocks.
+- **Territories:** each HQ claims its diner block; every warehouse then gets one block (greedy, then swaps that
+  shorten the longest link); remaining blocks go to the nearest warehouse with room. Every non-warehouse block holds
+  1–2 businesses; each business belongs to exactly one warehouse (max walk gate->door 395 m over 100 seeds).
+  Territory = the warehouse's block + its businesses' blocks; adjacency is between territories. Owners: HQ
+  territories belong to their gangs, the rest start neutral.
+- **Warehouse template** (`warehouse.js`): 48 x 44 m compound + a 5 m service lane. Perimeter: chain-link with barbed
+  wire and brick sections (slot), rolling vehicle gate (main gate, rammable) and side gate (both open for now),
+  containers two high along the far side and as a front corner tower (ladders on the yard side), guard booth,
+  floodlights. Yard: box trucks, pallets, crates. Keep: loading dock with three roll-up doors, side door with steps,
+  pallet racks in two rows, mezzanine catwalk (stairs) along the back and far side, upstairs office with the safe
+  (capture point), roof with three skylights and a ladder. Owner colour on the gate board and a painted band.
+- **Siege data per warehouse:** staging areas on every open side (front + corner always; back/far when open),
+  breach points (main gate, side gate, fence cuts, brick walls, container walls, dock doors, side door, skylights),
+  defender posts (container tops, guard booth, yard cover, dock doors, catwalk, office), the safe; slots for siege
+  equipment (ram truck, bolt cutters, ladders, forklift) and defender upgrades (brick walls, reinforced gate,
+  floodlights, cameras, barbed wire, guard dog, barricades).
+- **Business template** (`business.js`, kept for raids): corner storefront with big windows, door with a roll-down
+  gate, counter + register (raid target), side alley with back door, alley ladder to a roof with AC units, sidewalk
+  cover (planters, bench, newspaper box, parked car), fenced back lot. Type slots: sign, awning colour, window
+  display, interior and exterior props (bodega, pawn shop, laundromat, boxing gym, auto shop, clinic, diner).
+- **Battle zones:** raid (business block + nearest intersection), siege (compound + lane + staging), turf war
+  (landmark and each HQ block + neighbours, capture points = safes and registers inside).
+- **Tactical data:** cover points around every cover object (props, counters, racks, trucks, pallets, AC units) with
+  the direction they protect from and low/high; climb points (base/top) for every ladder and fire escape.
+- **Town map** (M / pause): bright, labelled top-down map in the spirit of the EarthBound layouts (the one place
+  that style is allowed): zones, owner-tinted territories, warehouses as keep icons linked to their businesses,
+  HQs marked, landmark, edges, roads out, "You".
+- **Debug:** seed in the pause menu + any seed can be played; free-fly camera (F1); overlay (F2) with block borders
+  and ids, territory adjacency, raid/siege/turf-war boundaries, staging, breach points, defender posts, safes,
+  registers, approach points, cover and climb points.
+- **Verification** (`tests/city/turf100.mjs`, 100 seeds, all passing): determinism; businesses mutually reachable;
+  block and territory graphs connected; HQs far apart with their diners; >= 2 raid approaches and a reachable roof per
+  business; landmark visibility; nothing over roads or the diagonal; nothing floating; doors/alleys/gates clear;
+  nav covers streets, alleys, interiors, roofs; staging >= 2 on different sides and reachable; every breach point
+  reachable and leading to the safe; defenders reach every post.
+
+---
+
+# DIRECTIONS LOG (verbatim, newest last)
+
+## Pivot, Part 1: The City Map
+
+```
+# BROKE — Pivot, Part 1: The City Map
+
+We are changing BROKE from a roguelike into a real-time, third-person 4X gang turf war. This prompt covers **Part 1 only: the pivot plan and the procedural city map.** Do NOT build combat changes, troops, the economy, or the rival AI yet. Work autonomously without asking me questions, then STOP at the end and report.
+
+---
+
+## THE NEW GAME (context only, for planning)
+
+Two gangs fight for control of a procedurally generated city in real time. The city is divided into blocks. Each block has one business that acts as its base (a bodega, a boxing gym, an auto shop, and so on). Capturing a block's business claims the block and earns income. Each gang has a headquarters; lose it and you lose.
+
+You play as a gang leader in third person, fighting alongside a small crew of named members with permadeath. Orders go through an in-game phone; pulling it out slows time for tactical orders. Attacking a business starts a tactical battle on that block. Combat is deliberate and mostly melee; guns are rare.
+
+The map you build now is the foundation for all of that, so it must work both as a 3D world and as strategy data.
+
+---
+
+## STEP 1: AUDIT AND PLAN
+
+1. Read the current codebase and DESIGN.md.
+2. Write a short list in DESIGN.md of what we **keep** (rendering, lighting and the visual overhaul, character models, the animation and combat-feel systems, the test harness, any reusable city generation), what we **change**, and what we **retire** (the item shops and roguelike item system, the difficulty clock, the subway exit event, the roguelike stage loop).
+3. Don't delete retired systems yet. Disconnect them from the main game and leave them in place so nothing breaks.
+4. Replace the concept section at the top of DESIGN.md with the new game summary above.
+5. **Architecture rules from now on:**
+   - Game state lives separately from rendering.
+   - Every game action (later: move, attack, capture, recruit) is a command sent into the simulation. The rival AI and, later, a second human player must use the same commands. This keeps future multiplayer possible without a rewrite.
+   - Map generation is fully deterministic from a seed.
+
+---
+
+## STEP 2: PROCEDURAL CITY MAP
+
+Build **Downtown first**, but structure everything so other districts are just new configs.
+
+### 2A. The map as data (the territory graph)
+The generator outputs a 3D city AND a data model the game logic can use:
+- **Blocks:** id, district, zone type (commercial, residential, civic, park), owner (neutral for now), and its business.
+- **Adjacency:** which blocks border which. Later, gangs can only claim blocks next to their turf.
+- **Businesses:** id, type, block, level, capture point position, defender posts, attacker approach points.
+- **Landmarks** and **district edges.**
+- **Battle zones** (see 2E).
+- Start with a 5x5 block Downtown with roughly 12 to 16 capturable businesses. Block count is a config value.
+
+### 2B. Districts as configs
+Each district config defines: personality, a signature landmark, a road-shape style, a natural edge, a business mix, building styles, and a palette. The generator reads the config. Adding a district later means writing a config and modules, not changing the generator.
+
+Downtown: dense, partly diagonal grid; a tall spire tower visible from everywhere; a river edge on one side; glass towers mixed with older brick buildings; heavy on bodegas, pawn shops, and parking garages.
+
+### 2C. Generation order (landmark-first)
+1. **Identity:** read the district config.
+2. **Landmark:** place it first, visible from most of the map so players can navigate by it.
+3. **Roads:** generate the road skeleton from the district's road-shape style, not a uniform grid.
+4. **Edges:** frame the map with natural or built boundaries (river, rail yard, highway), never invisible walls.
+5. **Zoning:** a dense core thinning toward the edges, mixing commercial, residential, civic, and park zones.
+6. **Businesses:** place one base business per block, following the district's business mix. Place both gang HQs far apart (a diner for each, with different names).
+7. **Fill:** buildings in the district's style, then parks, alleys, trees, and props, so open space feels designed, not empty.
+8. **Connections:** roads leaving the map get signs naming neighboring districts.
+
+### 2D. The business base template
+Every business uses **one shared layout** for now, built as a template with slots so new layouts can be added later without changing how capturing works.
+
+The layout must look like a real corner business but play like a defendable base:
+- Storefront with big front windows and a door with a **roll-down security gate**.
+- Inside: aisles or equipment, and a **counter with a register**. The register is the capture point.
+- **Side alley** with a **back door**, giving attackers a second way in.
+- **Rooftop** reached by an alley ladder, with AC units as cover.
+- **Sidewalk out front** with cover: planters, a bench, a newspaper box, a parked car.
+- A small **back lot**.
+
+Template slots change per business type: sign, awning color, window display, interior props, and exterior props.
+- **Bodega:** neon sign, stacked soda cases, newspaper box out front.
+- **Boxing gym:** posters in the windows, heavy bags inside.
+- **Auto shop:** stacked tires, oil drums, a car on a lift.
+- **Pawn shop:** barred windows, display cases.
+- **Laundromat:** rows of machines, a folding table.
+- **Clinic:** a plain sign with a cross, waiting-room chairs.
+- **Diner (HQ):** booths, a long counter, a memorial wall space for later.
+
+### 2E. Battle zones
+For every business, define its **skirmish zone**: the whole block around it (street, sidewalks, alley, back lot, roof, and the nearest intersection). Mark:
+- At least two **attacker approach points** (street ends, alley mouth).
+- **Defender posts** (counter, windows, roof, out front).
+- A soft **battle boundary**.
+
+Also mark larger zones for later:
+- **Street Brawl zones** at key intersections and parking garages.
+- **Turf War zones** at the landmark and each HQ, with several capture points across neighboring blocks.
+
+### 2F. Navigation, cover, and climbing (for the AI later)
+- A navigation mesh or graph covering streets, sidewalks, alleys, interiors, and roofs.
+- **Cover points** tagged on every cover object (cars, planters, dumpsters, counters, AC units), with which direction they protect from.
+- **Climb points** on ladders and fire escapes.
+
+### 2G. Town map screen
+A pause-menu map in the spirit of the EarthBound reference: a bright top-down view of the district with block borders, owner colors, labeled businesses by type, the landmark, both HQs, and the district name. This becomes the phone's map later, and it's how I'll check the layout, so make it clear and readable.
+
+### 2H. Debug tools
+- Seed shown in the pause menu; any seed can be replayed.
+- A free-fly debug camera.
+- A toggleable overlay showing block borders and ids, adjacency lines, business capture points, approach points, defender posts, cover points, climb points, and battle zone boundaries.
+
+### Visual style
+Keep the current visual direction from the overhaul (the Arkenfall target look, with Downtown's palette). The city needs high density of small street detail so it feels lived in.
+
+---
+
+## REFERENCES
+
+- **towns.webp** shows 2D overhead town maps from EarthBound. Use it ONLY for layout and district identity: how landmarks, roads, edges, zones, and points of interest are arranged. It is NOT a visual reference. Do not use its pixel art, colors, top-down view, or flat style for the 3D game. The one exception is the town map screen, which can borrow its bright, labeled style. Don't copy its art, names, or layouts.
+- **target-look-*.png** (Arkenfall screenshots) set the 3D look.
+- **downtown.jpeg** sets Downtown's mood, palette, and set pieces.
+
+---
+
+## STEP 3: VERIFY
+
+Generate 100 seeds and check every one:
+- Every business is reachable on foot from every other.
+- Every block has exactly one business, and the adjacency graph is fully connected.
+- Both HQs exist and are far apart.
+- Every business has at least two attacker approach points and a reachable roof.
+- The landmark is visible from most street positions (sample with raycasts and report the percentage).
+- No buildings overlap roads, nothing floats, nothing blocks alleys or doors.
+- Navigation covers streets, alleys, interiors, and roofs.
+- 60 fps while walking the whole district.
+
+Commit these tests to the repo.
+
+---
+
+## STOP AND REPORT
+
+Report what you kept, changed, and retired; the test results; and current fps. Include screenshots of:
+1. The landmark from street level
+2. A bodega base close up, front and alley side
+3. The debug overlay from above
+4. The town map screen
+
+Then give me a short checklist to walk around and judge myself: does it feel like a real place, does the bodega look like a bodega but feel defendable, and can I find my way using the landmark.
+```
+
+## Part 1 Update: Warehouses as Bases
+
+```
+# BROKE — Part 1 Update: Warehouses as Bases
+
+Design change to the map from Part 1. Apply it to the generator, the territory graph, battle zones, the town map, the debug overlay, and the tests, then update DESIGN.md. Work autonomously, then STOP and report.
+
+---
+
+## THE CHANGE
+
+Bases are no longer businesses. **Every base is a warehouse,** and every warehouse uses the **same layout.** Think of Mount & Blade: warehouses are the castles, businesses are the villages.
+
+- Each warehouse **controls 1 to 3 nearby businesses** (bodega, boxing gym, auto shop, pawn shop, laundromat, clinic). Whoever holds the warehouse gets those businesses' income and functions.
+- Businesses can't be captured directly. They can be **raided**: a small fight that cuts the owning warehouse's income for a while and weakens its defenders' supplies.
+- A warehouse cut off from its businesses grows weaker over time (lower defender morale and supplies), so raiding the surrounding businesses before a siege is a real strategy.
+- Each gang's **HQ is its home warehouse,** with the diner next door as its linked business. The memorial wall stays in the diner.
+
+---
+
+## THE WAREHOUSE (one shared layout, built as a template)
+
+It must look like a real city warehouse but play like a castle.
+
+**Perimeter (the walls):**
+- Chain-link fence topped with barbed wire, with some brick wall sections.
+- A rolling **vehicle gate** (the main gate) and a smaller **side gate.**
+- Shipping containers stacked two high along the fence, with ladders, acting as **walls and towers** defenders can stand on.
+- A **guard booth** by the main gate and **floodlights** on poles.
+
+**The yard (the courtyard):**
+- Parked box trucks, pallets, and crates as cover.
+- Open enough for a real fight between the fence and the building.
+
+**The building (the keep):**
+- **Loading docks** with roll-up doors (the inner gate) and a side door.
+- The main floor: tall **pallet racks** forming cover and lanes.
+- A **mezzanine catwalk** overlooking the floor, giving defenders high ground.
+- An upstairs **office** with a **safe.** The safe is the capture point, the final stand.
+- A **roof** with skylights: a risky way in from above.
+
+Template slots: gang colors and signage, fence vs. brick wall sections, container colors, props, and upgrade visuals (see below).
+
+---
+
+## SIEGE DATA FOR EACH WAREHOUSE
+
+Mark in the territory graph and debug overlay:
+- **Staging areas** outside the fence where attackers gather before a siege (at least two, on different sides).
+- **Breach points:** the main gate (rammable), side gate, fence sections that can be cut, container walls that can be climbed, dock doors, side door, skylights.
+- **Defender posts:** container tops, guard booth, yard cover, dock doors, catwalk, office.
+- **The safe** as the capture point.
+- Cover points and climb points for all of the above.
+
+Also store slots for later systems (don't build them yet):
+- **Siege equipment** attackers can bring: a box truck to ram the gate, bolt cutters for the fence, ladders, and a forklift to lift crew to the catwalk or move containers.
+- **Defender upgrades:** brick walls replacing fence, a reinforced gate, extra floodlights, cameras for early warning, more barbed wire, a guard dog, barricades.
+
+---
+
+## BATTLE SIZES (updated)
+
+- **RAID (4–6 per side):** a business. Quick and small, fought on its block.
+- **SIEGE (8–12 per side):** a warehouse. The main battle of the game.
+- **TURF WAR (larger):** a district landmark or a gang HQ, with several capture points.
+
+---
+
+## MAP GENERATION CHANGES
+
+- Downtown gets **6 to 8 warehouses** (a config value), each linked to 1 to 3 nearby businesses. Every business belongs to exactly one warehouse.
+- Warehouses need space: place them in industrial pockets, along the river edge, near the rail yard, and behind commercial blocks, with streets on at least two sides so sieges have multiple approaches.
+- **Territory now belongs to warehouses:** each warehouse controls its own block plus the blocks of its linked businesses. Adjacency is between warehouse territories.
+- The two HQ warehouses are placed far apart.
+- Keep the existing business template for raids.
+
+## TOWN MAP AND OVERLAY
+
+- Town map: show warehouses as the main icons, lines to their linked businesses, territory shaded by owner, and HQs marked.
+- Debug overlay: add staging areas, breach points, defender posts, and the safe.
+
+---
+
+## VERIFY (add to the existing tests)
+
+Across 100 seeds:
+- Every warehouse has at least two staging areas on different sides and every breach point is reachable.
+- Every business is linked to exactly one warehouse, within a reasonable walk.
+- The safe is reachable from every breach point.
+- Defenders can reach every post; container tops and the catwalk are climbable.
+- 60 fps walking through a warehouse and its yard.
+
+---
+
+## STOP AND REPORT
+
+Report the changes and test results. Include screenshots of a warehouse from the street, the yard from a container top, the warehouse floor from the catwalk, the office with the safe, and the updated town map. Then give me a checklist: does the warehouse look real, does it feel like a castle to attack, and are there enough different ways in.
+```
+
+## Art direction change (v3)
+
+```
+ART DIRECTION CHANGE: the current look is too
+cartoony. New target: PlayStation 2 era open-world
+crime games like GTA San Andreas. Use it as a style
+reference only; copy no assets, names, or designs.
+- Realistic human proportions. No oversized heads,
+  hands, or exaggerated features.
+- Low-poly models; put detail into procedural
+  textures: cracked asphalt, stained concrete,
+  graffiti, faded paint, rust, grime.
+- Heavy atmospheric haze and a warm, smoggy color
+  tint by day; distance fades into haze.
+- Sun-faded, slightly desaturated palette with gang
+  colors as the strongest accents.
+- Moody but simple lighting: long sunsets, sodium
+  streetlights and neon at night.
+- A worn, lived-in city: chain-link, power lines,
+  dumpsters, beat-up cars, billboards, litter.
+- Satirical characters look like real people; the
+  comedy lives in their behavior and barks.
+- Drop the Arkenfall screenshots as a visual target,
+  but keep their lessons: dense small detail,
+  atmospheric depth, and constant sub
+```
+
+---
+
+# HISTORY: BROKE, THE ROGUELIKE (retired)
+
+The roguelike design (retired by the turf-war pivot): the original build prompt (Part 1), later directions (Part 2), reference notes (Part 3) and its decisions log (Part 4).
 
 ---
 

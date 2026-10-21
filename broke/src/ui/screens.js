@@ -39,6 +39,7 @@ export class Screens {
         </div>
         <button class="primary-btn" id="s-start">Start the commute</button>
         <div class="seed-row"><label>Seed <input id="s-seed" value="${seed}" spellcheck="false"></label></div>
+        <p class="controls"><b>H</b> · switch between the city and the new-look test street (Palmetto Ave)</p>
         <p class="controls">WASD move · Mouse aim · Shift sprint · Space jump (twice to double jump) · push into a fire escape to climb · E buy / use · F equipment · Esc pause</p>
       </div>`;
     this.root.querySelector('#s-start').onclick = () => this.h.start(this.root.querySelector('#s-seed').value.trim() || String(seed));
@@ -48,7 +49,7 @@ export class Screens {
     this.root.innerHTML = `
       <div class="panel">
         <h2>Paused</h2>
-        <p class="seed">Seed <b>${seed}</b></p>
+        <p class="seed">Seed <b>${seed}</b> · press <b>H</b> to switch city / new-look street</p>
         <button class="primary-btn" id="p-resume">Resume</button>
         ${this.h.map ? '<button id="p-map">Town map</button>' : ''}
         <button id="p-replay">Replay this seed</button>

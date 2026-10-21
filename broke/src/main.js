@@ -23,7 +23,10 @@ import { buildDebugOverlay } from './render/debugOverlay.js';
 
 const params = new URLSearchParams(location.search);
 const canvas = document.getElementById('game');
-const HERO = params.get('scene') === 'hero'; // look-development street for the remastered art direction
+// Look-development street for the remastered art direction: ?scene=hero, or press H on the title screen (remembered
+// for the session, so it also works where the URL can't be edited).
+const sceneFlag = () => { try { return sessionStorage.getItem('broke.scene'); } catch { return null; } };
+const HERO = params.get('scene') === 'hero' || (params.get('scene') == null && sceneFlag() === 'hero');
 const view = new (HERO ? HeroView : View)(canvas, { quality: params.get('quality') || 'auto', preserve: params.has('shot') || params.has('bot') });
 const input = new Input(canvas);
 const touch = new TouchControls(document.getElementById('touch'), Object.fromEntries(Object.entries(ABILITY_ICONS).map(([k, v]) => [k, icon(v, '#ffffff', 64, true)])));
@@ -132,6 +135,7 @@ function resume() {
 }
 
 addEventListener('keydown', (e) => {
+  if (e.code === 'KeyH' && (app.state === 'title' || app.paused)) { try { sessionStorage.setItem('broke.scene', HERO ? 'city' : 'hero'); } catch { /* storage blocked */ } location.reload(); return; }
   if (e.code === 'Escape' || e.code === 'KeyP') { if (app.state === 'playing') (app.paused ? resume() : pause()); }
   if (e.code === 'F3') { perf.toggle(); e.preventDefault(); }
   if (e.code === 'KeyM' && app.game?.turf) { if (screens.current === 'map') app.mapFromPlay ? resume() : pause(); else if (app.state === 'playing') showMap(); }

@@ -497,6 +497,6 @@ Visual/readability audit:
   ≈2.9 at a sprint), hard carves bleed up to 30% speed, pivots now trigger past 115° (was 132°). Animation banks
   harder into turns and the hips swing out. Bot traversal still 71–81 s.
 - "Not aiming all the time; hands relaxed; crosshair only when shooting; like GTA": an aim-stance timer
-  (`player.aimT`) is set while firing primary/secondary/special and relaxes 1.4 s after the last shot. Only then
+  (`player.aimT`) is set while firing primary/secondary/special and relaxes 1 s after the last shot (user: 1.4 → 1.0 s). Only then
   does Dee face the camera direction, raise her throwing arm, show the dart in her hand, and show the crosshair
   (fades in/out). Otherwise she runs facing her travel direction with loose arms and no weapon in hand.

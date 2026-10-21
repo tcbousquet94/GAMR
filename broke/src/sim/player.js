@@ -33,7 +33,7 @@ export class Player {
     this.slows = []; // {mul, t}
     this.latchedBy = null;
     this.cart = 0; // seconds of shopping-cart ride left
-    this.aimT = 0; // GTA-style combat stance: set by shooting, relaxes ~1.4 s after the last shot
+    this.aimT = 0; // GTA-style combat stance: set by shooting, relaxes 1 s after the last shot
     this.hits = 0; // counts toward Gavel of Authority
     this.dead = false;
     this.lastSafe = { x: spawn.x, y: spawn.y + 0.2, z: spawn.z };
@@ -98,7 +98,7 @@ export class Player {
 
     // Abilities and equipment.
     // Out of combat Dee just runs; shooting snaps her into an aim stance (and shows the crosshair) for a moment.
-    this.aimT = input.primary || input.secondary || input.special ? 1.4 : Math.max(0, this.aimT - dt);
+    this.aimT = input.primary || input.secondary || input.special ? 1.0 : Math.max(0, this.aimT - dt);
     if (this.cart <= 0) this.kit.update(this, dt, input, g);
     if (input.equipment && this.equipment && this.equipCd <= 0) g.useEquipment(this);
     if (input.interact && !this.climbing) g.economy.tryInteract(this);

@@ -2,7 +2,8 @@
 // President, her drones. Survivor accents are saturated; every enemy is muted olive / gray / brown / dusty.
 // Cloth parts (hems, jacket flaps, drawstrings) are separate rig parts the actor layer swings on springs.
 
-import { scap, sball, sbox, scyl, slathe, smoothMerge as fmergeSmooth, at } from '../facet.js';
+import * as THREE from 'three';
+import { scap, sball, sbox, scyl, slathe, smooth, smoothMerge as fmergeSmooth, at } from '../facet.js';
 import { humanoid } from './humanoid.js';
 
 // ---- DEE OKAFOR (teal scrubs, white sneakers, dark hair in a big high bun) ------------------------------------
@@ -35,6 +36,81 @@ export function deeModel() {
       { name: 'dart', parent: 'foreR', pivot: [0, -0.33, 0], geos: [scap(0.012, 0.13, 0x9be6dc, at(0, 0, -0.07, Math.PI / 2, 0, 0), 6)] },
     ],
   });
+}
+
+// A cape: a tapered half-cone shell around the back (outer face plus a reversed inner face, so it reads from both
+// sides), hanging `len` down from its pivot.
+function capeShell(rTop, rBot, len, color, inner, m) {
+  const mk = (rt, rb, flip) => {
+    const g = new THREE.CylinderGeometry(rt, rb, len, 16, 6, true, -Math.PI * 0.62, Math.PI * 1.24);
+    g.translate(0, -len / 2, 0);
+    if (flip) { const ix = g.index.array; for (let i = 0; i < ix.length; i += 3) { const t = ix[i]; ix[i] = ix[i + 1]; ix[i + 1] = t; } }
+    return g;
+  };
+  return [smooth(mk(rTop, rBot, false), color, m, 0.25), smooth(mk(rTop - 0.012, rBot - 0.012, true), inner, m)];
+}
+// A flat five-point star facing -z (the front), radius r.
+function starGeo(r, depth, color, m) {
+  const sh = new THREE.Shape();
+  for (let i = 0; i < 10; i++) { const a = Math.PI / 2 + (i / 10) * Math.PI * 2, rr = i % 2 ? r * 0.42 : r; i ? sh.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : sh.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+  const g = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false });
+  g.translate(0, 0, -depth);
+  return smooth(g, color, m);
+}
+
+// ---- BEACON (black suit with silver panel lines, green cape / belt / boots, green hexagon emblem with a silver star) --
+// From references/hero-beacon.jpg. Muscular build, medium-brown skin, short curly hair.
+export function beaconModel() {
+  const SUIT = 0x17171c, LINE = 0x8c9098, GREEN = 0x1f7a45, GREEN_D = 0x175f36, SKIN = 0x8e5b3e, HAIR = 0x3a2419, STAR = 0xd8dce2;
+  const k = 1.12, chest = 1.18;
+  const fz = (y) => -(0.185 + (y - 0.32) * 0.12) * k * chest * 0.62 - 0.004; // front of the chest at height y
+  const curls = []; // tight curls over the crown and sides
+  for (let i = 0; i < 40; i++) {
+    const u = (i * 0.618) % 1, v = (i * 0.37 + 0.13) % 1, a = u * Math.PI * 2, el = 0.35 + v * 1.0; // elevation above the brow line
+    const x = Math.cos(a) * Math.cos(el) * 0.128, y = 0.2 + Math.sin(el) * 0.125 * 1.08, z = Math.sin(a) * Math.cos(el) * 0.13 + 0.01;
+    if (z < -0.06 && y < 0.3) continue; // keep the forehead clear
+    curls.push(sball(0.024, i % 3 ? HAIR : 0x2e1c13, at(x, y + 0.012, z), 6));
+  }
+  // Hexagon emblem facing forward, with a five-point star in silver.
+  const star = [starGeo(0.045, 0.01, STAR, at(0, 0.37, fz(0.37) - 0.006))];
+  return humanoid({
+    skin: SKIN, shirt: SUIT, sleeve: SUIT, cuff: SUIT, pants: SUIT, pantsLow: GREEN, shoes: GREEN, sole: GREEN_D,
+    build: k, chest, legWidth: 1.08, headScale: 1.0, handScale: 1.08,
+    face: { brows: 'calm', lip: 0x5a3328 },
+    extra: {
+      head: [sball(0.13, HAIR, at(0, 0.27, 0.012, 0, 0, 0, 1, 0.62, 1.04), 16), ...curls],
+      torso: [
+        scyl(0.075, 0.075, 0.012, GREEN, at(0, 0.37, fz(0.37) - 0.002, Math.PI / 2, 0, 0), 6), // hexagon
+        scyl(0.062, 0.062, 0.014, GREEN_D, at(0, 0.37, fz(0.37) - 0.005, Math.PI / 2, 0, 0), 6),
+        ...star,
+        // Silver panel lines down the flanks and over the shoulders.
+        ...[-1, 1].flatMap((sd) => [
+          sbox(0.012, 0.3, 0.012, LINE, at(sd * 0.135 * k, 0.24, -0.06, 0, 0, sd * 0.12), 0.005),
+          sbox(0.1, 0.012, 0.012, LINE, at(sd * 0.11 * k, 0.47, -0.07, 0, 0, -sd * 0.5), 0.005),
+        ]),
+        // Belt with a hexagon buckle.
+        scyl(0.165 * k, 0.168 * k, 0.05, GREEN, at(0, 0.015, 0, 0, 0, 0, 1, 1, 0.66), 18),
+        scyl(0.032, 0.032, 0.02, GREEN_D, at(0, 0.015, -0.165 * k * 0.66 - 0.006, Math.PI / 2, 0, 0), 6),
+        // Cape collar over the shoulders.
+        sball(0.15 * k, GREEN, at(0, 0.5, 0.03, 0, 0, 0, 1.3, 0.28, 0.72), 14),
+      ],
+      armL: [sbox(0.012, 0.2, 0.012, LINE, at(-0.045, -0.16, -0.03), 0.005)],
+      armR: [sbox(0.012, 0.2, 0.012, LINE, at(0.045, -0.16, -0.03), 0.005)],
+      foreL: [scyl(0.05, 0.05, 0.025, LINE, at(0, -0.22, 0), 12)],
+      foreR: [scyl(0.05, 0.05, 0.025, LINE, at(0, -0.22, 0), 12)],
+      shinL: [scyl(0.075, 0.07, 0.03, GREEN_D, at(0, -0.02, 0), 12)],
+      shinR: [scyl(0.075, 0.07, 0.03, GREEN_D, at(0, -0.02, 0), 12)],
+    },
+    cloth: [
+      // Cape: hangs from the shoulders to the knees and streams back when running or flying.
+      { name: 'cape', parent: 'torso', pivot: [0, 0.52, 0.02], geos: capeShell(0.19 * k, 0.34, 1.08, GREEN, GREEN_D, at(0, 0, 0, 0, 0, 0, 1, 1, 0.62)) },
+    ],
+  });
+}
+export function beaconOverlay(p, st) {
+  if (st.firing && !st.climb) { p.head[0] += 0.05; p.torso[1] -= 0.08; }
+  if (st.throwT > 0) { p.armL = [1.4, 0, -0.9 * st.throwT]; p.armR = [1.4, 0, 0.9 * st.throwT]; p.foreL = [0.3, 0, 0]; p.foreR = [0.3, 0, 0]; } // the clap
+  if (st.flying) { p.armR = [2.9, 0, 0.1]; p.foreR = [0.1, 0, 0]; p.armL = [0.3, 0, -0.25]; p.legL = [0.25, 0, 0]; p.legR = [0.05, 0, 0]; p.shinL = [0.4, 0, 0]; }
 }
 
 // Overlays: character-specific upper-body actions layered on the animator's locomotion pose (p is mutated).
@@ -221,11 +297,11 @@ export function clothSpring(state, dt, vel, yaw, t, names) {
   for (const n of names) {
     const sgn = /L$/.test(n) ? -1 : /R$/.test(n) ? 1 : 0;
     // Flaps fan outward when moving fast; hems lift backward.
-    out[n] = n === 'hem' ? [-s.ax * 0.9 + flutter, 0, s.az * 0.6] : /^string/.test(n) ? [s.ax * 2.2 + flutter * 3, 0, sgn * 0.05] : [-s.ax * 1.2 + flutter, sgn * Math.min(0.5, Math.abs(s.ax) * 0.8), s.az];
+    out[n] = n === 'cape' ? [-Math.min(1.3, 0.06 + Math.abs(s.ax) * 3.2 + Math.abs(flutter) * 2), 0, s.az * 0.8] : n === 'hem' ? [-s.ax * 0.9 + flutter, 0, s.az * 0.6] : /^string/.test(n) ? [s.ax * 2.2 + flutter * 3, 0, sgn * 0.05] : [-s.ax * 1.2 + flutter, sgn * Math.min(0.5, Math.abs(s.ax) * 0.8), s.az];
   }
   return out;
 }
 
-export const CLOTH = { dee: ['hem'], scooter: ['stringL', 'stringR'], canvasser: ['flapL', 'flapR'], hoa: ['tailL', 'tailR'], speakerphone: [] };
+export const CLOTH = { beacon: ['cape'], dee: ['hem'], scooter: ['stringL', 'stringR'], canvasser: ['flapL', 'flapR'], hoa: ['tailL', 'tailR'], speakerphone: [] };
 
-export const OVERLAY = { dee: deeOverlay, speakerphone: speakerphoneOverlay, scooter: scooterOverlay, canvasser: canvasserOverlay, hoa: hoaOverlay };
+export const OVERLAY = { beacon: beaconOverlay, dee: deeOverlay, speakerphone: speakerphoneOverlay, scooter: scooterOverlay, canvasser: canvasserOverlay, hoa: hoaOverlay };

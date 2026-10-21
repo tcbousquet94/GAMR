@@ -11,7 +11,7 @@ const BUTTONS = [
 ];
 
 export class TouchControls {
-  constructor(root, icons) {
+  constructor(root, icons, labels = {}) {
     this.root = root;
     this.enabled = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
     this.stick = { x: 0, y: 0, id: null, ox: 0, oy: 0 };
@@ -21,7 +21,7 @@ export class TouchControls {
     if (!this.enabled) return;
     root.innerHTML = `
       <div class="t-stick" id="t-stick"><div class="t-ring"></div><div class="t-knob" id="t-knob"></div><span>Move</span></div>
-      <div class="t-buttons">${BUTTONS.map((b) => `<button class="t-btn ${b.cls || ''}" data-id="${b.id}"><img src="${icons[b.id] || ''}" alt=""><span>${b.label}</span></button>`).join('')}</div>
+      <div class="t-buttons">${BUTTONS.map((b) => `<button class="t-btn ${b.cls || ''}" data-id="${b.id}"><img src="${icons[b.id] || ''}" alt=""><span>${labels[b.id] || b.label}</span></button>`).join('')}</div>
       <div class="t-hint" id="t-hint">⟷ Drag to look</div>`;
     root.style.display = 'block';
     const stickEl = root.querySelector('#t-stick');

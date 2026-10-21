@@ -6,6 +6,7 @@ import { Game } from './sim/game.js';
 import { TurfGame } from './sim/turf/turfGame.js';
 import { downtown } from './city/districts/downtown.js';
 import { DEE } from './sim/survivors/dee.js';
+import { BEACON } from './sim/survivors/beacon.js';
 import { View } from './render/view.js';
 import { KitView } from './render/kit/kitView.js';
 import { HeroGame } from './sim/hero/heroGame.js';
@@ -35,12 +36,13 @@ const CLASSIC = params.get('mode') === 'classic'; // the retired roguelike keeps
 // ?mode=classic (the roguelike), ?scene=hero ("h", the look test).
 const TURF = params.get('mode') === 'turf';
 const TOWN = !HERO && !CLASSIC && !TURF;
+const PC = TOWN ? BEACON : DEE; // the playable character for this mode
 let townMap = null;
 const loadTownMap = async () => { const name = MAPS[params.get('map')] ? params.get('map') : DEFAULT_MAP; const [base, edits] = await MAPS[name].load(); townMap = { name, base: base.default, edits: edits.default }; };
-const newTown = () => new TownGame({ city: loadMap(townMap.base, townMap.edits), survivor: DEE });
+const newTown = () => new TownGame({ city: loadMap(townMap.base, townMap.edits), survivor: BEACON });
 const view = new (CLASSIC ? View : KitView)(canvas, { quality: params.get('quality') || 'auto', preserve: params.has('shot') || params.has('bot') });
 const input = new Input(canvas);
-const touch = new TouchControls(document.getElementById('touch'), Object.fromEntries(Object.entries(ABILITY_ICONS).map(([k, v]) => [k, icon(v, '#ffffff', 64, true)])));
+const touch = new TouchControls(document.getElementById('touch'), Object.fromEntries(Object.entries({ ...ABILITY_ICONS, ...(PC.icons || {}) }).map(([k, v]) => [k, icon(v, '#ffffff', 64, true)])), PC.touchLabels);
 input.touch = touch;
 touch.attach(canvas);
 if (touch.enabled) {
@@ -103,7 +105,7 @@ export function startRun(seed, opts = {}) {
   if (params.get('god') === '1' || opts.god) g.godMode = true;
   if (app.fly?.active) app.fly.toggle(view);
   view.load(g);
-  hud.bind(g, DEE, touch);
+  hud.bind(g, PC, touch);
   audio.bind(g);
   input.yaw = g.player.yaw;
   input.pitch = 0;
@@ -214,9 +216,9 @@ installDebug(app, { startRun });
   const g = (app.game = CLASSIC ? new Game({ seed: app.seed, district: downtown, survivor: DEE }) : TOWN ? newTown() : new TurfGame({ seed: app.seed, survivor: DEE }));
   g.director.enabled = false;
   view.load(g);
-  hud.bind(g, DEE, touch);
+  hud.bind(g, PC, touch);
   hud.setVisible(false);
   app.state = 'title';
-  screens.show('title', { survivor: DEE, seed: app.seed });
+  screens.show('title', { survivor: PC, seed: app.seed });
 });
 requestAnimationFrame(frame);

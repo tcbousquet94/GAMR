@@ -137,6 +137,14 @@ export class Player {
     const f = this.forward(), r = this.right();
     let dx = f.x * mz + r.x * mx, dz = f.z * mz + r.z * mx;
     if (len > 1) { dx /= len; dz /= len; }
+    // Flying heroes steer themselves (kit sets the velocity); the body still collides with the world.
+    if (this.kit.fly?.(this, dt, input, g)) {
+      this.sprinting = !!input.sprint;
+      b.canMantle = false;
+      moveBody(b, g.world, dt);
+      this.lastVel = { x: b.vel.x, z: b.vel.z };
+      return;
+    }
     const firingBlocksSprint = this.kit.blocksSprint?.(this, input);
     this.sprinting = !!input.sprint && mz > 0.3 && !firingBlocksSprint && !this.latchedBy;
     let speed = this.base.speed * st.moveMul * (this.sprinting ? MOVE.sprintMul : 1);

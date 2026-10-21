@@ -57,5 +57,7 @@ const GLYPHS = {
   salsa: (g) => { g.beginPath(); g.arc(32, 32, 14, 0.3, Math.PI * 1.7); g.stroke(); poly(g, [[44, 22], [50, 30], [40, 32]]); },
   jump: (g) => { line(g, [32, 50], [32, 18]); line(g, [20, 28], [32, 16], [44, 28]); line(g, [20, 52], [44, 52]); },
   equip: (g) => { circ(g, 32, 32, 14, false); line(g, [32, 22], [32, 42]); line(g, [22, 32], [42, 32]); },
+  beam: (g) => { g.beginPath(); g.ellipse(32, 32, 14, 8, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#1a1820'; circ(g, 32, 32, 4); g.fillStyle = 'currentColor'; line(g, [46, 32], [58, 26]); line(g, [46, 34], [58, 40]); },
+  fly: (g) => { poly(g, [[32, 10], [40, 28], [36, 28], [38, 44], [32, 54], [26, 44], [28, 28], [24, 28]]); line(g, [14, 46], [22, 36]); line(g, [50, 46], [42, 36]); },
   codeblue: (g) => { g.fillRect(29, 12, 6, 22); circ(g, 32, 44, 4); for (const x of [18, 46]) line(g, [x, 16], [x - 4, 26]); },
 };

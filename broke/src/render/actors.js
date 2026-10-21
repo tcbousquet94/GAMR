@@ -11,6 +11,7 @@ import { Ragdoll } from './anim/ragdoll.js';
 import { blob } from './details.js';
 
 const ANIM_OPTS = {
+  beacon: { fidgets: [] },
   dee: { fidgets: ['watch'] },
   speakerphone: { fidgets: ['gesture'], armSwing: 0.8 },
   canvasser: { fidgets: ['fan'], freq: 1.08 },
@@ -33,7 +34,8 @@ export class Actors {
     this.view = view;
     this.t = 0;
     this.objects = [];
-    this.dee = new RigType(M.deeModel(), 1, scene);
+    this.heroId = M[`${game.player.kit?.id}Model`] ? game.player.kit.id : 'dee'; // the player character's model
+    this.dee = new RigType(M[`${this.heroId}Model`](), 1, scene);
     this.rigs = {
       speakerphone: new RigType(M.speakerphoneModel(), 64, scene),
       scooter: new RigType(M.scooterModel(), 64, scene),
@@ -45,7 +47,7 @@ export class Actors {
     this.deeYaw = game.player.yaw;
     this.deePhase = 0;
     this.fireT = 0; this.throwT = 0; this.spinT = 0;
-    this.deeAnim = new Animator(ANIM_OPTS.dee);
+    this.deeAnim = new Animator(ANIM_OPTS[this.heroId] || ANIM_OPTS.dee);
     this.corpses = [];
     const E = game.events;
     const P = game.player;
@@ -289,6 +291,14 @@ export class Actors {
     return Math.min(1, Math.max(e.flash * 0.85, tele));
   }
 
+  // Cloth for the player character. A flying hero's body is laid flat, so the cape trails along the back (just a
+  // flutter) instead of streaming out as it does on the run.
+  heroCloth(dt, vel, yaw, P) {
+    const c = M.clothSpring(this, dt, vel, yaw, this.t, M.CLOTH[this.heroId] || []);
+    if (c.cape && P.hero?.flying) c.cape = [-0.12 - 0.12 * Math.abs(Math.sin(this.t * 9)) - Math.max(0, 1 - Math.abs(this.flyTilt) / 1.4) * 0.5, 0, Math.sin(this.t * 6.3) * 0.08];
+    return c;
+  }
+
   updateDee(dt) {
     const g = this.game;
     const P = g.player;
@@ -308,9 +318,9 @@ export class Actors {
     const pose = animate(A, dt, {
       pos: b.pos, vel: b.vel, onGround: b.onGround, climbing: !!P.climbing, climbWall: P.climbing?.wall, crouch: P.crouch, vault: P.vault,
       aimYaw: P.yaw, aimPitch: P.pitch, face: firing || P.cart > 0 ? 'aim' : 'move', firing, world: g.world, lookAt: look,
-      overlay: M.deeOverlay,
-      extra: { throwT: Math.max(0, this.throwT / 0.35), spin: Math.max(0, this.spinT / 0.4), cart: P.cart > 0 },
-      cloth: M.clothSpring(this, dt, b.vel, A.yaw ?? P.yaw, this.t, M.CLOTH.dee),
+      overlay: M.OVERLAY[this.heroId],
+      extra: { throwT: Math.max(0, this.throwT / 0.35), spin: Math.max(0, this.spinT / 0.4), cart: P.cart > 0, flying: !!P.hero?.flying },
+      cloth: this.heroCloth(dt, b.vel, A.yaw ?? P.yaw, P),
     });
     // GTA-style: the dart only appears in her hand while she's in the aim stance (or mid-throw).
     this.dartK = (this.dartK ?? 0) + ((firing || this.throwT > 0 ? 1 : 0) - (this.dartK ?? 0)) * Math.min(1, 14 * dt);
@@ -318,7 +328,13 @@ export class Actors {
     this.dee.begin();
     const hidden = this.view.rig.cur < 1.1; // camera jammed against her: don't fill the screen with scrubs
     if (!P.dead && !hidden) {
-      rootMatrix(b.pos.x, b.pos.y + (P.cart > 0 ? 0.35 : 0), b.pos.z, A.yaw, 1, this.m4, A.rootRoll || 0, A.rootPitch || 0);
+      // Flying: the body lines up with the direction of travel (flat in level flight, upright climbing, head-down
+      // in a dive), pivoting about the hips so the figure stays centred on the collision body.
+      const hs = Math.hypot(b.vel.x, b.vel.z), sp = Math.hypot(hs, b.vel.y);
+      const want = P.hero?.flying && sp > 4 ? -Math.min(2.0, Math.atan2(hs, b.vel.y)) * Math.min(1, (sp - 4) / 6) : 0;
+      this.flyTilt = (this.flyTilt || 0) + (want - (this.flyTilt || 0)) * Math.min(1, 5 * dt);
+      const th = -this.flyTilt, HIP = 0.95, oy = HIP * (1 - Math.cos(th)), ob = HIP * Math.sin(th);
+      rootMatrix(b.pos.x + Math.sin(A.yaw) * ob, b.pos.y + (P.cart > 0 ? 0.35 : 0) + oy, b.pos.z + Math.cos(A.yaw) * ob, A.yaw, 1, this.m4, A.rootRoll || 0, (A.rootPitch || 0) + this.flyTilt);
       this.dee.add(this.m4, pose, P.invuln > 0 ? 0.25 : 0);
       this.deeLast = { root: this.m4.clone(), pose };
     }

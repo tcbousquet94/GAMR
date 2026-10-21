@@ -64,7 +64,7 @@ export class Hud {
     this.slots = {};
     const keys = { primary: 'M1', secondary: 'M2', utility: 'Q', special: 'R' };
     for (const slot of ['primary', 'secondary', 'utility', 'special']) {
-      const d = h('div', 'abil', `<div class="ring"><img src="${icon(ABILITY_ICONS[slot], '#ffffff', 64, true)}"><div class="cd"></div><span class="key">${keys[slot]}</span></div><span class="lab">${A[slot].name.split(' ')[0]}</span>`);
+      const d = h('div', 'abil', `<div class="ring"><img src="${icon((survivor.icons || ABILITY_ICONS)[slot], '#ffffff', 64, true)}"><div class="cd"></div><span class="key">${keys[slot]}</span></div><span class="lab">${A[slot].name.split(' ')[0]}</span>`);
       d.title = `${A[slot].name}: ${A[slot].desc}`;
       this.el.abil.appendChild(d);
       this.slots[slot] = d;

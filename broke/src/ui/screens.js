@@ -21,13 +21,14 @@ export class Screens {
   }
 
   title({ survivor, seed }) {
-    const A = survivor.abilities;
+    const A = survivor.abilities, T = survivor.title || {};
+    const sw = '#' + (survivor.accent ?? 0x1fa89a).toString(16).padStart(6, '0');
     this.root.innerHTML = `
       <div class="title-wrap">
-        <h1>BROKE</h1>
-        <p class="tagline">Last train's in 10 minutes. You have $3.40.</p>
+        <h1${(T.game || '').length > 6 ? ' style="font-size:min(15vw, 104px);letter-spacing:0.06em;white-space:nowrap"' : ''}>${T.game || 'BROKE'}</h1>
+        <p class="tagline">${T.tagline || "Last train's in 10 minutes. You have $3.40."}</p>
         <div class="lore">
-          <div class="lore-head"><span class="swatch" style="background:#1fa89a"></span><div><b>${survivor.name}</b><span>${survivor.role}</span></div></div>
+          <div class="lore-head"><span class="swatch" style="background:${sw}"></span><div><b>${survivor.name}</b><span>${survivor.role}</span></div></div>
           <p>${survivor.lore}</p>
           <ul>
             <li><b>M1 · ${A.primary.name}</b> ${A.primary.desc}</li>
@@ -37,7 +38,7 @@ export class Screens {
             <li><b>Passive · ${A.passive.name}</b> ${A.passive.desc}</li>
           </ul>
         </div>
-        <button class="primary-btn" id="s-start">Start the commute</button>
+        <button class="primary-btn" id="s-start">${T.start || 'Start the commute'}</button>
         <div class="seed-row"><label>Seed <input id="s-seed" value="${seed}" spellcheck="false"></label></div>
         <p class="controls"><b>H</b> · switch between the city and the new-look test street (Palmetto Ave)</p>
         <p class="controls">WASD move · Mouse aim · Shift sprint · Space jump (twice to double jump) · push into a fire escape to climb · E buy / use · F equipment · Esc pause</p>

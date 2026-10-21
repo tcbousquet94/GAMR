@@ -5,8 +5,11 @@ import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 const out = process.argv[2] || 'dist/broke-artifact.html';
 const assets = readdirSync('dist/assets');
 const css = readFileSync(`dist/assets/${assets.find((f) => f.endsWith('.css'))}`, 'utf8');
-const js = readFileSync(`dist/assets/${assets.find((f) => f.endsWith('.js'))}`, 'utf8').replace(/<\/script/gi, '<\\/script');
-const html = `<title>BROKE</title>
+const js = readFileSync(`dist/assets/${assets.find((f) => f.endsWith('.js'))}`, 'utf8').replace(/<\/script/gi, '<\\/script')
+  // Escape non-ASCII so glyphs (✚, arrows) survive whatever charset the host assumes.
+  .replace(/[^\x00-\x7f]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+const html = `<meta charset="utf-8">
+<title>BROKE</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap">
 <style>:root { color-scheme: dark; } html, body { height: 100%; background: #120f1c; }

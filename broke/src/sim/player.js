@@ -1,7 +1,7 @@
 // Player controller: sprint, multi-jump, climbing (fire escapes, ladders, scaffolds, crane masts), ledge mantling,
 // knockback, slows, latches, safe-ground recovery. Abilities are delegated to the survivor kit.
 
-import { PHYS, MOVE, COMBAT } from '../core/config.js';
+import { PHYS, MOVE, COMBAT, CAM } from '../core/config.js';
 import { makeBody, moveBody } from './physics.js';
 import { computeStats } from './stats.js';
 import { clamp, finite } from '../core/math.js';
@@ -34,6 +34,11 @@ export class Player {
     this.latchedBy = null;
     this.cart = 0; // seconds of shopping-cart ride left
     this.aimT = 0; // GTA-style combat stance: set by shooting, relaxes 1 s after the last shot
+    // Hold-to-aim (kits with `aims`): aimBlend eases 0 (hip) -> 1 (aimed); the camera and the aim ray both follow it.
+    this.aiming = false;
+    this.aimBlend = 0;
+    this.recoil = { pitch: 0, yaw: 0 }; // gun climb on top of the input aim, springing back to zero
+    this.camBase = CAM.hip; // the camera this player's aim ray matches when not aiming
     this.hits = 0; // counts toward Gavel of Authority
     this.dead = false;
     this.lastSafe = { x: spawn.x, y: spawn.y + 0.2, z: spawn.z };
@@ -98,7 +103,11 @@ export class Player {
 
     // Abilities and equipment.
     // Out of combat Dee just runs; shooting snaps her into an aim stance (and shows the crosshair) for a moment.
-    this.aimT = input.primary || input.secondary || input.special ? 1.0 : Math.max(0, this.aimT - dt);
+    this.aiming = !!(this.kit.aims && input.aim && !this.climbing && !this.vault && this.cart <= 0);
+    this.aimBlend = Math.max(0, Math.min(1, this.aimBlend + (this.aiming ? dt : -dt) / CAM.adsTime));
+    const kr = Math.exp(-(this.gun?.def.recoilReturn ?? 9) * dt);
+    this.recoil.pitch *= kr; this.recoil.yaw *= kr;
+    this.aimT = this.aiming || input.primary || input.secondary || input.special ? 1.0 : Math.max(0, this.aimT - dt);
     if (this.cart <= 0) this.kit.update(this, dt, input, g);
     if (input.equipment && this.equipment && this.equipCd <= 0) g.useEquipment(this);
     if (input.interact && !this.climbing) g.economy.tryInteract(this);
@@ -147,7 +156,7 @@ export class Player {
     }
     const firingBlocksSprint = this.kit.blocksSprint?.(this, input);
     this.sprinting = !!input.sprint && mz > 0.3 && !firingBlocksSprint && !this.latchedBy;
-    let speed = this.base.speed * st.moveMul * (this.sprinting ? MOVE.sprintMul : 1);
+    let speed = this.base.speed * st.moveMul * (this.sprinting ? MOVE.sprintMul : 1) * (1 + (CAM.adsMoveMul - 1) * this.aimBlend);
     if (this.cart > 0) {
       this.cart -= dt;
       speed = 18;
@@ -370,14 +379,29 @@ export class Player {
 
   slow(mul, t) { if (!this.base.slowImmune) this.slows.push({ mul, t }); }
 
-  // Where the camera/aim ray starts (over the right shoulder) and its direction.
+  // The camera this frame: hip -> aimed by aimBlend (side offset, height, boom length, field of view), with the
+  // recoil climb on top of the input aim. The view's camera rig reads this, so the two can never disagree.
+  camPose() {
+    const a = this.camBase, b = CAM.ads, k = this.kit.aims ? this.aimBlend * this.aimBlend * (3 - 2 * this.aimBlend) : 0;
+    const L = (x, y) => x + (y - x) * k;
+    return { side: L(a.side, b.side), height: L(a.height, b.height), dist: L(a.dist, b.dist), fov: L(a.fov, b.fov), yaw: this.yaw + this.recoil.yaw, pitch: clamp(this.pitch + this.recoil.pitch, -1.5, 1.5) };
+  }
+
+  // Where the camera/aim ray starts (the shoulder pivot the camera boom hangs from) and its direction.
   aim() {
     const p = this.body.pos;
-    const cp = Math.cos(this.pitch);
-    const dir = { x: -Math.sin(this.yaw) * cp, y: Math.sin(this.pitch), z: -Math.cos(this.yaw) * cp };
-    const r = this.right();
-    const origin = { x: p.x + r.x * 0.7, y: p.y + 1.65, z: p.z + r.z * 0.7 };
+    const c = this.camPose();
+    const cp = Math.cos(c.pitch);
+    const dir = { x: -Math.sin(c.yaw) * cp, y: Math.sin(c.pitch), z: -Math.cos(c.yaw) * cp };
+    const r = { x: Math.cos(c.yaw), z: -Math.sin(c.yaw) };
+    const origin = { x: p.x + r.x * c.side, y: p.y + c.height, z: p.z + r.z * c.side };
     return { origin, dir };
+  }
+
+  // The gun's muzzle: in the raised right hand when aiming, lower at the hip.
+  muzzle() {
+    const p = this.body.pos, r = this.right(), f = this.forward(), k = this.aimBlend;
+    return { x: p.x + r.x * (0.32 - 0.1 * k) + f.x * (0.45 + 0.15 * k), y: p.y + 1.3 + 0.15 * k, z: p.z + r.z * (0.32 - 0.1 * k) + f.z * (0.45 + 0.15 * k) };
   }
 
   hand() {

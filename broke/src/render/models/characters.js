@@ -121,6 +121,29 @@ export function deeOverlay(p, st) {
   if (st.cart) { p.armL = [1.3, 0, 0]; p.armR = [1.3, 0, 0]; p.foreL = [0.2, 0, 0]; p.foreR = [0.2, 0, 0]; p.torso[0] -= 0.3; }
 }
 
+// The player-made character with a revolver. Aimed (aimK -> 1): the gun arm straight out along the aim with the
+// off hand cupping the grip, chest square to the shot; firing kicks the forearm up; reloading brings the gun to the
+// chest and the off hand to the cylinder.
+export function customOverlay(p, st) {
+  if (st.climb) return;
+  if (st.reload) {
+    p.armR = [0.75, 0, 0.25]; p.foreR = [1.25, 0, 0.1];
+    p.armL = [0.55, 0, 0.35]; p.foreL = [1.35, 0, 0.2];
+    p.head[0] += 0.25;
+    return;
+  }
+  const k = Math.max(st.aimK || 0, st.firing ? 1 : 0);
+  if (k <= 0) return;
+  const L = (a, b) => a + (b - a) * k;
+  const kick = (st.kick || 0) * 0.35;
+  // Angles solved against the rig: with the chest turned 0.18 rad, these put the gun arm straight down the aim
+  // line and the support hand on the grip.
+  p.armR = [L(p.armR[0], Math.PI / 2 + st.pitch - kick * 0.4), L(p.armR[1], 0), L(p.armR[2], -0.15)];
+  p.foreR = [L(p.foreR[0], 0.08 + kick), 0, 0];
+  if (st.aimK > 0.05) { p.armL = [L(p.armL[0], 1.4 + st.pitch), 0, L(p.armL[2], 0.4)]; p.foreL = [L(p.foreL[0], 0.25), 0, 0]; }
+  p.torso[1] -= 0.18 * k;
+}
+
 // ---- SPEAKERPHONE GUY (muted: olive puffer vest, dusty maroon-brown shirt, phone held up to his mouth) ---------
 export function speakerphoneModel() {
   const VEST = 0x2f3340, VEST_D = 0x262a35, SHIRT = 0xb04a3c, SKIN = 0xb98a6a, HAIR = 0x3b2c24;
@@ -304,4 +327,4 @@ export function clothSpring(state, dt, vel, yaw, t, names) {
 
 export const CLOTH = { beacon: ['cape'], dee: ['hem'], scooter: ['stringL', 'stringR'], canvasser: ['flapL', 'flapR'], hoa: ['tailL', 'tailR'], speakerphone: [] };
 
-export const OVERLAY = { beacon: beaconOverlay, dee: deeOverlay, speakerphone: speakerphoneOverlay, scooter: scooterOverlay, canvasser: canvasserOverlay, hoa: hoaOverlay };
+export const OVERLAY = { custom: customOverlay, beacon: beaconOverlay, dee: deeOverlay, speakerphone: speakerphoneOverlay, scooter: scooterOverlay, canvasser: canvasserOverlay, hoa: hoaOverlay };

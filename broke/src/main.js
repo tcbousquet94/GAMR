@@ -1,12 +1,15 @@
 // Entry point: screens, run lifecycle, fixed-step simulation loop, rendering, audio, debug API.
 // URL params: seed, quality (auto|high|medium|low), t (start at minute), god=1, perf=1, autostart=1, bot=<scenario>.
 
-import { DT } from './core/config.js';
+import { DT, CAM } from './core/config.js';
 import { Game } from './sim/game.js';
 import { TurfGame } from './sim/turf/turfGame.js';
 import { downtown } from './city/districts/downtown.js';
 import { DEE } from './sim/survivors/dee.js';
 import { BEACON } from './sim/survivors/beacon.js';
+import { makeCustomHero } from './sim/survivors/custom.js';
+import { loadLook, saveLook } from './ui/look.js';
+import { AimAssist } from './input/aimAssist.js';
 import { View } from './render/view.js';
 import { KitView } from './render/kit/kitView.js';
 import { HeroGame } from './sim/hero/heroGame.js';
@@ -36,12 +39,16 @@ const CLASSIC = params.get('mode') === 'classic'; // the retired roguelike keeps
 // the handcrafted map; ?map=<name>), ?mode=classic (the roguelike), ?scene=hero ("h", the look test).
 const TOWN = !HERO && !CLASSIC && (params.get('mode') === 'town' || params.has('map'));
 const TURF = !HERO && !CLASSIC && !TOWN;
-const PC = TOWN ? BEACON : DEE; // the playable character for this mode
+// The playable character for this mode. The turf war is played as your own character (the creator on the title
+// screen; remembered in this browser).
+let look = loadLook();
+let PC = TOWN ? BEACON : TURF ? makeCustomHero(look) : DEE;
 let townMap = null;
 const loadTownMap = async () => { const name = MAPS[params.get('map')] ? params.get('map') : DEFAULT_MAP; const [base, edits] = await MAPS[name].load(); townMap = { name, base: base.default, edits: edits.default }; };
 const newTown = () => new TownGame({ city: loadMap(townMap.base, townMap.edits), survivor: BEACON });
 const view = new (CLASSIC ? View : KitView)(canvas, { quality: params.get('quality') || 'auto', preserve: params.has('shot') || params.has('bot') });
 const input = new Input(canvas);
+const aimAssist = new AimAssist(input);
 const touch = new TouchControls(document.getElementById('touch'), Object.fromEntries(Object.entries({ ...ABILITY_ICONS, ...(PC.icons || {}) }).map(([k, v]) => [k, icon(v, '#ffffff', 64, true)])), PC.touchLabels);
 input.touch = touch;
 touch.attach(canvas);
@@ -68,6 +75,9 @@ const screens = new Screens(document.getElementById('screens'), {
   quality: (q) => { view.qualityName = q; if (q !== 'auto') view.setQuality(q); },
   volume: (v) => audio.setVolume(v),
   sens: (v) => { input.sens = v; },
+  aimAssist: (on) => { aimAssist.enabled = on; },
+  creator: () => showCreator(),
+  creatorDone: (l) => { if (l) { look = l; saveLook(l); PC = makeCustomHero(l); } showTitle(); },
   map: () => showMap(),
   mapBack: () => (app.mapFromPlay ? resume() : pause()),
 });
@@ -101,7 +111,8 @@ export function startRun(seed, opts = {}) {
   const startMinutes = opts.startMinutes ?? +(params.get('t') || 0);
   const g = (app.game = HERO ? new HeroGame({ survivor: DEE }) : TOWN ? newTown() : CLASSIC
     ? new Game({ seed: app.seed, district: downtown, survivor: DEE, startMinutes })
-    : new TurfGame({ seed: app.seed, survivor: DEE, startMinutes }));
+    : new TurfGame({ seed: app.seed, survivor: PC, startMinutes }));
+  if (CLASSIC) g.player.camBase = CAM.classic;
   if (params.get('god') === '1' || opts.god) g.godMode = true;
   if (app.fly?.active) app.fly.toggle(view);
   view.load(g);
@@ -137,7 +148,7 @@ function pause() {
   app.paused = true;
   input.enabled = false;
   input.unlock();
-  screens.show('pause', { seed: app.seed, quality: view.qualityName, volume: audio.volume, sens: input.sens });
+  screens.show('pause', { seed: app.seed, quality: view.qualityName, volume: audio.volume, sens: input.sens, aimAssist: app.game?.player.kit.aims ? aimAssist.enabled : null });
 }
 function resume() {
   app.paused = false;
@@ -154,6 +165,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyM' && app.game?.turf) { if (screens.current === 'map') app.mapFromPlay ? resume() : pause(); else if (app.state === 'playing') showMap(); }
   if (e.code === 'F1' && app.state === 'playing') { app.fly.toggle(view); e.preventDefault(); }
   if (e.code === 'F2') { toggleOverlay(); e.preventDefault(); }
+  if (e.code === 'KeyG' && app.state === 'playing' && !app.paused && app.game?.turf) spawnPractice(app.game);
 });
 document.addEventListener('pointerlockchange', () => {
   // Losing pointer lock mid-run (Esc in most browsers) pauses.
@@ -182,6 +194,7 @@ function frame(now) {
       let n = 0;
       // Free-fly: the leader stands still (empty control) while the camera roams.
       if (app.fly.active) app.fly.update(dt);
+      if (!app.fly.active && !app.held) aimAssist.update(dt, g);
       while (app.acc >= DT && n < 8) { g.step(app.fly.active ? { yaw: g.player.yaw, pitch: g.player.pitch } : app.held ? { ...app.held, yaw: g.player.yaw, pitch: g.player.pitch } : input.sample()); app.acc -= DT; n++; }
       if (n === 8) app.acc = 0;
     }
@@ -193,6 +206,7 @@ function frame(now) {
   view.render(dt);
   app.onFrame?.();
   hud.flying = app.fly.active; // the leader is parked while the camera roams: no "you are here" prompt
+  hud.aimOn = aimAssist.on; hud.fov = view.camera?.fov;
   hud.update(dt);
   audio.tick(dt, {
     intensity: Math.min(6, g.clock.tier + (g.exit.state === 'called' ? 1 : 0) + (g.boss?.alive ? 1 : 0)),
@@ -209,16 +223,41 @@ function steamNear(g) {
   return Math.max(0, 1 - best / 12);
 }
 
-installDebug(app, { startRun });
-(TOWN ? loadTownMap() : Promise.resolve()).then(() => {
-  if (HERO || params.get('autostart') === '1' || params.has('bot') || params.has('shot')) { startRun(app.seed); return; }
-  // Title screen over a live city backdrop.
-  const g = (app.game = CLASSIC ? new Game({ seed: app.seed, district: downtown, survivor: DEE }) : TOWN ? newTown() : new TurfGame({ seed: app.seed, survivor: DEE }));
+// Practice targets (G, turf war): a few hostiles out in front of you to try the gun on.
+function spawnPractice(g) {
+  const P = g.player, f = P.forward(), r = P.right();
+  let n = 0;
+  for (let i = 0; i < 24 && n < 3; i++) {
+    const d = 14 + (i % 4) * 5, s = ((i * 7) % 9) - 4;
+    const x = P.pos.x + f.x * d + r.x * s * 2, z = P.pos.z + f.z * d + r.z * s * 2;
+    const y = g.world.groundBelow(x, P.pos.y + 3, z, 0.4, 8);
+    if (!Number.isFinite(y) || !g.world.fits(x, y + 0.05, z, 0.5, 1.9) || !g.world.segmentClear({ x: P.pos.x, y: P.pos.y + 1.5, z: P.pos.z }, { x, y: y + 1.5, z })) continue;
+    g.spawnEnemy(['canvasser', 'speakerphone', 'scooter'][n], { x, y: y + 0.05, z });
+    n++;
+  }
+  hud.flashPrompt(n ? 'Practice targets' : 'No room out front', n ? `${n} hostile${n > 1 ? 's' : ''} ahead. Right mouse to aim, click to fire, R to reload.` : 'Face an open street and press G again.');
+}
+
+// Title screen over a live city backdrop (rebuilt after the creator so the backdrop shows your character).
+function showTitle() {
+  const g = (app.game = CLASSIC ? new Game({ seed: app.seed, district: downtown, survivor: DEE }) : TOWN ? newTown() : new TurfGame({ seed: app.seed, survivor: PC }));
   g.director.enabled = false;
   view.load(g);
   hud.bind(g, PC, touch);
   hud.setVisible(false);
   app.state = 'title';
-  screens.show('title', { survivor: PC, seed: app.seed });
+  screens.show('title', { survivor: PC, seed: app.seed, creator: TURF });
+}
+
+// Character creator (turf war): edits the look with a live turntable preview of the model.
+function showCreator() {
+  app.state = 'title';
+  screens.show('creator', { look });
+}
+
+installDebug(app, { startRun });
+(TOWN ? loadTownMap() : Promise.resolve()).then(() => {
+  if (HERO || params.get('autostart') === '1' || params.has('bot') || params.has('shot')) { startRun(app.seed); return; }
+  showTitle();
 });
 requestAnimationFrame(frame);

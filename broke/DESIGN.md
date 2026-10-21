@@ -157,6 +157,26 @@ kit-data items add their own colliders.
 
 ---
 
+# YOUR CHARACTER AND GUNPLAY (turf war)
+
+The turf war is played as **your own character**, made in the creator on the title screen ("Edit character") from
+the same Person spec every other human uses (body, skin, hair, facial hair, outfit, name; remembered in this browser).
+Kit: `src/sim/survivors/custom.js`. Look storage and creator choices: `src/ui/look.js`; preview: `src/ui/creatorPreview.js`.
+
+Gunplay is modelled on modern third-person shooters (RDR2): **hold right mouse to aim** (the camera pulls in over the
+shoulder, field of view narrows, you walk and can't sprint, mouse slows down), **click per shot** (the hammer cocks
+between shots, a click just early is buffered), **R reloads** a round at a time and firing cancels the reload.
+The revolver is hitscan from the camera's shoulder pivot (what's under the reticle), checked from the muzzle so you
+can't shoot through the corner you hide behind. Headshots x2.6, damage falls off from 25 m to 70 m, spread is tight
+aimed and loose from the hip, on the move or in the air, and recoil climbs the aim then settles. All numbers: `GUNS`
+and `CAM` in `src/core/config.js`; the gun: `src/sim/gun.js`.
+- The sim and the view share one camera pose (`Player.camPose()`), so the reticle is always honest.
+- Aim assist (`src/input/aimAssist.js`, toggle in the pause menu) snaps onto the nearest body in a small cone when you
+  raise the gun and slows the look on a target. It only moves the input's view angles, so the sim stays a pure
+  function of its commands. `control` commands carry `aim` and `reload`.
+- HUD: dot reticle sized by spread (red on a target), hit markers (white body, gold head, red kill), the cylinder.
+- **G** spawns practice hostiles in front of you (until battles exist).
+
 # THE TURF MAP (how Downtown is generated) — decisions
 
 - **District as data** (`src/city/turf/districts/downtown.js`): personality, landmark, road style, edges per side,

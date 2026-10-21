@@ -32,6 +32,8 @@ export class Hud {
       <div class="objective" id="h-obj"></div>
       <div class="hud-top" id="h-top"></div>
       <div class="crosshair" id="h-cross"><i></i><i></i><i></i><i></i></div>
+      <div class="reticle" id="h-ret"><b></b><div class="hitmark" id="h-hm"><i></i><i></i><i></i><i></i></div></div>
+      <div class="ammo" id="h-ammo"><div class="cyl" id="h-cyl"></div><span id="h-ammotext"></span></div>
       <div class="prompt" id="h-prompt"></div>
       <div class="latched" id="h-latch"><span class="pill">Q</span><div><b>Got a minute?</b><em>Salsa Step to break free</em></div></div>
       <div class="abilities" id="h-abil"></div>
@@ -44,7 +46,7 @@ export class Hud {
       money: $('#h-money', root), pop: $('#h-pop', root), tier: $('#h-tier', root), clock: $('#h-clock', root), tierfill: $('#h-tierfill', root),
       top: $('#h-top', root), obj: $('#h-obj', root), strip: $('#h-strip', root), mark: $('#h-mark', root), compass: $('#h-compass', root), dist: $('#h-dist', root), cross: $('#h-cross', root),
       prompt: $('#h-prompt', root), latch: $('#h-latch', root), hpfill: $('#h-hpfill', root), barrier: $('#h-barrier', root), hptext: $('#h-hptext', root),
-      abil: $('#h-abil', root), items: $('#h-items', root), intro: $('#h-intro', root), banner: $('#h-banner', root), toasts: $('#h-toasts', root), vig: $('#h-vig', root),
+      abil: $('#h-abil', root), ret: $('#h-ret', root), hm: $('#h-hm', root), ammo: $('#h-ammo', root), cyl: $('#h-cyl', root), ammotext: $('#h-ammotext', root), items: $('#h-items', root), intro: $('#h-intro', root), banner: $('#h-banner', root), toasts: $('#h-toasts', root), vig: $('#h-vig', root),
     };
     this.itemsKey = '';
     this.popT = 0; this.popAmt = 0;
@@ -71,7 +73,14 @@ export class Hud {
     }
     this.equipEl = h('div', 'abil equip', `<div class="ring"><img><div class="cd"></div><span class="key">F</span></div><span class="lab">Equip</span>`);
     this.el.abil.appendChild(this.equipEl);
-    this.el.abil.style.display = this.touch?.enabled ? 'none' : '';
+    this.el.abil.style.display = this.touch?.enabled || survivor.hudAbilities === false ? 'none' : '';
+    // Guns: a dot reticle and the cylinder instead of the ability rings.
+    const gun = game.player.gun;
+    this.el.ammo.style.display = gun ? '' : 'none';
+    this.el.ret.style.display = gun ? '' : 'none';
+    this.el.cross.style.display = gun ? 'none' : '';
+    if (gun) this.el.cyl.innerHTML = Array.from({ length: gun.def.cylinder }, (_, i) => `<i style="transform:rotate(${(i * 360) / gun.def.cylinder}deg) translateY(-11px)"></i>`).join('');
+    this.hmT = 0; this.hmKind = '';
     // Touch buttons mirror the cooldowns.
     this.tslots = {};
     if (this.touch?.enabled) for (const b of this.touch.root.querySelectorAll('.t-btn')) this.tslots[b.dataset.id] = b;
@@ -91,9 +100,17 @@ export class Hud {
       E.on('bossDefeated', () => this.banner('Motion denied', 'The HOA President has been overruled.')),
       E.on('bossAttack', (d) => this.bossCall(d.name)),
       E.on('playerHurt', (d) => { this.vig = Math.min(1, this.vig + 0.25 + d.amount / 30); }),
-      E.on('hit', () => { this.hitT = 0.12; }),
+      E.on('hit', (d) => { this.hitT = 0.12; if (d.source === 'revolver') this.hitmark(d.part === 'head' ? 'head' : 'body'); }),
+      E.on('kill', (d) => { if (game.enemies.find((e) => e.id === d.id)?.lastHitBy === 'revolver') this.hitmark('kill'); }),
       E.on('recover', () => this.flashPrompt('Back on your feet', 'You fell. It cost you a little health.')),
     ];
+  }
+
+  // Hit marker on the reticle: white for a body hit, gold for a headshot, red for a kill.
+  hitmark(kind) {
+    if (kind === 'body' && this.hmKind === 'kill' && this.hmT > 0.1) return;
+    this.hmKind = kind; this.hmT = kind === 'kill' ? 0.4 : 0.22;
+    this.el.hm.className = `hitmark show ${kind}`;
   }
 
   toast(title, desc, color, img) {
@@ -233,7 +250,7 @@ export class Hud {
     // Interact banner.
     let pr = null;
     const it = !turf && g.state === 'playing' ? g.economy.focus(P) : null;
-    if (turf && !this.flying) { const b = g.businessNear(P.pos, 7); if (b) pr = { title: b.name, sub: `${b.label} \u00b7 Block ${b.block} \u00b7 ${b.hq != null ? `Gang ${b.hq + 1} HQ` : b.owner === 'neutral' ? 'Neutral' : `Gang ${+b.owner.slice(4) + 1}`}`, info: true }; }
+    if (turf && !this.flying && !(P.aimBlend > 0)) { const b = g.businessNear(P.pos, 7); if (b) pr = { title: b.name, sub: `${b.label} \u00b7 Block ${b.block} \u00b7 ${b.hq != null ? `Gang ${b.hq + 1} HQ` : b.owner === 'neutral' ? 'Neutral' : `Gang ${+b.owner.slice(4) + 1}`}`, info: true }; }
     if (it) {
       if (it.type === 'callpanel') { if (ex.state === 'idle') pr = { title: 'Call the train', sub: 'The ride home is 75 seconds out. Hold the platform.' }; }
       else {
@@ -256,6 +273,23 @@ export class Hud {
     this.hitT -= dt;
     el.cross.classList.toggle('hit', this.hitT > 0);
     el.cross.classList.toggle('on', P.aimT > 0 || this.hitT > 0); // crosshair only while shooting (GTA-style)
+    if (P.gun) {
+      // Reticle: a dot while the gun is up, sized by the current spread, red when it's on an enemy.
+      const g2 = P.gun, up = P.aimBlend > 0 || P.aimT > 0;
+      el.ret.classList.toggle('on', up && !P.dead);
+      el.ret.classList.toggle('target', !!this.aimOn);
+      const px = Math.max(6, Math.min(46, Math.tan(g2.spread(P)) * (window.innerHeight / 2) / Math.tan((this.fov || 48) * Math.PI / 360) * 2));
+      el.ret.style.setProperty('--spread', `${px.toFixed(1)}px`);
+      this.hmT -= dt;
+      if (this.hmT <= 0 && this.hmKind) { this.hmKind = ''; el.hm.className = 'hitmark'; }
+      const ak = `${g2.ammo}|${g2.reloading}`;
+      if (ak !== this._ammo) {
+        this._ammo = ak;
+        el.cyl.querySelectorAll('i').forEach((c, i) => c.classList.toggle('spent', i >= g2.ammo));
+        el.ammotext.textContent = g2.reloading ? 'Reloading' : g2.ammo === 0 ? 'R to reload' : `${g2.ammo} / ${g2.def.cylinder}`;
+        el.ammo.classList.toggle('empty', g2.ammo === 0);
+      }
+    }
     this.vig = Math.max(frac < 0.3 ? 0.35 : 0, this.vig - dt * 1.5);
     el.vig.style.opacity = this.vig;
   }

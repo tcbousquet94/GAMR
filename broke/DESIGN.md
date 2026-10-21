@@ -200,6 +200,20 @@ the user's second reference image (style only; its "Liberty City" poster became 
 The diner uses its own random stream so furnishing it never changes the rest of the city. Re-bake Palmetto Bay after
 changing it: `node tools/bakemap.mjs 396873 palmetto`.
 
+# WALK-IN CORNER MARKETS (bodegas)
+
+Every kit `market` store (LUCKY 7 MARKET, CORNER KING, EZ STOP...) is a walk-in bodega after the user's reference image
+(style only; the reference's cigarette brand became "CIGARETTES / FILTER KINGS", its "NYC" poster "PALMETTO 2002").
+One layout in `src/city/kitdata/bodega.js` drives the colliders (hollow walls with the front doorway, floor, roof and
+fixtures in `kitColliders`), the renderer (`bodegaInterior` in `src/render/kit/buildings.js`; the house builder's
+`walkIn` option gives clear shop glass and an open doorway) and the clerk and room light the generator adds
+(no rng, so the rest of the city is unchanged). Inside: worn checker floor, grimy cream walls, a low dark ceiling with
+pipes and fluorescent tubes; glass-door coolers under "COLD BEER & SODAS" on the left with PLAY LOTTO, an ATM and
+"ATM HERE" by the door; the counter across the back (register, scratch tickets, tip jar) with the clerk, shelves of
+cigarettes and sundries and the green BODEGA "THANK YOU, COME AGAIN!" sign behind; bottle shelves on the right under
+CIGARETTES and ENERGIA signs; a chip rack, milk crates and boxes, a back door ("NO LOITERING"), mop, stool, trash can
+and a mat. Taco stands and discount stores stay closed for now.
+
 # THE TURF MAP (how Downtown is generated) — decisions
 
 - **District as data** (`src/city/turf/districts/downtown.js`): personality, landmark, road style, edges per side,

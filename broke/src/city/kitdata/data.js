@@ -11,6 +11,8 @@
 //   fences    [{ kind: chain|wood|block|barbed, a:{x,z}, b:{x,z}, h, y }]
 //   palms, trees, shrubs, hedges, poleLines, lights, cars, trucks, bins, hydrants, props, people
 
+import { BODEGA, bodegaFixtures, storeToWorld, isWalkIn } from './bodega.js';
+
 export const CURB = 0.15;
 export const FH = 2.9, FL = 0.45; // floor height, foundation height (houses)
 
@@ -61,7 +63,19 @@ export function kitColliders(D, add, TAG) {
     if (h.porch) { const c = Math.cos(yaw), s = Math.sin(yaw), off = h.d / 2 + h.porch.depth / 2; rotRect(add, h.x + off * s, h.z + off * c, h.w - 1, h.porch.depth, yaw, y, y + FL, TAG.PLATFORM); }
   }
   for (const a of D.apartments) rotRect(add, a.x, a.z, a.w, a.d, houseYaw(a), a.y ?? CURB, (a.y ?? CURB) + (a.floors || 2) * 3 + 1.2, TAG.BUILDING);
-  for (const s of D.stores) rotRect(add, s.x, s.z, s.w, s.d, houseYaw(s), s.y ?? CURB, (s.y ?? CURB) + 4.6, TAG.BUILDING);
+  for (const s of D.stores) {
+    if (!isWalkIn(s)) { rotRect(add, s.x, s.z, s.w, s.d, houseYaw(s), s.y ?? CURB, (s.y ?? CURB) + 4.6, TAG.BUILDING); continue; }
+    // A walk-in market: floor slab, four walls with the doorway in the front, the roof, and its fixtures.
+    const y = s.y ?? CURB, yaw = houseYaw(s), W = s.w, Dp = s.d, t = BODEGA.wall, fl = y + BODEGA.floor, top = y + 4.6;
+    const R = (x0, z0, x1, z1, y0, y1, tag) => { const c = storeToWorld(s, (x0 + x1) / 2, (z0 + z1) / 2); rotRect(add, c.x, c.z, x1 - x0, z1 - z0, yaw, y0, y1, tag); };
+    R(-W / 2, -Dp / 2, W / 2, Dp / 2, y, fl, TAG.GROUND);
+    R(-W / 2, -Dp / 2, -W / 2 + t, Dp / 2, y, top, TAG.BUILDING); R(W / 2 - t, -Dp / 2, W / 2, Dp / 2, y, top, TAG.BUILDING);
+    R(-W / 2 + t, -Dp / 2, W / 2 - t, -Dp / 2 + t, y, top, TAG.BUILDING);
+    R(-W / 2 + t, Dp / 2 - t, -BODEGA.doorHalf, Dp / 2, y, top, TAG.BUILDING); R(BODEGA.doorHalf, Dp / 2 - t, W / 2 - t, Dp / 2, y, top, TAG.BUILDING);
+    R(-BODEGA.doorHalf, Dp / 2 - t, BODEGA.doorHalf, Dp / 2, fl + 2.3, top, TAG.BUILDING); // over the door
+    R(-W / 2, -Dp / 2, W / 2, Dp / 2, y + BODEGA.height - 0.2, top, TAG.BUILDING); // roof
+    for (const f of bodegaFixtures(W, Dp)) R(f.x0, f.z0, f.x1, f.z1, fl, fl + f.h, TAG.PROP);
+  }
   for (const w of D.warehouses) rotRect(add, w.x, w.z, w.w, w.d, houseYaw(w), w.y ?? CURB, (w.y ?? CURB) + (w.h || 8), TAG.BUILDING);
   for (const t of (D.towers || []).filter((q) => !q.far)) rotRect(add, t.x, t.z, t.w + 0.6, t.d + 0.6, houseYaw(t), t.y ?? CURB, (t.y ?? CURB) + t.h + 6, TAG.BUILDING);
   for (const b of D.blocks || []) rotRect(add, b.x, b.z, b.w, b.d, houseYaw(b), b.y ?? CURB, (b.y ?? CURB) + (b.floors || 3) * 2.9 + 1.5, TAG.BUILDING);

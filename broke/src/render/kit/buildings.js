@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { mat } from './batch.js';
 import { buildHouse } from './houses.js';
 import { CURB, houseYaw } from '../../city/kitdata/data.js';
+import { BODEGA, bodegaFixtures } from '../../city/kitdata/bodega.js';
 
 const FH = 2.9;
 const local = (b, B) => { const M = mat(b.x, b.y ?? CURB, b.z, houseYaw(b)); return (key, x0, y0, z0, x1, y1, z1, color = 0xffffff) => B.boxM(key, Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0), M.clone().multiply(mat((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)), color); };
@@ -77,14 +78,108 @@ export function store(B, s, rng, extras) {
     return;
   }
   const H = 4.4;
-  buildHouse(B, { ...s, roof: 'flat', height: H, floors: 1, wall: 'stucco', trim: 0xd0c8b8, storefront: true, door: 0x2a2a2a, fl: 0.15 }, rng);
+  buildHouse(B, { ...s, roof: 'flat', height: H, floors: 1, wall: 'stucco', trim: 0xd0c8b8, storefront: true, door: 0x2a2a2a, fl: 0.15, walkIn: true }, rng);
   // Awning: a sloped fabric band with a valance, over the storefront.
   B.boxM('trim', W - 0.6, 0.06, 1.7, M.clone().multiply(mat(0, 3.15, z0 + 0.8, 0, 0.32)), s.awning);
   box('trim', -W / 2 + 0.3, 2.62, z0 + 1.55, W / 2 - 0.3, 2.95, z0 + 1.62, s.awning);
-  // Posters in the windows, a sign board above the awning.
-  for (let i = 0; i < 6; i++) { const x = -W / 2 + 1.2 + rng.range(0, W - 2.4); if (Math.abs(x) < 1.4) continue; box('trim', x - 0.3, 1.2, z0 - 0.12, x + 0.3, 2.0, z0 - 0.1, rng.pick([0xd8b030, 0xc83a2a, 0x2a6ac8, 0xe8e4dc])); }
+  // A few posters high in the windows (the room shows through below them), a sign board above the awning.
+  for (let i = 0; i < 3; i++) { const x = -W / 2 + 1.2 + rng.range(0, W - 2.4); if (Math.abs(x) < 1.4) continue; box('trim', x - 0.3, 2.05, z0 - 0.12, x + 0.3, 2.65, z0 - 0.1, rng.pick([0xd8b030, 0xc83a2a, 0x2a6ac8, 0xe8e4dc])); }
   box('metalPaint', -W / 2 + 0.8, 3.15, z0 + 0.02, W / 2 - 0.8, 4.15, z0 + 0.1, 0x3a3a3c);
   sign(s.name || 'MARKET', W - 2, 0.9, 0, 3.65, z0 + 0.13, 0, '#e8e2d0', hex(s.awning));
+  bodegaInterior(box, sign, s, rng);
+}
+
+// The walk-in bodega, after the user's reference image (style only): worn checker floor, grimy cream walls, a low
+// dark ceiling with pipes and a fluorescent tube, glass-door coolers ("COLD BEER & SODAS") down the left, the counter
+// across the back with the register and the clerk's shelves behind, a green BODEGA sign, bottle shelves down the
+// right, a chip rack, milk crates and boxes, lotto / EBT / ATM signs, a back door, a mop and a stool. Fixture
+// footprints come from kitdata/bodega.js so the colliders match.
+function bodegaInterior(box, sign, s, rng) {
+  const W = s.w, D = s.d, a = W / 2 - BODEGA.wall, b = D / 2 - BODEGA.wall, F = BODEGA.floor, CEIL = 3.3;
+  const fx = Object.fromEntries(bodegaFixtures(W, D).map((f) => [f.name, f]));
+  const pick = (arr) => arr[Math.floor(rng.next() * arr.length)];
+  // Floor: worn grey-and-cream checker.
+  const sq = 0.8;
+  for (let x = -a, i = 0; x < a - 0.01; x += sq, i++) for (let z = -b, j = 0; z < b - 0.01; z += sq, j++) box('concrete', x, F, z, Math.min(a, x + sq), F + 0.006, Math.min(b, z + sq), (i + j) % 2 ? 0x2c2b29 : 0xa8a290);
+  // Walls: grimy cream lining, darker at the foot; a low dark ceiling with pipes and a tube light.
+  const lining = (x0, z0, x1, z1) => { box('plaster', x0, F, z0, x1, CEIL, z1, 0xb4a888); box('plaster', x0, F, z0, x1, 0.5, z1, 0x8a8068); };
+  lining(-a, -b, -a + 0.02, b); lining(a - 0.02, -b, a, b); lining(-a, -b, a, -b + 0.02);
+  box('plaster', -a, 2.75, b - 0.02, a, CEIL, b, 0xb4a888); // over the front glass
+  box('concrete', -a, CEIL, -b, a, CEIL + 0.04, b, 0x4a4640);
+  for (const z of [-b + 0.4, 0.6]) box('metalPaint', -a, CEIL - 0.14, z - 0.05, a, CEIL - 0.04, z + 0.05, 0x5a5a58); // pipes
+  box('metalPaint', -1.0, CEIL - 0.12, -0.7, 1.0, CEIL - 0.04, -0.3, 0xc8c8c4); box('lamp', -0.95, CEIL - 0.15, -0.65, 0.95, CEIL - 0.12, -0.35, 0xfff2d6); // tube fixture
+  box('metalPaint', -1.0, CEIL - 0.12, 2.3, 1.0, CEIL - 0.04, 2.7, 0xc8c8c4); box('lamp', -0.95, CEIL - 0.15, 2.35, 0.95, CEIL - 0.12, 2.65, 0xfff2d6);
+
+  // Coolers down the left wall: dark cabinets, glass doors, lit shelves of cans and bottles.
+  { const c = fx.coolers, x1 = c.x1, n = Math.max(2, Math.round((c.z1 - c.z0) / 0.8));
+    // Cabinet shell (back, base, top, end caps) so the stock behind the glass shows.
+    box('metalPaint', c.x0, F, c.z0, c.x0 + 0.06, F + c.h, c.z1, 0x26302a); box('metalPaint', c.x0, F, c.z0, x1, F + 0.2, c.z1, 0x26302a);
+    box('metalPaint', c.x0, F + c.h - 0.1, c.z0, x1, F + c.h, c.z1, 0x26302a);
+    box('metalPaint', c.x0, F, c.z0, x1, F + c.h, c.z0 + 0.05, 0x26302a); box('metalPaint', c.x0, F, c.z1 - 0.05, x1, F + c.h, c.z1, 0x26302a);
+    box('lamp', c.x0 + 0.08, F + c.h - 0.13, c.z0 + 0.1, x1 - 0.1, F + c.h - 0.1, c.z1 - 0.1, 0xf2f6ff);
+    box('metalPaint', c.x0, F + c.h, c.z0, x1 + 0.05, F + c.h + 0.35, c.z1, 0x1e6a3a); // green header
+    for (let k = 0; k < n; k++) {
+      const z0 = c.z0 + ((c.z1 - c.z0) * k) / n + 0.04, z1 = c.z0 + ((c.z1 - c.z0) * (k + 1)) / n - 0.04;
+      for (let r = 0; r < 4; r++) {
+        const y = F + 0.25 + r * 0.48;
+        box('trim', x1 - 0.55, y, z0 + 0.03, x1 - 0.06, y + 0.03, z1 - 0.03, 0xd8d8d0); // shelf
+        for (let zz = z0 + 0.06; zz < z1 - 0.1; zz += 0.11) box('trim', x1 - 0.32, y + 0.03, zz, x1 - 0.22, y + 0.03 + (r % 2 ? 0.16 : 0.24), zz + 0.07, pick([0xc83a2a, 0x2a5aa8, 0xd8b030, 0x3a8a4a, 0xe8e4dc, 0x8a3a8a]));
+      }
+      box('shopGlass', x1 - 0.02, F + 0.08, z0, x1, F + c.h - 0.08, z1, 0xffffff);
+      box('metalPaint', x1, F + 0.08, z1 - 0.04, x1 + 0.03, F + c.h - 0.08, z1, 0x8a8e94); // door frame
+      box('chrome', x1 + 0.03, F + 1.0, z1 - 0.12, x1 + 0.06, F + 1.5, z1 - 0.08, 0xffffff); // handle
+    }
+    sign('COLD BEER & SODAS', Math.min(3.2, c.z1 - c.z0 - 0.4), 0.42, x1 + 0.06, F + c.h + 0.18, (c.z0 + c.z1) / 2, Math.PI / 2, '#1e6a3a', '#f2ecd8');
+  }
+  // Left wall by the door: lotto and EBT posters, an ATM.
+  sign('PLAY LOTTO', 0.9, 1.1, -a + 0.03, 2.35, b - 1.0, Math.PI / 2, '#ece2c4', '#b8261e', { sub: 'MILLIONS IN PRIZES', subColor: '#3a3a3a' });
+  sign('WE ACCEPT EBT', 0.7, 0.7, -a + 0.9, 2.3, -b + 0.03, 0, '#ece6d0', '#3a3a3a', { sub: 'FOOD STAMPS' });
+  box('metalPaint', -a, F, b - 2.05, -a + 0.55, F + 1.6, b - 1.45, 0x3a3e44); // ATM
+  box('trim', -a + 0.55, F + 1.0, b - 1.95, -a + 0.57, F + 1.35, b - 1.55, 0x6a9ab8);
+  sign('ATM', 0.55, 0.3, -a + 0.58, F + 1.48, b - 1.75, Math.PI / 2, '#1e6a3a', '#ffffff', { sub: 'HERE' });
+
+  // The counter across the back: wood front, worn top, register, a scratch-ticket case, a tip jar.
+  { const c = fx.counter;
+    box('planks', c.x0, F, c.z0, c.x1, F + c.h, c.z1, 0x5a3a26);
+    box('trim', c.x0 - 0.05, F + c.h, c.z0 - 0.05, c.x1 + 0.05, F + c.h + 0.05, c.z1 + 0.08, 0x6e6458);
+    box('metalPaint', -0.7, F + c.h + 0.05, c.z0 + 0.15, -0.2, F + c.h + 0.3, c.z0 + 0.55, 0x2a2a2c); // register
+    box('trim', -0.65, F + c.h + 0.3, c.z0 + 0.2, -0.25, F + c.h + 0.45, c.z0 + 0.25, 0x3a8a6a);
+    box('shopGlass', c.x0 + 0.2, F + c.h + 0.05, c.z0 + 0.1, c.x0 + 1.3, F + c.h + 0.35, c.z1 - 0.05, 0xffffff); // scratch tickets
+    for (let k = 0; k < 6; k++) box('trim', c.x0 + 0.25 + k * 0.17, F + c.h + 0.06, c.z0 + 0.2, c.x0 + 0.38 + k * 0.17, F + c.h + 0.08, c.z1 - 0.15, pick([0xd8b030, 0xc83a2a, 0x2a6ac8, 0x3a8a4a]));
+    box('shopGlass', 0.6, F + c.h + 0.05, c.z1 - 0.3, 0.8, F + c.h + 0.3, c.z1 - 0.1, 0xffffff); // tip jar
+  }
+  // Behind the counter: shelves of cigarettes and sundries; the BODEGA sign above; a back door.
+  { const c = fx.backShelves;
+    box('planks', c.x0, F, c.z0, c.x1, F + c.h, c.z1, 0x4a3426);
+    for (let r = 0; r < 5; r++) { const y = F + 0.3 + r * 0.36; for (let x = c.x0 + 0.08; x < c.x1 - 0.12; x += 0.16) box('trim', x, y, c.z1 - 0.02, x + 0.13, y + 0.2 + (r % 2) * 0.06, c.z1 + 0.06, pick([0xe8e4dc, 0xc83a2a, 0x2a5aa8, 0xd8b030, 0x3a3a3a, 0x8a6a3a])); }
+    sign('BODEGA', 2.6, 0.75, (c.x0 + c.x1) / 2, F + c.h + 0.6, -b + 0.04, 0, '#1e6a3a', '#f2ecd8', { sub: 'THANK YOU, COME AGAIN!', subColor: '#e8e0c8' });
+  }
+  box('metalPaint', 1.7, F, -b, 2.6, F + 2.15, -b + 0.06, 0x3a3a38); box('chrome', 2.45, F + 1.0, -b + 0.06, 2.52, F + 1.08, -b + 0.1, 0xffffff);
+  sign('NO LOITERING', 0.6, 0.2, 2.15, F + 1.5, -b + 0.08, 0, '#e8e4dc', '#2a2a2a');
+  sign('PALMETTO', 0.7, 0.95, 3.4, 2.3, -b + 0.03, 0, '#e8e4dc', '#2a2a2a', { sub: '2002' });
+  // Mop and bucket by the back door, a stool behind the counter.
+  box('metalPaint', 2.9, F, -b + 0.4, 3.3, F + 0.32, -b + 0.8, 0x6a6a6e); box('planks', 3.05, F + 0.3, -b + 0.55, 3.09, F + 1.5, -b + 0.59, 0x8a6a4a);
+  box('chrome', 1.75, F, -b + 0.95, 1.8, F + 0.7, -b + 1.0, 0xffffff); box('rubber', 1.55, F + 0.7, -b + 0.75, 2.0, F + 0.78, -b + 1.2, 0x8a2622);
+
+  // Bottle shelves down the right wall; a cigarette sign and an energy-drink sign over them.
+  { const c = fx.bottleShelves;
+    box('planks', c.x0, F, c.z0, c.x1, F + c.h, c.z1, 0x3e2e22);
+    for (let r = 0; r < 5; r++) { const y = F + 0.25 + r * 0.42; box('trim', c.x0 - 0.03, y - 0.03, c.z0, c.x0, y, c.z1, 0x2a2420); for (let z = c.z0 + 0.06; z < c.z1 - 0.1; z += 0.17) { const hgt = r < 2 ? 0.32 : 0.26; box('trim', c.x0 - 0.02, y, z, c.x0 + 0.08, y + hgt, z + 0.08, pick([0xa8701e, 0x4a8a3a, 0xd8d4c8, 0x8a2a1e, 0x3a3a52, 0xc8a040])); box('trim', c.x0, y + hgt, z + 0.02, c.x0 + 0.06, y + hgt + 0.06, z + 0.06, 0xd8c8a0); } }
+    sign('CIGARETTES', 2.4, 0.8, a - 0.03, 2.85, (c.z0 + c.z1) / 2 - 1.0, -Math.PI / 2, '#b8261e', '#f2ecd8', { sub: 'FILTER KINGS' });
+    sign('ENERGIA', 1.0, 0.5, c.x0 - 0.04, F + c.h - 0.4, c.z1 - 0.8, -Math.PI / 2, '#2a7a3a', '#f2ecd8', { sub: 'GUARANA' });
+  }
+  // A wire rack of chips in front of the counter.
+  { const c = fx.chipRack;
+    for (const [x, z] of [[c.x0, c.z0], [c.x1, c.z0], [c.x0, c.z1], [c.x1, c.z1]]) box('metalPaint', x - 0.02, F, z - 0.02, x + 0.02, F + c.h, z + 0.02, 0x2a2a2c);
+    for (let r = 0; r < 4; r++) { const y = F + 0.2 + r * 0.32; box('metalPaint', c.x0, y, c.z0, c.x1, y + 0.02, c.z1, 0x3a3a3c); for (let k = 0; k < 3; k++) box('trim', c.x0 + 0.04 + k * 0.25, y + 0.02, c.z0 + 0.1, c.x0 + 0.24 + k * 0.25, y + 0.26, c.z1 - 0.1, pick([0xd8b030, 0xc83a2a, 0x3a8a4a, 0xe8a030])); }
+  }
+  // Milk crates and boxes along the bottle shelves.
+  { const c = fx.crates;
+    for (let z = c.z0; z < c.z1 - 0.4; z += 0.55) { const n = 1 + Math.floor(rng.next() * 2); for (let k = 0; k < n; k++) box(rng.next() < 0.6 ? 'metalPaint' : 'planks', c.x0 + 0.05, F + k * 0.36, z, c.x0 + 0.5, F + (k + 1) * 0.36 - 0.02, z + 0.5, rng.next() < 0.6 ? pick([0x2a4a9a, 0xb8302a]) : 0xa88a5a); }
+  }
+  // A green trash can by the door and a mat inside it.
+  box('metalPaint', a - 1.1, F, b - 1.1, a - 0.5, F + 0.95, b - 0.5, 0x2a5a3a);
+  box('planks', -0.75, F, b - 1.3, 0.75, F + 0.012, b - 0.35, 0x6a4a30);
 }
 
 // High-rise in one of four styles (all from the same shell code):

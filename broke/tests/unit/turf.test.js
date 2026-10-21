@@ -68,3 +68,29 @@ test('the leader spawns standing in the HQ yard (no stuck / fall recovery)', () 
     assert.ok(g.player.body.onGround);
   }
 });
+
+test('corner markets are walk-in: through the door, blocked by the counter, staffed and lit', async () => {
+  const { isWalkIn, storeToWorld, BODEGA, bodegaFixtures } = await import('../../src/city/kitdata/bodega.js');
+  const { houseYaw } = await import('../../src/city/kitdata/data.js');
+  let checked = 0;
+  for (const seed of [454473, 825919, 583812]) {
+    const g = new TurfGame({ seed, survivor: DEE });
+    const stores = g.city.kitData.stores.filter(isWalkIn);
+    for (const s of stores.slice(0, 2)) {
+      const P = g.player, yaw = houseYaw(s);
+      const local = () => { const dx = P.pos.x - s.x, dz = P.pos.z - s.z, c = Math.cos(yaw), sn = Math.sin(yaw); return { x: dx * c - dz * sn, z: dx * sn + dz * c }; };
+      const out = storeToWorld(s, 0, s.d / 2 + 1.5);
+      Object.assign(P.body.pos, { x: out.x, y: (s.y ?? 0.15) + 0.4, z: out.z }); Object.assign(P.body.vel, { x: 0, y: 0, z: 0 });
+      for (let i = 0; i < 30; i++) g.step({ yaw });
+      for (let i = 0; i < 90; i++) g.step({ moveZ: 1, yaw });
+      const l = local(), counter = bodegaFixtures(s.w, s.d).find((f) => f.name === 'counter');
+      assert.ok(l.z < s.d / 2 - 1.5, `walked in (seed ${seed}, ${s.name}, local z ${l.z.toFixed(2)})`);
+      assert.ok(l.z > counter.z1 - 0.05, 'stopped by the counter, not through it');
+      assert.ok(Math.abs(l.x) < s.w / 2 - BODEGA.wall, 'inside the walls');
+      checked++;
+    }
+    assert.ok(g.city.kitData.people.some((p) => p.pose === 'counter'), 'a clerk');
+    assert.ok(g.city.kit.lights.some((l) => l.kind === 'shop' && l.tint), 'a room light');
+  }
+  assert.ok(checked >= 3, `checked ${checked} markets`);
+});

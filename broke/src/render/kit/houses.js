@@ -219,11 +219,24 @@ function opening(w, o, y0, piece, trim, h, rng, floor) {
     piece(w, 'trim', u0, u1, v1, v1 + 0.12, trim, 0.03, 0.08);
     return;
   }
+  if (o.kind === 'door' && h.walkIn && o.glass) {
+    // A walk-in shop's door stands open: just the aluminium frame (jambs, head) around the doorway.
+    piece(w, 'metalPaint', u0, u0 + 0.06, v0, v1, 0x8a8e94, 0.02, T + 0.04); piece(w, 'metalPaint', u1 - 0.06, u1, v0, v1, 0x8a8e94, 0.02, T + 0.04);
+    piece(w, 'metalPaint', u0, u1, v1 - 0.08, v1, 0x8a8e94, 0.02, T + 0.04);
+    return;
+  }
   if (o.kind === 'door') {
     piece(w, 'trim', u0, u1, v0 + FL * 0, v1, h.door ?? 0x5a4030, -0.12, 0.05);
     // Raised panels on the door.
     for (const [a, b] of [[0.3, 0.95], [1.15, 1.9]]) { piece(w, 'trim', u0 + 0.14, (u0 + u1) / 2 - 0.05, v0 + a, v0 + b, h.door ?? 0x5a4030, -0.1, 0.03); piece(w, 'trim', (u0 + u1) / 2 + 0.05, u1 - 0.14, v0 + a, v0 + b, h.door ?? 0x5a4030, -0.1, 0.03); }
     piece(w, 'chrome', u1 - 0.16, u1 - 0.1, v0 + 0.95, v0 + 1.02, 0xffffff, -0.07, 0.04);
+  } else if (h.walkIn && o.shop) {
+    // Shop glass you can see the room through, in a slim aluminium frame.
+    piece(w, 'shopGlass', u0, u1, v0, v1, 0xffffff, -0.13, 0.03);
+    piece(w, 'metalPaint', u0, u0 + 0.06, v0, v1, 0x8a8e94, -0.07, 0.07); piece(w, 'metalPaint', u1 - 0.06, u1, v0, v1, 0x8a8e94, -0.07, 0.07);
+    piece(w, 'metalPaint', u0, u1, v1 - 0.06, v1, 0x8a8e94, -0.07, 0.07); piece(w, 'metalPaint', u0, u1, v0, v0 + 0.06, 0x8a8e94, -0.07, 0.07);
+    piece(w, 'trim', u0 - 0.1, u1 + 0.1, v0 - 0.06, v0, trim, 0.07, 0.12);
+    return;
   } else {
     piece(w, 'window', u0, u1, v0, v1, 0xffffff, -0.13, 0.03);
     // Sash frame inside the reveal: sides, head, sill rail and the meeting rail of a double-hung window.

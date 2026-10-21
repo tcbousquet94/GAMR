@@ -26,6 +26,7 @@ import { TAG } from '../kit.js';
 import { emptyKitData, kitColliders, CURB } from '../kitdata/data.js';
 import { placeModules } from '../kitdata/hood.js';
 import { streetData } from '../kitdata/streets.js';
+import { bodegaStaff, isWalkIn } from '../kitdata/bodega.js';
 
 // opts.kit (default true): the remastered look. Streets, kerbs, verges and furniture come from the kit (as kit data),
 // free blocks are filled with neighbourhood modules, and the generator's own boxes are drawn with kit materials.
@@ -79,6 +80,14 @@ export function generateTurf(cfg, seed, opts = {}) {
     streetData(KD, { cells, segs: L.segs, sw: cfg.roads.sidewalk, rng, cuts });
     // Staff and regulars inside furnished businesses (the diner).
     for (const b of city.businesses) for (const q of b.patrons || []) KD.people.push(q);
+    // Walk-in corner markets: a clerk behind the counter and a dim fluorescent room light (no rng: placed by position).
+    for (const st of KD.stores) {
+      if (!isWalkIn(st)) continue;
+      const { clerk, light } = bodegaStaff(st, (Math.round(st.x * 7 + st.z * 13) % 1e6 + 1e6) % 1e6);
+      KD.people.push(clerk);
+      kit.light(light.x, light.y, light.z, 0xf2ead2, 8, 'shop');
+      Object.assign(kit.lights[kit.lights.length - 1], { power: 0.4, tint: 0xf2e8d0 });
+    }
     // The rest of the city beyond the edges: a ring of real high-rises (the old flat skyline is not drawn in the kit look).
     const I = city.inner, cxm = (I.x0 + I.x1) / 2, czm = (I.z0 + I.z1) / 2, R0 = Math.max(I.x1 - I.x0, I.z1 - I.z0) / 2;
     for (let k = 0; k < 22; k++) {

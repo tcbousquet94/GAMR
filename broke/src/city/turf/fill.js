@@ -82,11 +82,15 @@ export function landmarkPlaza(kit, city, raster) {
 
 function plaza(kit, r, raster) {
   const { rng } = kit;
-  for (let x = r.x0 + 5; x < r.x1 - 4; x += 9) for (let z = r.z0 + 5; z < r.z1 - 4; z += 9) {
+  for (let x = r.x0 + 5, ix = 0; x < r.x1 - 4; x += 9, ix++) for (let z = r.z0 + 5, iz = 0; z < r.z1 - 4; z += 9, iz++) {
     const q = { x0: x - 1.2, z0: z - 1.2, x1: x + 1.2, z1: z + 1.2 };
     if (!raster.test(q, R.BLOCK, BUILD_AVOID)) continue;
     const k = rng.next();
-    if (k < 0.45) planterTree(kit, x, z);
+    // Trees only round the plaza's edge, every other spot, so the square reads as open paving. A skipped tree still
+    // draws its random values and keeps its spot reserved, so nothing else in the city moves.
+    const edge = x - r.x0 < 7 || r.x1 - x < 7 || z - r.z0 < 7 || r.z1 - z < 7;
+    if (k < 0.45 && !(edge && (ix + iz) % 2 === 0)) { rng.range(0, Math.PI * 2); rng.pick(kit.pal.foliage); }
+    else if (k < 0.45) planterTree(kit, x, z);
     else if (k < 0.65) placeProp(kit, 'bench', x, G, z, rng.chance(0.5) ? 0 : Math.PI / 2);
     else continue;
     raster.mark(q, R.BUILT);

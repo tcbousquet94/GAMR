@@ -46,11 +46,12 @@ export function noise3(x, y, z) {
 // Samples f over the box [min, max] at spacing `step`. Points further than `skip` from the surface are skipped cheaply
 // by a coarse pre-pass, so mostly-empty boxes stay fast.
 export class Field {
-  constructor(f, min, max, step) {
+  // margin: never coarse-skip within this distance of the surface (garments sit up to a few cm outside it).
+  constructor(f, min, max, step, margin = 0) {
     this.min = min; this.step = step;
     const n = (this.n = [0, 1, 2].map((i) => Math.ceil((max[i] - min[i]) / step) + 1));
     this.v = new Float32Array(n[0] * n[1] * n[2]);
-    const p = [0, 0, 0], C = 4, cs = step * C, far = cs * 0.9;
+    const p = [0, 0, 0], C = 4, cs = step * C, far = Math.max(cs * 0.9, margin);
     // Coarse pass: evaluate every 4th point; blocks whose corner values are all far from zero are filled directly.
     const cn = n.map((k) => Math.ceil((k - 1) / C) + 1), coarse = new Float32Array(cn[0] * cn[1] * cn[2]);
     for (let k = 0; k < cn[2]; k++) for (let j = 0; j < cn[1]; j++) for (let i = 0; i < cn[0]; i++) {

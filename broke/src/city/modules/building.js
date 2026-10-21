@@ -113,19 +113,38 @@ export function fireEscape(kit, r, f, h, at) {
 export function buildFireEscapes(kit) {
   const list = kit.pendingFE || [];
   kit.pendingFE = [];
-  for (const q of list) {
-    kit.module = q.module;
-    const L = faceLine(q.r, q.f);
-    if (L.len < 10) continue;
+  const placed = new Map(); // building rect -> placed any?
+  const tryFace = (q, f, fixedAt) => {
+    const L = faceLine(q.r, f);
+    if (L.len < 10) return false;
     const w = 5.5;
-    const tries = q.at != null ? [q.at] : [];
+    const tries = fixedAt != null ? [fixedAt] : [];
     for (let k = 0; k < 6; k++) tries.push(kit.rng.range(2, L.len - w - 3));
     for (const s0 of tries) {
       const deck = faceRect(L, s0, s0 + w, 0, 1.6);
       const ladder = faceRect(L, s0 + w + 0.5, s0 + w + 1.6, 0, 1.2);
       if (clips(kit, deck, 0.3, q.h) || clips(kit, ladder, 0, q.h + 1)) continue;
-      buildFE(kit, q.r, q.f, q.h, s0, L, w);
-      break;
+      buildFE(kit, q.r, f, q.h, s0, L, w);
+      return true;
+    }
+    return false;
+  };
+  for (const q of list) {
+    kit.module = q.module;
+    const ok = tryFace(q, q.f, q.at);
+    placed.set(q.r, (placed.get(q.r) || false) || ok);
+  }
+  // Every building that asked for roof access gets it on some face, or loses its roof shops and spawns.
+  for (const q of list) {
+    if (placed.get(q.r)) continue;
+    kit.module = q.module;
+    let ok = false;
+    for (const f of ['n', 's', 'w', 'e']) if (f !== q.f && (ok = tryFace(q, f))) break;
+    placed.set(q.r, true);
+    if (!ok) {
+      const on = (p) => p.x >= q.r.x0 && p.x <= q.r.x1 && p.z >= q.r.z0 && p.z <= q.r.z1 && p.y >= q.h - 0.2;
+      kit.slots = kit.slots.filter((p) => !on(p));
+      kit.spawns = kit.spawns.filter((p) => !on(p));
     }
   }
   kit.module = null;

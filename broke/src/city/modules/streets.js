@@ -136,7 +136,7 @@ function furnishEdge(kit, city, bl, side, sw) {
   // Streetlights every ~30 m near the curb.
   for (let u = 12; u < len - 8; u += 30) {
     const p = at(u, sw - 0.5);
-    placeProp(kit, 'streetlight', p.x, G, p.z, Math.atan2(nx, nz));
+    placeProp(kit, 'streetlight', p.x, G, p.z, Math.atan2(-nx, -nz)); // arm (local -z) reaches over the road
     kit.light(p.x + nx * 1.6, 6.3, p.z + nz * 1.6, pal.street, 9);
   }
   // Parked cars in the curb lane, with gaps.

@@ -45,10 +45,16 @@ export class NavGraph {
       heights.sort((p, q) => p - q);
       let last = -Infinity;
       const ids = [];
-      for (const y of heights) {
+      for (let y of heights) {
         if (y - last < 0.3) continue;
-        // Must be the actual top here (nothing solid in the body volume) and a narrow body must fit.
-        if (!world.fits(cx, y + 0.02, cz, r, h)) continue;
+        // Must be the actual top here (nothing solid in the body volume). If the body only clips a low riser
+        // (stairs, curbs), stand on top of that instead, exactly like the player's step-up does.
+        if (!world.fits(cx, y + 0.02, cz, r, h)) {
+          const o = world.overlapsSolid(cx - r, y + 0.02, cz - r, cx + r, y + h, cz + r);
+          if (!o || o.maxY - y > PHYS.stepHeight || !world.fits(cx, o.maxY + 0.02, cz, r, h)) continue;
+          y = o.maxY;
+          if (y - last < 0.3) continue;
+        }
         last = y;
         const id = this.x.length;
         this.x.push(cx); this.y.push(y); this.z.push(cz);

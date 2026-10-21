@@ -1,4 +1,4 @@
-// Phones and low-memory devices get the "lite" path: half-resolution textures, low quality, shorter draw distance.
+// Phones and low-memory devices get the "lite" path: half-resolution textures, medium quality, shorter draw distance.
 // Override with ?lite=1 / ?lite=0.
 const q = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('lite') : null;
 const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;

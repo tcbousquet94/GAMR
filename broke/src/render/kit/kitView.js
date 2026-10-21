@@ -83,7 +83,7 @@ export class KitView extends View {
     this.fx = new Fx(scene, game, this);
     this.tele = new Telegraphs(scene, game);
     this.city = null; this.details = null; this.edges = null; // (View's own city mesh is not used here)
-    this.setQuality(this.qualityName === 'auto' ? (LITE ? 'low' : 'high') : this.qualityName);
+    this.setQuality(this.qualityName === 'auto' ? (LITE ? 'medium' : 'high') : this.qualityName);
     this.frame = 0;
     this.t = 0;
     this.setNight(0);

@@ -58,6 +58,7 @@ export function buildBusiness(kit, fr, biz, opts = {}) {
 
   // Ground: lot floor, alley paving, back lot.
   solid(0, 0, F, D, -1, G, floorC, MAT.STD, TAG.GROUND);
+  kit.boxes[kit.boxes.length - 1].surf = 'tile'; // shop floor: vinyl tile in the kit look
   solid(F, 0, F + A, D + L, -1, G, 0x46434c, MAT.STD, TAG.GROUND);
   solid(0, D, F, D + L, -1, G, 0x5a5660, MAT.STD, TAG.GROUND);
 

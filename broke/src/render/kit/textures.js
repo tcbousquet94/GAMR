@@ -332,6 +332,17 @@ const R = {
     });
     return t;
   },
+  // Vinyl floor tiles (shops, laundromats): a soft two-tone checker with grout lines and scuffs.
+  tile(N = 256) {
+    const t = new Tex(N);
+    t.each((u, v, i) => {
+      const a = Math.floor(u * 4), b = Math.floor(v * 4), fu = (u * 4) % 1, fv = (v * 4) % 1;
+      const grout = Math.min(fu, 1 - fu, fv, 1 - fv) < 0.02 ? 1 : 0, chk = (a + b) % 2, sc = fbm(u, v, 8, 3, 4);
+      const k = (chk ? 0.78 : 0.66) + hash2(a, b, 3) * 0.05 - smooth(0.6, 0.85, sc) * 0.08;
+      t.col(i, grout ? 0.4 : k, grout ? 0.4 : k * 0.98, grout ? 0.38 : k * 0.94); t.H[i] = grout ? 0 : 1; t.R[i] = grout ? 0.9 : 0.35 + sc * 0.2;
+    });
+    return t;
+  },
   // Tower facade: 4 window bays x 2 floors per tile (1.75 m x 3.5 m each): framed glass over a spandrel, a mullion,
   // and per-window blinds, curtains or a dark room so the grid never reads as wallpaper.
   facade(N = 512) {
@@ -375,7 +386,7 @@ const SPECS = {
   siding: { normal: 5 }, stucco: { normal: 0.6 }, brick: { normal: 4 }, shingles: { normal: 5 }, metal: { normal: 3 },
   garageDoor: { normal: 4 }, paint: { normal: 1 }, planks: { normal: 3 }, chainlink: { normal: 1, alpha: true },
   palmBark: { normal: 4 }, bark: { normal: 4 }, window: { normal: 1 }, frond: { normal: 1, alpha: true, wrap: false },
-  leaves: { normal: 2, alpha: true, wrap: false }, facade: { normal: 2 }, roadPaint: { normal: 1, alpha: true }, tuft: { normal: 1, alpha: true, wrap: false }, tarGravel: { normal: 3 },
+  leaves: { normal: 2, alpha: true, wrap: false }, facade: { normal: 2 }, tile: { normal: 2 }, roadPaint: { normal: 1, alpha: true }, tuft: { normal: 1, alpha: true, wrap: false }, tarGravel: { normal: 3 },
 };
 let cache = null;
 export function heroTextures() {

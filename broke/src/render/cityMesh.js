@@ -141,7 +141,7 @@ export function buildCity(city, scene, opts = {}) {
       writeBox(small ? c.detail : c.std, b);
     }
   }
-  for (const q of kit.quads) writeQuad(chunk(q.cx, q.cz).win, q);
+  if (!opts.kitBoxes) for (const q of kit.quads) writeQuad(chunk(q.cx, q.cz).win, q);
 
   const stdMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.86, metalness: 0.02, envMapIntensity: 0.7 });
   addWear(stdMat);
@@ -279,6 +279,7 @@ function buildSigns(kit, scene) {
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setAttribute('aFlick', new THREE.Float32BufferAttribute(flick, 1));
   g.setIndex(idx);
+  g.computeVertexNormals(); // the AO pass draws normals into its G-buffer: without them signs came out black
   g.computeBoundingSphere();
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;

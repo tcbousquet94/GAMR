@@ -23,7 +23,7 @@ export function surfOf(b) {
   if (b.sy > 2.0 && maxd > 2.5) {
     if (r > g * 1.18 && r > bl * 1.3) return 'brick';
     if (lum > 0.3) return 'stucco';
-    return 'concrete';
+    return 'plaster';
   }
   return lum > 0.35 ? 'trim' : 'concrete';
 }
@@ -40,6 +40,17 @@ function tintOf(surf, color) {
 
 // B(x, z) -> Batch. Adds every non-emissive kit box.
 export function addKitBoxes(kit, B) {
+  // The old window panels (flat emissive quads) become real recessed-look windows with a frame.
+  for (const q of kit.quads) {
+    const yaw = Math.atan2(q.nx, q.nz), m = (ox, oy, oz, w, h, d, key, col) => {
+      const M = new THREE.Matrix4().makeRotationY(yaw).setPosition(q.cx + q.nx * oz, q.cy + oy, q.cz + q.nz * oz);
+      M.multiply(new THREE.Matrix4().makeTranslation(ox, 0, 0));
+      B(q.cx, q.cz).boxM(key, w, h, d, M, col, key === 'window' ? { uv: 'native' } : undefined);
+    };
+    m(0, 0, 0.01, q.w, q.h, 0.03, 'window', 0xffffff);
+    m(0, q.h / 2 + 0.04, 0.03, q.w + 0.16, 0.08, 0.06, 'trim', 0xd0c8b8); m(0, -q.h / 2 - 0.05, 0.05, q.w + 0.2, 0.06, 0.12, 'trim', 0xd0c8b8);
+    m(-q.w / 2 - 0.04, 0, 0.03, 0.08, q.h, 0.06, 'trim', 0xd0c8b8); m(q.w / 2 + 0.04, 0, 0.03, 0.08, q.h, 0.06, 'trim', 0xd0c8b8);
+  }
   for (const b of kit.boxes) {
     if (b.mat === MAT.GLOW) continue;
     const surf = surfOf(b);

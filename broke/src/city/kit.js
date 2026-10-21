@@ -44,7 +44,7 @@ export class Kit {
     this.boxes.push({
       cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, cz: (z0 + z1) / 2,
       sx: Math.abs(x1 - x0), sy: Math.abs(y1 - y0), sz: Math.abs(z1 - z0),
-      ry: opts.ry || 0, rx: opts.rx || 0, rz: opts.rz || 0, color, mat, night: opts.night ?? color, flat: opts.flat,
+      ry: opts.ry || 0, rx: opts.rx || 0, rz: opts.rz || 0, color, mat, night: opts.night ?? color, flat: opts.flat, surf: opts.surf,
     });
   }
   // Render-only box from center/size with rotation.

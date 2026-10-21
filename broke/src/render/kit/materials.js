@@ -26,6 +26,8 @@ const SURF = {
   chainlink: { tex: 'chainlink', tile: 0.5, wear: 0, alphaTest: 0.5, side: THREE.DoubleSide, metalness: 0.6 },
   palmBark: { tex: 'palmBark', tile: 1.6, wear: 0 },
   bark: { tex: 'bark', tile: 1.2, wear: 0 },
+  tile: { tex: 'tile', tile: 1.2, wear: 0.4 },
+  plaster: { tex: 'paint', tile: 1.5, wear: 0.8 },
   facade: { tex: 'facade', tile: 7, wear: 0.6, envMapIntensity: 1.2 },
   window: { tex: 'window', tile: 1, wear: 0, roughness: 0.06, envMapIntensity: 1.6 },
   frond: { tex: 'frond', tile: 1, wear: 0, alphaTest: 0.5, side: THREE.DoubleSide },
@@ -64,7 +66,9 @@ function addWear(mat, wear) {
           float k = mix(1.0, grime * (1.0 - base - streak - blot) * mix(0.97, 1.03, fine), uWear);
           diffuseColor.rgb *= k;
         }`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp(roughnessFactor + (hw_n(vHwPos * 0.5) - 0.5) * 0.15 * uWear, 0.04, 1.0);');
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp(roughnessFactor + (hw_n(vHwPos * 0.5) - 0.5) * 0.15 * uWear, 0.04, 1.0);')
+      // Fade normal-map detail with distance: far surfaces keep their colour texture but stop sparkling and shimmering.
+      .replace('#include <normal_fragment_maps>', '{ vec3 hwGeoN = normal;\n#include <normal_fragment_maps>\n normal = normalize(mix(normal, hwGeoN, smoothstep(25.0, 110.0, length(vViewPosition)) * 0.85)); }');
   };
   mat.customProgramCacheKey = () => `hero-wear-${wear > 0}`;
 }
@@ -83,7 +87,7 @@ export function heroMaterials() {
       roughness: 1, metalness: 0, ...rest,
     });
     m.normalScale.set(1, 1);
-    if (wear > 0) addWear(m, wear);
+    addWear(m, wear); // wear 0 still gets the distance fade of normal detail
     m.name = key;
     mats[key] = m;
   }

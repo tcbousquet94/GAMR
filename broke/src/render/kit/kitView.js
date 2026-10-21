@@ -64,6 +64,11 @@ export class KitView extends View {
     built.group.traverse((m) => { if (m.isMesh && ['leaves', 'frond', 'chainlink', 'tuft'].includes(m.name)) this.foliage.push(m); });
     this.points = [];
     for (let i = 0; i < 5; i++) { const l = new THREE.PointLight(0xffb878, 0, 22, 1.8); scene.add(l); this.points.push(l); }
+    // Interiors (shops, laundromats, gyms, garages) are lit by their own ceiling lights, day and night: real point
+    // lights go to the few nearest the camera.
+    this.indoor = (city.kit?.lights || []).filter((l) => l.kind === 'shop' || l.kind === 'garage' || l.kind === 'lobby');
+    this.indoorPts = [];
+    for (let i = 0; i < 4; i++) { const l = new THREE.PointLight(0xfff0dc, 0, 13, 2); scene.add(l); this.indoorPts.push(l); }
     // Characters: the player (shared actor layer) plus idle locals, all in the skin/fabric material.
     this.rig = new CameraRig(this.camera);
     this.rig.baseFov = 48; this.rig.dist = 3.4; this.rig.side = 0.25; this.rig.height = 1.95;
@@ -160,11 +165,21 @@ export class KitView extends View {
     if (this.camOverride) { const c = this.camOverride(P); this.camera.position.set(c.pos.x, c.pos.y, c.pos.z); this.camera.lookAt(c.target.x, c.target.y, c.target.z); }
     this.sky.mesh.position.copy(this.camera.position);
     // Shadow frustum follows the camera's focus; re-render the map every other frame.
+    // Shadow frustum follows the camera's focus, snapped to whole shadow-map texels in light space so shadow edges
+    // don't swim or shimmer as the camera moves; the map is re-rendered every frame.
     const f = new THREE.Vector3(); this.camera.getWorldDirection(f);
     const c = this.camera.position.clone().addScaledVector(f.setY(0).normalize(), 30);
+    const sc = this.sun.shadow.camera, texel = (sc.right - sc.left) / this.sun.shadow.mapSize.x;
+    const lz = SUN.clone().negate(), lx = new THREE.Vector3(0, 1, 0).cross(lz).normalize(), ly = lz.clone().cross(lx);
+    const a = Math.round(c.dot(lx) / texel) * texel, b = Math.round(c.dot(ly) / texel) * texel, d = c.dot(lz);
+    c.copy(lx).multiplyScalar(a).addScaledVector(ly, b).addScaledVector(lz, d);
     this.sun.position.copy(c).addScaledVector(SUN, 150); this.sun.target.position.copy(c); this.sun.target.updateMatrixWorld();
-    this.renderer.shadowMap.autoUpdate = false;
-    if (this.frame % 2 === 0 || this.frame < 3) this.renderer.shadowMap.needsUpdate = true;
+    this.renderer.shadowMap.autoUpdate = true;
+    if (this.indoor.length && this.frame % 15 === 0) {
+      const cam = this.camera.position;
+      const near = this.indoor.map((l) => ({ l, d: (l.x - cam.x) ** 2 + (l.z - cam.z) ** 2 })).filter((e) => e.d < 40 * 40).sort((p, q) => p.d - q.d);
+      this.indoorPts.forEach((p, i) => { const e = near[i]; if (!e) { p.intensity = 0; return; } p.position.set(e.l.x, e.l.y - 0.3, e.l.z); p.intensity = 14 + 10 * this.night; });
+    }
     if (this.night > 0.1 && this.frame % 30 === 0) this.placeLamps();
     if (this.cityMesh && this.frame % 30 === 0) this.cityMesh.updateLod(this.camera.position);
     this.cityMesh?.tick(g.time); this.edgeMesh?.update(g.time);

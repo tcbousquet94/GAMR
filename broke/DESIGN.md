@@ -226,6 +226,13 @@ COFFEE / BETTER DAYS" sign, a wood-fronted counter with a stone top, register an
 chalk menu board, a rust banquette with tables, wood tables and chairs by the window, black pendant lights, a sunset
 print, a barista and two customers (`kit.interiorPeople`, added to the kit-data people).
 
+# STREETS, NOT MEWS (Downtown)
+
+Playtest: the pedestrianised mews (the same paved strip again and again, and dead space when you need to get
+somewhere) and the diagonal avenue (always in the way) are gone from Downtown. `roads.keepStreets`: neighbouring cells
+still merge into territory blocks (same block counts), but the street between them stays an open street; `roads.diagonal`
+is null. Palmetto Bay (the baked town map) keeps the original skeleton.
+
 # DELI & GROCERY (bodega-type businesses)
 
 Every turf business of type `bodega` (Rivera Deli & Grocery, El Sol Grocery, Big Mike Deli...) is furnished like

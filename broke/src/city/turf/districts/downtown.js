@@ -7,8 +7,8 @@ export const DOWNTOWN = {
   id: 'downtown',
   name: 'Downtown',
   personality: 'Dense and loud: glass towers shouldering old brick walk-ups, corner bodegas every block, the river at your back.',
-  // Road skeleton. A grid of cols x rows cells; some interior street segments are pedestrianised so cells merge into
-  // larger blocks (blockTarget is the territory-block count range); one diagonal avenue cuts across the grid.
+  // Road skeleton. A grid of cols x rows cells; neighbouring cells merge into territory blocks (blockTarget is the
+  // territory-block count range) with the streets between them kept open.
   roads: {
     style: 'diagonal-grid',
     cols: 5, rows: 5,
@@ -16,8 +16,11 @@ export const DOWNTOWN = {
     street: 16, // curb-to-curb plus both sidewalks
     sidewalk: 3.2,
     blockTarget: [12, 16],
-    diagonal: { width: 13, from: 'sw', to: 'ne' },
-    mews: 6, // width of the paved pedestrian lane left where a street segment is removed
+    // Cells merge into territory blocks across a street that stays a street: no pedestrian mews and no diagonal
+    // avenue, so every way through the grid is a real road (they were dead space to cross on foot).
+    keepStreets: true,
+    diagonal: null,
+    mews: 6, // width of the paved pedestrian lane left where a street segment is removed (keepStreets off)
   },
   landmark: { kind: 'spire', name: 'First National Debt', height: [170, 190], plaza: true },
   // Natural / built edges per side. Never invisible walls: each is a physical barrier you can see.

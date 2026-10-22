@@ -137,9 +137,9 @@ test('deli & grocery businesses are furnished walk-ins: in the door, down the ai
 });
 
 test('cafe storefronts are walk-in rooms: open inside, glazed, staffed and lit', () => {
-  const g = new TurfGame({ seed: 454473, survivor: DEE });
-  const s = g.city.kit.signs.find((q) => q.text === 'LUMO CAFE');
-  assert.ok(s, 'Lumo Cafe is on this seed');
+  const g = new TurfGame({ seed: 4, survivor: DEE });
+  const s = g.city.kit.signs.find((q) => q.text === 'GRISU CAFE');
+  assert.ok(s, 'Grisu Cafe is on this seed');
   // 4 m in from the sign is inside the room, not inside a solid building.
   const ix = s.cx - s.nx * 4, iz = s.cz - s.nz * 4;
   assert.ok(g.world.fits(ix - s.nz * 1.2, 0.2, iz + s.nx * 1.2, 0.3, 1.8) || g.world.fits(ix, 0.2, iz, 0.3, 1.8), 'room interior is open');

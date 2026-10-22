@@ -2,7 +2,8 @@
 //
 // The district is a grid of cols x rows cells with jittered sizes, separated by streets. Some interior street
 // segments are pedestrianised: the two cells on either side merge into one territory block with a paved mews where
-// the street was. One diagonal avenue cuts corner to corner. Coordinates: x east, z south, metres; y is up.
+// the street was (or, with roads.keepStreets, merge as territory while the street stays open). An optional diagonal
+// avenue cuts corner to corner. Coordinates: x east, z south, metres; y is up.
 
 export function layoutRoads(cfg, rng) {
   const R = cfg.roads;
@@ -45,8 +46,11 @@ export function layoutRoads(cfg, rng) {
     const [ca, cb] = s.axis === 'v' ? [cellAt(s.k - 1, s.m), cellAt(s.k, s.m)] : [cellAt(s.m, s.k - 1), cellAt(s.m, s.k)];
     const na = cells.indexOf(ca), nb = cells.indexOf(cb);
     if (find(na) === find(nb) || sizeOf(na) + sizeOf(nb) > 3) continue;
-    s.open = false;
-    if (!roadsOk(segs, interKey)) { s.open = true; continue; }
+    // keepStreets: the cells still merge into one territory block, but the street between them stays a street.
+    if (!R.keepStreets) {
+      s.open = false;
+      if (!roadsOk(segs, interKey)) { s.open = true; continue; }
+    }
     parent[find(na)] = find(nb);
     s.mergedCells = [na, nb];
     blocks--;

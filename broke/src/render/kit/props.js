@@ -38,6 +38,21 @@ export function prop(B, p, rng) {
     case 'phone': cyl('metalPaint', 0.05, 1.2, 0, 0.6, 0, 0x6a6a6c); box('metalPaint', 0.5, 0.7, 0.32, 0, 1.55, 0, 0x8a8c8e); box('trim', 0.2, 0.28, 0.06, 0, 1.6, 0.17, 0x1a1a1c); break;
     case 'newsbox': for (const s of [-1, 1]) cyl('metalPaint', 0.02, 0.4, s * 0.18, 0.2, 0, 0x3a3a3c); box('metalPaint', 0.48, 0.65, 0.42, 0, 0.72, 0, p.color ?? rng.pick([0x2a5aa8, 0xc83a2a, 0xd8b030, 0x2a6a3a])); box('carGlass', 0.36, 0.25, 0.01, 0, 0.85, 0.215, 0xffffff); break;
     case 'bench': for (const s of [-1, 1]) box('metalPaint', 0.06, 0.45, 0.45, s * 0.7, 0.22, 0, 0x3a3a3c); for (let i = 0; i < 4; i++) box('planks', 1.6, 0.04, 0.09, 0, 0.45, -0.17 + i * 0.11, 0xa08a6a); for (let i = 0; i < 2; i++) box('planks', 1.6, 0.09, 0.03, 0, 0.62 + i * 0.12, 0.24, 0xa08a6a); break;
+    case 'busshelter': {
+      // Back panel of glass on the collider line (local z = 0), roof and bench toward the street (+z), an ad panel at
+      // one end and the stop sign on a pole at the other.
+      const BL = 0x3a4048;
+      for (const x of [-1.75, 1.75]) { box('metalPaint', 0.08, 2.5, 0.08, x, 1.25, 0, BL); box('metalPaint', 0.08, 2.4, 0.08, x, 1.2, 1.3, BL); }
+      box('carGlass', 3.4, 2.0, 0.03, 0, 1.25, 0, 0xc8d8e0);
+      box('metalPaint', 3.8, 0.1, 1.6, 0, 2.52, 0.65, BL);
+      box('trim', 1.1, 1.7, 0.08, -1.2, 1.2, 0.03, rng.pick([0xd84a3a, 0x2a6ac8, 0xe0b030, 0x3a8a4a]));
+      box('trim', 1.0, 1.6, 0.085, -1.2, 1.2, 0.03, 0xe8e4dc);
+      box('planks', 2.0, 0.06, 0.38, 0.6, 0.48, 0.3, 0x8a7a5a);
+      for (const x of [-0.3, 1.5]) box('metalPaint', 0.06, 0.48, 0.3, x, 0.24, 0.3, BL);
+      cyl('metalPaint', 0.04, 2.8, 2.3, 1.4, 1.3, 0x6a6a6c);
+      box('trim', 0.45, 0.6, 0.03, 2.3, 2.5, 1.3, 0x2a5aa8); box('trim', 0.35, 0.12, 0.035, 2.3, 2.6, 1.3, 0xe8e4dc);
+      break;
+    }
     case 'bollard': cyl('metalPaint', 0.1, 1.0, 0, 0.5, 0, 0xd8b020); break;
     case 'wheelstop': box('concrete', 1.8, 0.12, 0.2, 0, 0.06, 0, 0xc8c4bc); break;
     case 'hoop': cyl('metalPaint', 0.05, 3.1, 0, 1.55, 0, 0x6a6a6c); box('trim', 1.1, 0.7, 0.04, 0, 3.1, 0.25, 0xe8e6e0); B.add('metalPaint', new THREE.TorusGeometry(0.23, 0.012, 6, 16), M.clone().multiply(mat(0, 2.85, 0.5, 0, Math.PI / 2)), 0xc84a1a, { uv: 'native' }); break;

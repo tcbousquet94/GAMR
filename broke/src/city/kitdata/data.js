@@ -122,7 +122,7 @@ function homeColliders(h, add, TAG, y, yaw) {
 }
 
 // Collider footprint (w, d, h) for solid props.
-export const PROP_SIZE = { dumpster: [1.9, 1.2, 1.3], ice: [1.3, 0.8, 1.9], phone: [0.5, 0.4, 2.1], newsbox: [0.5, 0.45, 1.1], shed: [2.4, 2, 2.4], hoop: [0.3, 0.3, 3.2], pallets: [1.2, 1.0, 1.0], container: [2.4, 6, 2.6], bench: [1.6, 0.5, 0.8] };
+export const PROP_SIZE = { busshelter: [3.6, 0.2, 2.5], dumpster: [1.9, 1.2, 1.3], ice: [1.3, 0.8, 1.9], phone: [0.5, 0.4, 2.1], newsbox: [0.5, 0.45, 1.1], shed: [2.4, 2, 2.4], hoop: [0.3, 0.3, 3.2], pallets: [1.2, 1.0, 1.0], container: [2.4, 6, 2.6], bench: [1.6, 0.5, 0.8] };
 
 // Raised block slabs (sidewalks, lots) need colliders too; pads above the ground get theirs from their polygon bounds.
 export function padColliders(D, add, TAG) {

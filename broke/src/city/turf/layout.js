@@ -10,15 +10,28 @@ export function layoutRoads(cfg, rng) {
   const S = R.street, E = cfg.edgeDepth;
   const widths = Array.from({ length: R.cols }, () => Math.round(rng.range(R.cell[0], R.cell[1])));
   const depths = Array.from({ length: R.rows }, () => Math.round(rng.range(R.cell[0], R.cell[1])));
-  // Street k starts at X[k]; cell i spans X[i] + S .. X[i + 1].
+  // Street hierarchy (roads.hierarchy): avenues through the middle, ordinary streets, narrow residential streets out
+  // toward the edges; the outer ring stays an ordinary street (the edges are built against it). Widths include both
+  // sidewalks. Without a hierarchy every street is roads.street wide.
+  const H = R.hierarchy;
+  const classOf = (k, n) => {
+    if (!H || k === 0 || k === n) return 'street';
+    const mid = Math.round(n / 2);
+    if ((k - mid) % H.avenueEvery === 0) return 'avenue';
+    return Math.abs(k - n / 2) / (n / 2) > H.localBeyond ? 'local' : 'street';
+  };
+  const widthOf = (c) => (H ? H.width[c] : S);
+  const KX = Array.from({ length: R.cols + 1 }, (_, k) => classOf(k, R.cols)), KZ = Array.from({ length: R.rows + 1 }, (_, k) => classOf(k, R.rows));
+  const SX = KX.map(widthOf), SZ = KZ.map(widthOf);
+  // Street k starts at X[k] and is SX[k] wide; cell i spans X[i] + SX[i] .. X[i + 1].
   const X = [E], Z = [E];
-  for (let i = 0; i < R.cols; i++) X.push(X[i] + S + widths[i]);
-  for (let j = 0; j < R.rows; j++) Z.push(Z[j] + S + depths[j]);
-  const sizeX = X[R.cols] + S + E, sizeZ = Z[R.rows] + S + E;
+  for (let i = 0; i < R.cols; i++) X.push(X[i] + SX[i] + widths[i]);
+  for (let j = 0; j < R.rows; j++) Z.push(Z[j] + SZ[j] + depths[j]);
+  const sizeX = X[R.cols] + SX[R.cols] + E, sizeZ = Z[R.rows] + SZ[R.rows] + E;
 
   const cells = [];
   for (let j = 0; j < R.rows; j++) for (let i = 0; i < R.cols; i++) {
-    cells.push({ i, j, rect: { x0: X[i] + S, z0: Z[j] + S, x1: X[i + 1], z1: Z[j + 1] }, block: -1 });
+    cells.push({ i, j, rect: { x0: X[i] + SX[i], z0: Z[j] + SZ[j], x1: X[i + 1], z1: Z[j + 1] }, block: -1 });
   }
   const cellAt = (i, j) => (i >= 0 && j >= 0 && i < R.cols && j < R.rows ? cells[j * R.cols + i] : null);
 
@@ -26,10 +39,10 @@ export function layoutRoads(cfg, rng) {
   // intersections; 'h' runs east-west along street row k between columns.
   const segs = [];
   for (let k = 0; k <= R.cols; k++) for (let j = 0; j < R.rows; j++) {
-    segs.push({ id: segs.length, axis: 'v', k, m: j, rect: { x0: X[k], z0: Z[j] + S, x1: X[k] + S, z1: Z[j + 1] }, a: [k, j], b: [k, j + 1], open: true });
+    segs.push({ id: segs.length, axis: 'v', k, m: j, rect: { x0: X[k], z0: Z[j] + SZ[j], x1: X[k] + SX[k], z1: Z[j + 1] }, a: [k, j], b: [k, j + 1], open: true, kind: KX[k] });
   }
   for (let k = 0; k <= R.rows; k++) for (let i = 0; i < R.cols; i++) {
-    segs.push({ id: segs.length, axis: 'h', k, m: i, rect: { x0: X[i] + S, z0: Z[k], x1: X[i + 1], z1: Z[k] + S }, a: [i, k], b: [i + 1, k], open: true });
+    segs.push({ id: segs.length, axis: 'h', k, m: i, rect: { x0: X[i] + SX[i], z0: Z[k], x1: X[i + 1], z1: Z[k] + SZ[k] }, a: [i, k], b: [i + 1, k], open: true, kind: KZ[k] });
   }
   const interKey = (a) => `${a[0]},${a[1]}`;
 
@@ -59,7 +72,7 @@ export function layoutRoads(cfg, rng) {
   // Diagonal avenue, south-west corner to north-east corner, centred on the outer street intersections.
   const D = R.diagonal;
   const diag = D ? {
-    ax: X[0] + S / 2, az: Z[R.rows] + S / 2, bx: X[R.cols] + S / 2, bz: Z[0] + S / 2, width: D.width,
+    ax: X[0] + SX[0] / 2, az: Z[R.rows] + SZ[R.rows] / 2, bx: X[R.cols] + SX[R.cols] / 2, bz: Z[0] + SZ[0] / 2, width: D.width,
   } : null;
 
   // Territory blocks: groups of merged cells, plus the strips of the streets that were removed between them.
@@ -87,9 +100,9 @@ export function layoutRoads(cfg, rng) {
   const intersections = [];
   for (let k = 0; k <= R.cols; k++) for (let m = 0; m <= R.rows; m++) {
     const deg = segs.filter((s) => s.open && (interKey(s.a) === `${k},${m}` || interKey(s.b) === `${k},${m}`)).length;
-    intersections.push({ k, m, x: X[k] + S / 2, z: Z[m] + S / 2, rect: { x0: X[k], z0: Z[m], x1: X[k] + S, z1: Z[m] + S }, degree: deg, outer: k === 0 || m === 0 || k === R.cols || m === R.rows });
+    intersections.push({ k, m, x: X[k] + SX[k] / 2, z: Z[m] + SZ[m] / 2, rect: { x0: X[k], z0: Z[m], x1: X[k] + SX[k], z1: Z[m] + SZ[m] }, degree: deg, outer: k === 0 || m === 0 || k === R.cols || m === R.rows });
   }
-  return { X, Z, S, E, sizeX, sizeZ, size: Math.max(sizeX, sizeZ), cols: R.cols, rows: R.rows, cells, segs, blocks: blockList, intersections, diag, cellAt };
+  return { X, Z, S, SX, SZ, KX, KZ, E, sizeX, sizeZ, size: Math.max(sizeX, sizeZ), cols: R.cols, rows: R.rows, cells, segs, blocks: blockList, intersections, diag, cellAt };
 }
 
 function roadsOk(segs, key) {

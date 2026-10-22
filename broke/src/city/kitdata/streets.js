@@ -61,14 +61,25 @@ export function streetData(D, { cells, segs, sw, rng, cuts = [], across = null, 
       if (!green) for (let t = 8; t < len - 6; t += 14) if (rng.chance(0.4)) { const p = P(t, sw - KW - 0.9); D.trees.push({ ...p, y: CURB, r: 2.6, h: 6 }); }
       if ((s.k === 'n' || s.k === 'w') && c.zone !== 'park') {
         const line = [];
-        for (let t = 3; t <= len - 3; t += Math.max(18, (len - 6) / Math.max(1, Math.round((len - 6) / 26)))) line.push(P(t, sw - KW - 0.5));
-        // No pole in the boulevard: the line breaks there.
+        for (let t = 3; t <= len - 3; t += Math.max(18, (len - 6) / Math.max(1, Math.round((len - 6) / 26)))) line.push({ ...P(t, sw - KW - 0.5), t });
+        // No pole in a boulevard, an alley mouth or a driveway: the line breaks there.
+        const gaps = runs.length ? [[-Infinity, runs[0][0]], ...runs.slice(1).map(([u], i) => [runs[i][1], u]), [runs[runs.length - 1][1], Infinity]].filter(([a, b]) => b - a > 0.01 && a > -Infinity && b < Infinity) : [];
+        const blocked = (q) => (across && across(q.x, q.z)) || gaps.some(([a, b]) => q.t > a - 1 && q.t < b + 1);
         let run = [];
-        for (const p of line) { if (across && across(p.x, p.z)) { if (run.length >= 2) D.poleLines.push(run); run = []; } else run.push(p); }
+        for (const q of line) { const p = { x: q.x, z: q.z }; if (blocked(q)) { if (run.length >= 2) D.poleLines.push(run); run = []; } else run.push(p); }
         if (run.length >= 2) D.poleLines.push(run);
       }
+      // A bus stop on avenue sides long enough: shelter at the kerb facing the road, the stop kept clear of parked cars.
+      let stop = null;
+      if (c.kinds?.[s.k] === 'avenue' && len > 36) {
+        const t0 = len * 0.38, p = P(t0, sw - KW - 1.1);
+        if (runs.some(([u, v]) => t0 > u + 4 && t0 < v - 4) && (!across || !across(p.x, p.z))) {
+          stop = t0;
+          D.props.push({ type: 'busshelter', ...p, y: CURB, yaw: Math.atan2(s.n[0], s.n[1]) });
+        }
+      }
       // Parked cars along this kerb, on the road.
-      for (let t = 9; t < len - 9; t += 6.8) if (rng.chance(0.18) && runs.some(([u, v]) => t > u + 3 && t < v - 3)) { const p = P(t, sw + 1.2); D.cars.push({ ...p, y: 0, yaw: Math.atan2(tx, tz) + (rng.chance(0.5) ? 0 : Math.PI), color: rng.pick([0x56606a, 0x8a8678, 0x6a2e2a, 0x2e3a4a, 0xb8b4a8, 0x4a5a3a, 0x9a9a98]) }); }
+      for (let t = 9; t < len - 9; t += 6.8) if ((stop == null || Math.abs(t - stop) > 9) && rng.chance(0.18) && runs.some(([u, v]) => t > u + 3 && t < v - 3)) { const p = P(t, sw + 1.2); D.cars.push({ ...p, y: 0, yaw: Math.atan2(tx, tz) + (rng.chance(0.5) ? 0 : Math.PI), color: rng.pick([0x56606a, 0x8a8678, 0x6a2e2a, 0x2e3a4a, 0xb8b4a8, 0x4a5a3a, 0x9a9a98]) }); }
       if (rng.chance(0.25)) { const p = P(rng.range(8, len - 8), WALK + 0.4); if (!across || !across(p.x, p.z)) D.hydrants.push({ ...p, y: CURB }); }
     }
     // Corners: quarter discs of paving with a kerb arc, sometimes red; a streetlight on some.
@@ -95,7 +106,10 @@ export function streetData(D, { cells, segs, sw, rng, cuts = [], across = null, 
     const len = alongZ ? r.z1 - r.z0 : r.x1 - r.x0, c = alongZ ? (r.x0 + r.x1) / 2 : (r.z0 + r.z1) / 2, rw = (alongZ ? r.x1 - r.x0 : r.z1 - r.z0) - 2 * sw;
     const at = (t, o) => (alongZ ? { x: c + o, z: r.z0 + t } : { x: r.x0 + t, z: c + o });
     const yaw = alongZ ? 0 : Math.PI / 2;
-    if (len > 24) for (const o of [-0.13, 0.13]) { const p = at(len / 2, o); D.paint.push({ ...p, w: 0.1, d: len - 14, yaw, color: 0xd8a83a, y: 0 }); }
+    // Centre line (double yellow) on avenues and streets, none on narrow residential streets; avenues also get dashed
+    // white lines between their two lanes each way.
+    if (len > 24 && s.kind !== 'local') for (const o of [-0.13, 0.13]) { const p = at(len / 2, o); D.paint.push({ ...p, w: 0.1, d: len - 14, yaw, color: 0xd8a83a, y: 0 }); }
+    if (s.kind === 'avenue') for (const o of [-rw / 4, rw / 4]) for (let t = 8; t < len - 8; t += 9) { const p = at(t + 1.5, o); D.paint.push({ ...p, w: 0.12, d: 3, yaw, color: 0xe8e6e0, y: 0 }); }
     for (const end of [0, 1]) {
       const t = end ? len - 3 : 3;
       for (let o = -rw / 2 + 0.6; o < rw / 2 - 0.4; o += 1.1) { const p = at(t, o + 0.27); D.paint.push({ ...p, w: 0.55, d: 3, yaw, color: 0xe8e6e0, y: 0 }); }

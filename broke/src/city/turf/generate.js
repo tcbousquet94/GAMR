@@ -74,7 +74,7 @@ export function generateTurf(cfg, seed, opts = {}) {
   interiors(kit, city, raster);
   if (KD) {
     // Streets in the kit look: kerbs, verges, walks, paint, palms, poles, lights, hydrants, parked cars.
-    const cells = L.cells.map((c) => ({ rect: c.rect, zone: city.blocks[c.block].zone, sides: sidesOf(city, c) }));
+    const cells = L.cells.map((c) => ({ rect: c.rect, zone: city.blocks[c.block].zone, sides: sidesOf(city, c), kinds: Object.fromEntries(['s', 'n', 'e', 'w'].map((q) => [q, segOf(L, c, q).seg.kind])) }));
     const byRect = new Map(cells.map((c) => [`${c.rect.x0},${c.rect.z0}`, c]));
     for (const q of cuts) q.cell = byRect.get(`${q.cell.rect.x0},${q.cell.rect.z0}`);
     delete city.kitPending; delete city.kitCuts;

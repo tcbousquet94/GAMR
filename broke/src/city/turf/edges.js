@@ -35,7 +35,7 @@ function sideFrame(city, side) {
 function exitSpan(city, side, k) {
   const L = city.layout;
   const v = side === 'n' || side === 's' ? L.X[k] : L.Z[k];
-  return [v, v + L.S];
+  return [v, v + ((side === 'n' || side === 's' ? L.SX : L.SZ)?.[k] ?? L.S)];
 }
 const solidR = (kit, r, y0, y1, color, mat = MAT.STD, tag = TAG.BOUNDARY) => kit.solid(r.x0, y0, r.z0, r.x1, y1, r.z1, color, mat, tag);
 const boxR = (kit, r, y0, y1, color, mat = MAT.STD) => kit.box(r.x0, y0, r.z0, r.x1, y1, r.z1, color, mat);

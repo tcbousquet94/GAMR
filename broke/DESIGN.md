@@ -244,8 +244,16 @@ the cell (residential backyards fill the block). Sizes are whole metres so lots 
 `city.lots` records every lot (rect, asset, front, corner); tests check no overlaps, every lot inside its cell,
 catalogue assets only, corner-only rules, determinism.
 
-Next steps (planned): a street hierarchy (wide main roads with shopfronts and bus stops, residential streets, rear
-service alleys, some curves and dead ends in the suburbs), zoning by distance and road type, the remaining plain
+Street hierarchy (`roads.hierarchy`): every street line has a class, set in the layout. Avenues every third line
+counting from the middle (24 m with both sidewalks: four lanes, double yellow centre, dashed lane lines, a bus
+shelter on long sides with the kerb kept clear of parked cars); ordinary streets (16 m, as before; the outer ring is
+always one); narrow residential streets in the outer part of the grid (13 m, no centre line). Segments carry `kind`,
+the layout `SX/SZ` (widths) and `KX/KZ` (classes). Rear service alleys (6 m) run through commercial, downtown and civic
+cells between two opposite street sides: lots back onto them, dumpsters and bins along them, lamps, kerb cuts at
+both ends, poles kept out of their mouths; `city.alleys`. Curves and dead ends come from the whole-cell
+neighbourhood modules (crescent, cul-de-sac) in the suburbs.
+
+Next steps (planned): zoning by distance and road type, the remaining plain
 boxes (City Hall, the turf business shells) replaced by handcrafted assets, and per-city checks (every door
 reachable, a phone frame budget).
 

@@ -19,6 +19,9 @@ export const DOWNTOWN = {
     // Cells merge into territory blocks across a street that stays a street: no pedestrian mews and no diagonal
     // avenue, so every way through the grid is a real road (they were dead space to cross on foot).
     keepStreets: true,
+    // Street hierarchy: an avenue every third street line counting from the middle (24 m: four lanes, bus stops),
+    // ordinary streets (16 m), and narrow residential streets in the outer part of the grid (13 m).
+    hierarchy: { avenueEvery: 3, localBeyond: 0.5, width: { avenue: 24, street: 16, local: 13 } },
     diagonal: null,
     mews: 6, // width of the paved pedestrian lane left where a street segment is removed (keepStreets off)
   },

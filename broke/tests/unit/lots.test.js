@@ -32,3 +32,19 @@ test('lot generation is deterministic', () => {
   const b = generateTurf(DOWNTOWN, 7).lots.map((l) => `${l.asset}@${l.rect.x0.toFixed(2)},${l.rect.z0.toFixed(2)}`).join('|');
   assert.equal(a, b);
 });
+
+test('street hierarchy: avenues, streets and narrow residential streets; bus stops on avenues; alleys clear of lots', () => {
+  let alleys = 0;
+  for (const seed of [11, 942824, 454473, 7]) {
+    const c = generateTurf(DOWNTOWN, seed), L = c.layout;
+    const kinds = new Set(L.segs.map((s) => s.kind));
+    for (const k of ['avenue', 'street', 'local']) assert.ok(kinds.has(k), `${k} on seed ${seed}`);
+    for (const s of L.segs) {
+      const w = s.axis === 'v' ? s.rect.x1 - s.rect.x0 : s.rect.z1 - s.rect.z0;
+      assert.equal(w, DOWNTOWN.roads.hierarchy.width[s.kind], `${s.kind} width`);
+    }
+    assert.ok(c.kitData.props.some((p) => p.type === 'busshelter'), `a bus stop on seed ${seed}`);
+    for (const a of c.alleys || []) { alleys++; for (const l of c.lots) assert.ok(!overlap(a.rect, l.rect), `alley clear of ${l.asset}`); }
+  }
+  assert.ok(alleys >= 1, 'service alleys');
+});

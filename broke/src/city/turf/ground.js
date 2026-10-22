@@ -16,7 +16,7 @@ export function ground(kit, city, raster) {
   const { pal } = kit;
   const L = city.layout;
   const sw = city.district.roads.sidewalk;
-  const inner = { x0: L.X[0], z0: L.Z[0], x1: L.X[L.cols] + L.S, z1: L.Z[L.rows] + L.S };
+  const inner = { x0: L.X[0], z0: L.Z[0], x1: L.X[L.cols] + (L.SX?.[L.cols] ?? L.S), z1: L.Z[L.rows] + (L.SZ?.[L.rows] ?? L.S) };
   city.inner = inner;
   // One asphalt slab under the whole street grid; blocks sit on it at curb height.
   const kl = city.kitLook; // kit look: the kit draws streets, sidewalks and block ground; these stay as colliders

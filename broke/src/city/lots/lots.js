@@ -13,6 +13,33 @@ import { CATALOGUE } from './catalogue.js';
 
 const AVOID = R.DIAG | R.RESERVED | R.BUILT | R.STREET;
 const NEXT = { n: 'e', e: 's', s: 'w', w: 'n' }; // clockwise: the corner at the end of a side starts the next side
+const ALLEY_W = 6;
+
+function serviceAlley(c, r, open, free, rng, raster, KP, city) {
+  const W = r.x1 - r.x0, Dz = r.z1 - r.z0;
+  const ns = open('n') && open('s') && Dz >= 46, ew = open('e') && open('w') && W >= 46;
+  if (!(ns || ew) || !rng.chance(0.75)) return null;
+  const axis = ns && (!ew || W >= Dz) ? 'x' : 'z'; // the alley runs along x between the n and s lots, or along z
+  const mid = Math.round(axis === 'x' ? (r.z0 + r.z1) / 2 : (r.x0 + r.x1) / 2);
+  const q = axis === 'x' ? { x0: r.x0, x1: r.x1, z0: mid - ALLEY_W / 2, z1: mid + ALLEY_W / 2 } : { z0: r.z0, z1: r.z1, x0: mid - ALLEY_W / 2, x1: mid + ALLEY_W / 2 };
+  if (!free(q)) return null;
+  raster.mark(q, R.RESERVED);
+  const CURB = 0.15, L = axis === 'x' ? W : Dz;
+  const at = (t, o) => (axis === 'x' ? { x: r.x0 + t, z: mid + o } : { x: mid + o, z: r.z0 + t });
+  KP.pads.push({ surf: 'concrete', poly: [[q.x0, q.z0], [q.x1, q.z0], [q.x1, q.z1], [q.x0, q.z1]], y0: CURB - 0.02, y1: CURB + 0.02, tint: 0xb4b0a8 });
+  { const p = at(L / 2, 0); KP.paint.push({ ...p, w: 0.35, d: L, yaw: axis === 'x' ? Math.PI / 2 : 0, color: 0x6a6660, y: CURB + 0.022 }); } // centre drain
+  for (let t = 7 + rng.range(0, 5); t < L - 7; t += rng.range(11, 16)) {
+    const side = rng.chance(0.5) ? -1 : 1, p = at(t, side * (ALLEY_W / 2 - 0.75));
+    KP.props.push({ type: 'dumpster', ...p, y: CURB, yaw: axis === 'x' ? 0 : Math.PI / 2, color: rng.pick([0x2e4a3a, 0x2a3a5a, 0x3a3a3c]) });
+    if (rng.chance(0.4)) { const b = at(t + 2.2, side * (ALLEY_W / 2 - 0.5)); KP.bins.push({ ...b, y: CURB, c: rng.pick([0x2e4a32, 0x2a3a5a, 0x252528]) }); }
+  }
+  for (const t of [L * 0.3, L * 0.7]) { const p = at(t, ALLEY_W / 2 - 0.3); KP.lights.push({ ...p, y: CURB, yaw: axis === 'x' ? Math.PI : -Math.PI / 2 }); }
+  // Kerbs drop where the alley meets its streets.
+  const ends = axis === 'x' ? [['w', r.x0], ['e', r.x1]] : [['n', r.z0], ['s', r.z1]];
+  for (const [side, v] of ends) if (open(side)) city.kitCuts.push(axis === 'x' ? { side, a: { x: v, z: q.z0 }, b: { x: v, z: q.z1 }, cell: c } : { side, a: { x: q.x0, z: v }, b: { x: q.x1, z: v }, cell: c });
+  (city.alleys ||= []).push({ rect: q, axis });
+  return { axis, mid };
+}
 
 export function zoneKeyOf(city, b) {
   const mc = { x: city.layout.sizeX / 2, z: city.layout.sizeZ / 2 };
@@ -30,10 +57,15 @@ export function lotBuildings(kit, city, b, raster) {
     const len = (s) => (s === 'n' || s === 's' ? r.x1 - r.x0 : r.z1 - r.z0);
     const open = (s) => city.sideOpen(c, s);
     const opp = { n: 's', s: 'n', e: 'w', w: 'e' };
-    // Deepest a lot on side s may go: to the middle of the cell when the far side has lots too.
-    const maxDepth = (s) => Math.floor(open(opp[s]) ? len(NEXT[s]) / 2 : len(NEXT[s]) - 1.5);
     const used = new Map();
     const free = (q) => raster.test(q, R.BLOCK, AVOID);
+    // A rear service alley through the middle of commercial and downtown cells, between the two opposite street sides
+    // whose lots back onto it, open at both ends: deliveries, dumpsters, and a shortcut through the block.
+    const alley = key === 'commercial' || key === 'core' || key === 'civic' ? serviceAlley(c, r, open, free, rng, raster, KP, city) : null;
+    // Deepest a lot on side s may go: to the middle of the cell when the far side has lots too (to the alley's edge
+    // when an alley runs between them).
+    const backsOnAlley = (s) => alley && (alley.axis === 'x' ? s === 'n' || s === 's' : s === 'e' || s === 'w');
+    const maxDepth = (s) => Math.floor(backsOnAlley(s) ? (len(NEXT[s]) - ALLEY_W) / 2 : open(opp[s]) ? len(NEXT[s]) / 2 : len(NEXT[s]) - 1.5);
     const pick = (maxFront, maxD, corner) => {
       const opts = CATALOGUE.filter((a) => (a.zones[key] || 0) > 0 && a.front[0] <= maxFront + 0.01 && a.depth[0] <= maxD + 0.01
         && (corner ? a.corner !== 0 : !a.cornerOnly) && (!a.perCell || (used.get(a.id) || 0) < a.perCell));

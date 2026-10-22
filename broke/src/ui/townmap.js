@@ -46,6 +46,8 @@ export function drawTownMap(canvas, turf, opts = {}) {
   if (D) { g.strokeStyle = 'rgba(228,224,216,0.95)'; g.lineWidth = (D.width - 2) * k; g.beginPath(); g.moveTo(X(D.ax), Z(D.az)); g.lineTo(X(D.bx), Z(D.bz)); g.stroke(); }
   // Territory shading by owner (a warehouse's block plus its businesses' blocks).
   for (const b of turf.blocks) if (OWNER_TINT[b.owner]) for (const r of b.rects) rect(r, OWNER_TINT[b.owner]);
+  // Mayor's view (opts.stat: { value(block) -> 0..100 }): every block tinted from red (bad) to green (good).
+  if (opts.stat) for (const b of turf.blocks) { const v = opts.stat.value(b); if (v != null) for (const r of b.rects) rect(r, statColor(v, 0.55)); }
   // Buildings (faint) so blocks read as places.
   for (const r of opts.buildings || []) rect(r, 'rgba(90,80,100,0.16)');
   for (const b of turf.blocks) {
@@ -58,7 +60,8 @@ export function drawTownMap(canvas, turf, opts = {}) {
   for (const l of turf.landmarks) { rect(l.base, '#d8b04a', '#8a6a1a', 1.5); star(g, X(l.x), Z(l.z), 13, '#ffd34a', '#7a5a10'); label(g, l.name, X(l.x), Z(l.z) - 20, 13, '#5a420a', true); }
   // Links: each warehouse to the businesses it controls.
   g.setLineDash([6, 4]); g.lineWidth = 2;
-  for (const w of turf.warehouses || []) for (const id of w.businesses) {
+  // (The mayor's view, opts.stat, keeps the map to scores and places: no gang links, no labels on every business.)
+  if (!opts.stat) for (const w of turf.warehouses || []) for (const id of w.businesses) {
     const b = turf.businesses[id];
     g.strokeStyle = w.owner === 'neutral' ? 'rgba(70,64,80,0.7)' : OWNER_COLORS[w.owner];
     g.beginPath(); g.moveTo(X(w.safe.x), Z(w.safe.z)); g.lineTo(X(b.capture.x), Z(b.capture.z)); g.stroke();
@@ -69,6 +72,7 @@ export function drawTownMap(canvas, turf, opts = {}) {
     rect(w.compound, 'rgba(255,255,255,0.45)', '#6a6470', 1.2);
     const col = w.owner === 'neutral' ? '#5a5466' : OWNER_COLORS[w.owner];
     keep(g, X(w.safe.x), Z(w.safe.z), w.hq != null ? 15 : 12, col);
+    if (opts.stat) continue;
     label(g, w.name, X(w.safe.x), Z(w.safe.z) + (w.hq != null ? 26 : 22), 12, '#2a2430', true);
     label(g, w.hq != null ? `GANG ${w.hq + 1} HQ` : `Warehouse \u00b7 ${w.businesses.length} business${w.businesses.length > 1 ? 'es' : ''}`, X(w.safe.x), Z(w.safe.z) + (w.hq != null ? 40 : 35), 10, w.hq != null ? col : '#6a6470', w.hq != null);
   }
@@ -81,9 +85,18 @@ export function drawTownMap(canvas, turf, opts = {}) {
     const col = st.color;
     g.beginPath(); g.arc(x, z, isHq ? 12 : 9, 0, Math.PI * 2); g.fillStyle = col; g.fill(); g.lineWidth = 2; g.strokeStyle = '#fff'; g.stroke();
     g.fillStyle = '#fff'; g.font = `700 ${isHq ? 12 : 11}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(isHq ? 'HQ' : st.glyph, x, z + 0.5);
+    if (opts.stat) continue;
     label(g, biz.name, x, z + (isHq ? 22 : 18), 11.5, '#2a2430', true);
     label(g, biz.hq != null ? `Diner \u00b7 Gang ${biz.hq + 1}` : TYPE_LABEL[biz.type], x, z + 31, 10, '#6a6470');
   }
+  // Shops the city has lost (opts.closed: [{x, z}]): a grey disc with a cross.
+  for (const c of opts.closed || []) {
+    const x = X(c.x), z = Z(c.z);
+    g.beginPath(); g.arc(x, z, 5.5, 0, Math.PI * 2); g.fillStyle = '#5a5466'; g.fill(); g.lineWidth = 1.5; g.strokeStyle = '#fff'; g.stroke();
+    g.beginPath(); g.moveTo(x - 2.6, z - 2.6); g.lineTo(x + 2.6, z + 2.6); g.moveTo(x + 2.6, z - 2.6); g.lineTo(x - 2.6, z + 2.6); g.stroke();
+  }
+  // Neighbourhood names and their score (mayor's view).
+  for (const h of opts.hoods || []) { label(g, h.name, X(h.x), Z(h.z) - 9, 15, '#2a2430', true); if (h.value != null) label(g, `${opts.stat?.label ?? ''} ${Math.round(h.value)}`, X(h.x), Z(h.z) + 9, 12, statColor(h.value, 1), true); }
   // Roads out.
   for (const c of turf.connections || []) { g.fillStyle = '#1f6a4a'; arrow(g, X(c.x), Z(c.z), c.side, 9); }
   // You are here.
@@ -101,6 +114,13 @@ export function drawTownMap(canvas, turf, opts = {}) {
   g.fillText(opts.subtitle || turf.district.personality, pad + g.measureText(turf.district.name.toUpperCase()).width * 1.9 + 14, 42);
   north(g, W - pad - 10, 40);
   legend(g, pad, H - 22);
+}
+
+// 0 (red) .. 50 (amber) .. 100 (green).
+export function statColor(v, a) {
+  const t = Math.max(0, Math.min(1, v / 100));
+  const r = t < 0.5 ? 214 : Math.round(214 - (t - 0.5) * 2 * 150), gg = t < 0.5 ? Math.round(70 + t * 2 * 120) : Math.round(190 - (t - 0.5) * 2 * 20);
+  return `rgba(${r},${gg},${Math.round(60 + t * 20)},${a})`;
 }
 
 const TYPE_LABEL = { bodega: 'Bodega', pawn: 'Pawn Shop', laundromat: 'Laundromat', boxing: 'Boxing Gym', auto: 'Auto Shop', clinic: 'Clinic', diner: 'Diner' };

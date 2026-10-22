@@ -226,6 +226,32 @@ COFFEE / BETTER DAYS" sign, a wood-fronted counter with a stone top, register an
 chalk menu board, a rust banquette with tables, wood tables and chairs by the window, black pendant lights, a sunset
 print, a barista and two customers (`kit.interiorPeople`, added to the kit-data people).
 
+# THE MAYOR GAME (part 1: neighbourhoods, budget, shops)
+
+Palmetto Bay (town mode: the title screen's "Be the mayor of Palmetto Bay", or ?mode=town) is played as the mayor,
+your own created character. `sim/mayor/mayor.js` (pure, deterministic, its own random stream) reads the city in:
+neighbourhoods (the map's hoods) with households (houses, walk-up flats, flats over storefront blocks), gang turf
+share and core share; every business (the turf businesses and every shop on the street). Each neighbourhood has
+safety, cleanliness, happiness and wealth (0-100). Every week (MAYOR.weekSeconds of play) the books settle: shops pay
+a cut of their takings and homes a property tax at the tax rate; the budget goes to police, city services, parks and
+small-business grants, split by households (and shops), the focus neighbourhood counting double; every score moves
+35% toward a target set by that spending (diminishing returns), the gangs, open shops and the tax rate. Each business
+has a health that follows its neighbourhood (safety, wealth, cleanliness, grants, taxes): below 30 it closes, above
+52 a closed one may reopen. Approval is happiness weighted by households. Calibrated so the default budget roughly
+breaks even (approval ~60, the gang-held neighbourhood lagging); austerity piles up cash while the city rots and
+shops close; high tax and big spending is safer but caps happiness; low taxes are popular and run a deficit
+(tests/unit/mayor.test.js).
+
+City Hall (C, or the pause menu): the town map tinted by a chosen score (red to green) with neighbourhood names,
+closed shops marked; treasury, approval, shops open; tax and department sliders with a live projection; the focus
+neighbourhood; every neighbourhood's bars and shops; last week's report. The HUD carries a mayor bar (week, treasury,
+approval, time to settlement) and a toast when a week settles. On the street, closed shops are boarded up
+(`render/kit/closedShops.js`: plywood over windows and door, CLOSED and FOR LEASE signs, shared materials) and
+unboarded when they reopen; turf businesses record their street face (`biz.front`) for it.
+
+Next (planned): households with moods who move out (dark houses, FOR SALE signs), projects on lots (parks, clinics,
+bus stops), crime spreading through neglected neighbourhoods, events and elections, citizens with requests.
+
 # THE LOT GENERATOR (asset catalogue + lot subdivision)
 
 The city is built from the handcrafted kit assets only, placed lot by lot (kit look; the old stepped boxes remain for

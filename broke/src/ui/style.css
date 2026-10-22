@@ -267,3 +267,49 @@ body.touch .ammo { right: auto; left: 18px; bottom: auto; top: 70px; }
   .cr-preview { min-height: 300px; }
   .cr-row { grid-template-columns: 1fr; gap: 2px; }
 }
+
+/* ---- the mayor game ---------------------------------------------------------------------------------------------- */
+.mayor-bar { display: flex; gap: 16px; align-items: baseline; justify-content: center; font-size: 17px; padding: 6px 16px; border-radius: 999px; background: var(--glass); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.16); margin-top: 4px; }
+.mayor-bar b { font-style: normal; }
+.mayor-bar .neg { color: #ff8a7a; }
+.mayor-bar .dim { color: var(--faint); font-size: 14px; }
+.cityhall { position: absolute; inset: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr); gap: 14px; }
+.ch-map { position: relative; display: flex; min-height: 0; }
+.ch-map .townmap { flex: 1; height: 100%; }
+.ch-tabs { position: absolute; right: 14px; top: 62px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: 70%; }
+.ch-tabs button { margin: 0; padding: 7px 14px; font-size: 14px; border-radius: 999px; background: rgba(42,36,48,0.78); color: #fbf3df; border: 1px solid rgba(255,255,255,0.25); }
+.ch-tabs button.on { background: #fbf3df; color: #2a2430; }
+.ch-side { overflow-y: auto; padding: 18px 20px; border-radius: 14px; background: rgba(26, 22, 38, 0.86); border: 1px solid rgba(255,255,255,0.14); text-align: left; }
+.ch-side h2 { margin: 0 0 10px; font-size: 30px; display: flex; justify-content: space-between; align-items: baseline; }
+.ch-side h2 span { font-size: 17px; color: var(--dim); font-style: italic; }
+.ch-side h3 { margin: 18px 0 8px; font-size: 15px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); font-family: system-ui, sans-serif; font-weight: 700; }
+.ch-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ch-kpis div { background: rgba(255,255,255,0.06); border-radius: 10px; padding: 8px 10px; }
+.ch-kpis em { display: block; font-size: 12px; color: var(--dim); font-family: system-ui, sans-serif; font-style: normal; letter-spacing: 1px; text-transform: uppercase; }
+.ch-kpis b { font-size: 22px; font-family: system-ui, sans-serif; }
+.ch-kpis b.neg, .ch-proj .neg { color: #ff8a7a; }
+.ch-proj .pos { color: #8fe0a8; }
+.ch-row { display: grid; grid-template-columns: 1fr 120px 72px; gap: 10px; align-items: center; margin: 7px 0; font-family: system-ui, sans-serif; font-size: 14px; }
+.ch-row span i { display: block; font-size: 11.5px; color: var(--faint); font-style: normal; }
+.ch-row b { text-align: right; font-variant-numeric: tabular-nums; }
+.ch-row input[type=range] { width: 100%; }
+.ch-row select { grid-column: 2 / 4; }
+.ch-proj { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.06); font-family: system-ui, sans-serif; font-size: 14px; }
+.ch-proj i { color: var(--faint); font-style: normal; font-size: 12px; }
+.ch-hoods { font-family: system-ui, sans-serif; font-size: 13px; }
+.ch-h { display: grid; grid-template-columns: 1.4fr repeat(4, 1fr) 44px; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.ch-h.head em { font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--faint); font-style: normal; }
+.ch-h span i { display: block; font-size: 11px; color: var(--faint); font-style: normal; }
+.ch-h > em { font-style: normal; text-align: right; }
+.ch-bar { display: block; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: hidden; }
+.ch-bar i { display: block; height: 100%; border-radius: 4px; }
+.ch-report { font-family: system-ui, sans-serif; font-size: 13.5px; }
+.ch-report ul { margin: 6px 0 0; padding-left: 18px; }
+.ch-report li.closed { color: #ffb0a4; }
+.ch-report li.opened { color: #a8ecbc; }
+.ch-report .quiet { color: var(--faint); }
+.ch-side .primary-btn { margin-top: 16px; width: 100%; }
+@media (max-width: 820px) {
+  .cityhall { grid-template-columns: 1fr; grid-template-rows: 42vh 1fr; }
+  .ch-row { grid-template-columns: 1fr 100px 64px; }
+}

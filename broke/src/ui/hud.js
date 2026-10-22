@@ -6,6 +6,8 @@ import { SHOP } from '../sim/economy.js';
 import { formatMoney, formatTime } from '../core/math.js';
 import { icon } from './icons.js';
 import { TIERS } from '../core/config.js';
+import { MAYOR } from '../sim/mayor/mayor.js';
+import { statColor } from './townmap.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
@@ -220,6 +222,11 @@ export class Hud {
     let top = '';
     if (!turf && ex.state === 'called') top += `<div class="countdown">The train arrives in <b>${formatTime(ex.remaining)}</b></div>`;
     if (!turf && ex.state === 'arrived') top += `<div class="countdown go">The train is here. <b>Board now</b></div>`;
+    if (g.mayor) {
+      // The mayor's bar: week, treasury, approval, time to the next settlement.
+      const M = g.mayor, left = Math.max(0, Math.ceil(MAYOR.weekSeconds - M.clock)), cash = Math.round(M.cash);
+      top += `<div class="mayor-bar"><span>Week <b>${M.week}</b></span><span class="${cash < 0 ? 'neg' : ''}">${cash < 0 ? '-' : ''}$${Math.abs(cash).toLocaleString('en-US')}</span><span>Approval <b style="color:${statColor(M.approval, 1)}">${Math.round(M.approval)}%</b></span><span class="dim">${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</span></div>`;
+    }
     const want = top + (boss ? '|boss' : '');
     if (want !== this._topHtml) {
       this._topHtml = want;

@@ -2,7 +2,8 @@
 
 import { formatMoney, formatTime } from '../core/math.js';
 import { ITEMS } from '../sim/items.js';
-import { drawTownMap } from './townmap.js';
+import { drawTownMap, statColor } from './townmap.js';
+import { MAYOR, STATS } from '../sim/mayor/mayor.js';
 import { CHOICES, setChoice, getChoice, randomLook } from './look.js';
 import { CreatorPreview } from './creatorPreview.js';
 
@@ -26,8 +27,9 @@ export class Screens {
     this[name](data);
   }
 
-  title({ survivor, seed, creator }) {
-    if (survivor.aims) return this.gunTitle({ survivor, seed, creator });
+  title(data) {
+    const { survivor, seed } = data;
+    if (survivor.aims) return this.gunTitle(data);
     const A = survivor.abilities, T = survivor.title || {};
     const sw = '#' + (survivor.accent ?? 0x1fa89a).toString(16).padStart(6, '0');
     this.root.innerHTML = `
@@ -54,8 +56,9 @@ export class Screens {
   }
 
   // Title for the turf war played as your own character: who you are, how the gun works, and the creator.
-  gunTitle({ survivor, seed, creator }) {
+  gunTitle({ survivor, seed, creator, town, modes }) {
     const sw = hex(survivor.accent ?? 0x8a6a44);
+    if (town) return this.mayorTitle({ survivor, creator, modes });
     this.root.innerHTML = `
       <div class="title-wrap">
         <h1>BROKE</h1>
@@ -72,12 +75,41 @@ export class Screens {
         </div>
         <button class="primary-btn" id="s-start">Start</button>
         ${creator ? '<button id="s-create">Edit character</button>' : ''}
+        ${modes ? '<button id="s-mayor">Be the mayor of Palmetto Bay</button>' : ''}
         <div class="seed-row"><label>Seed <input id="s-seed" value="${seed}" spellcheck="false"></label></div>
         <p class="controls">WASD move · Mouse look · Shift sprint · Space jump · M town map · Esc pause</p>
       </div>`;
+    if (this.root.querySelector('#s-mayor')) this.root.querySelector('#s-mayor').onclick = () => this.h.mode('town');
     this.root.querySelector('#s-start').onclick = () => this.h.start(this.root.querySelector('#s-seed').value.trim() || String(seed));
     const c = this.root.querySelector('#s-create');
     if (c) c.onclick = () => this.h.creator();
+  }
+
+  // Title for the mayor game: Palmetto Bay, City Hall, what you manage.
+  mayorTitle({ survivor, creator, modes }) {
+    this.root.innerHTML = `
+      <div class="title-wrap">
+        <h1>BROKE</h1>
+        <p class="tagline">Palmetto Bay needs a mayor. It got you.</p>
+        <div class="lore">
+          <div class="lore-head"><span class="swatch" style="background:#d8b030"></span><div><b>Mayor ${esc(survivor.name)}</b><span>City Hall, Palmetto Bay</span></div></div>
+          <p>Five neighbourhoods, a few hundred shops and two gangs who were here first. Set the taxes, fund the police, the street sweepers, the parks and the small shops. Every week the books settle and the city answers: safer streets and open shops, or boarded windows and angry residents.</p>
+          <ul>
+            <li><b>C · City Hall</b> The budget, every neighbourhood's scores, and last week's report.</li>
+            <li><b>Walk the streets</b> See what your choices did: closed shops are boarded up.</li>
+            <li><b>Right mouse / click / R</b> The revolver still works. Some problems need a personal touch.</li>
+          </ul>
+        </div>
+        <button class="primary-btn" id="s-start">Take office</button>
+        ${creator ? '<button id="s-create">Edit character</button>' : ''}
+        ${modes ? '<button id="s-turf">Play the turf war instead</button>' : ''}
+        <p class="controls">WASD move · Mouse look · Shift sprint · Space jump · C City Hall · M map · Esc pause</p>
+      </div>`;
+    this.root.querySelector('#s-start').onclick = () => this.h.start('palmetto');
+    const c = this.root.querySelector('#s-create');
+    if (c) c.onclick = () => this.h.creator();
+    const t = this.root.querySelector('#s-turf');
+    if (t) t.onclick = () => this.h.mode('turf');
   }
 
   // Character creator: a live preview on the left, the choices on the right. Done saves; Cancel keeps the old look.
@@ -135,6 +167,7 @@ export class Screens {
         <p class="seed">Seed <b>${seed}</b> · press <b>H</b> to switch city / new-look street</p>
         <button class="primary-btn" id="p-resume">Resume</button>
         ${this.h.map ? '<button id="p-map">Town map</button>' : ''}
+        ${this.cityhallOn ? '<button id="p-hall">City Hall</button>' : ''}
         <button id="p-replay">Replay this seed</button>
         <button id="p-new">New city</button>
         <div class="seed-row"><label>Play seed <input id="p-seed" value="${seed}" spellcheck="false"></label><button id="p-go">Go</button></div>
@@ -152,6 +185,7 @@ export class Screens {
     $('#p-new').onclick = () => this.h.restart(false);
     $('#p-go').onclick = () => this.h.start($('#p-seed').value.trim() || seed);
     if ($('#p-map')) $('#p-map').onclick = () => this.h.map();
+    if ($('#p-hall')) $('#p-hall').onclick = () => this.h.cityhall();
     $('#p-q').onchange = (e) => this.h.quality(e.target.value);
     $('#p-vol').oninput = (e) => this.h.volume(+e.target.value);
     $('#p-sens').oninput = (e) => this.h.sens(+e.target.value);
@@ -169,6 +203,71 @@ export class Screens {
     const draw = () => drawTownMap(cv, turf, { player, buildings, subtitle: turf.district.personality });
     requestAnimationFrame(draw);
     this.root.querySelector('#m-back').onclick = () => this.h.mapBack();
+  }
+
+  // City Hall (the mayor game): the map tinted by a neighbourhood score, the treasury and approval, the weekly
+  // budget with a live projection, every neighbourhood's scores and shops, and last week's report. Changes apply at
+  // once (the books settle at the end of the week).
+  cityhall({ mayor, turf, player, seed }) {
+    const M = mayor, money = (v) => `${v < 0 ? '-' : ''}$${Math.abs(Math.round(v)).toLocaleString('en-US')}`;
+    const LABEL = { safety: 'Safety', cleanliness: 'Cleanliness', happiness: 'Happiness', wealth: 'Wealth' };
+    const DEPTS = [['police', 'Police', 'Safer streets; pushes back on the gangs.'], ['services', 'City services', 'Trash, repairs and street cleaning.'], ['parks', 'Parks', 'Happier residents.'], ['grants', 'Small-business grants', 'Keeps struggling shops open.']];
+    let stat = this.chStat || 'safety';
+    const hoodCentre = (name) => { const bs = turf.blocks.filter((b) => (b.hood ?? 'Downtown') === name); return bs.length ? { x: bs.reduce((a, b) => a + b.center.x, 0) / bs.length, z: bs.reduce((a, b) => a + b.center.z, 0) / bs.length } : null; };
+    this.root.innerHTML = `
+      <div class="cityhall">
+        <div class="ch-map">
+          <canvas class="townmap"></canvas>
+          <div class="ch-tabs">${STATS.map((k) => `<button data-stat="${k}" class="${k === stat ? 'on' : ''}">${LABEL[k]}</button>`).join('')}</div>
+        </div>
+        <div class="ch-side">
+          <h2>City Hall <span>Week ${M.week}</span></h2>
+          <div class="ch-kpis">
+            <div><em>Treasury</em><b id="ch-cash"></b></div>
+            <div><em>Approval</em><b id="ch-appr"></b></div>
+            <div><em>Shops open</em><b id="ch-open"></b></div>
+          </div>
+          <h3>This week's budget</h3>
+          <label class="ch-row"><span>Tax rate <i>Higher taxes fund more, but hurt shops and moods.</i></span><input type="range" id="ch-tax" min="${MAYOR.tax.min}" max="${MAYOR.tax.max}" step="0.01" value="${M.budget.tax}"><b id="ch-tax-v"></b></label>
+          ${DEPTS.map(([k, n, d]) => `<label class="ch-row"><span>${n} <i>${d}</i></span><input type="range" data-dept="${k}" min="0" max="${MAYOR.maxSpend}" step="500" value="${M.budget[k]}"><b data-v="${k}"></b></label>`).join('')}
+          <label class="ch-row"><span>Focus <i>Twice the share of every department.</i></span><select id="ch-focus"><option value="">Whole city</option>${M.hoods.map((h) => `<option ${M.budget.focus === h.name ? 'selected' : ''}>${esc(h.name)}</option>`).join('')}</select></label>
+          <div class="ch-proj" id="ch-proj"></div>
+          <h3>Neighbourhoods</h3>
+          <div class="ch-hoods" id="ch-hoods"></div>
+          <h3>Last week</h3>
+          <div class="ch-report" id="ch-report"></div>
+          <button class="primary-btn" id="ch-back">Back to the street</button>
+        </div>
+      </div>`;
+    const $ = (q) => this.root.querySelector(q);
+    const cv = $('canvas');
+    const drawMap = () => drawTownMap(cv, turf, {
+      player, subtitle: `${LABEL[stat]} by neighbourhood`,
+      stat: { label: LABEL[stat], value: (b) => M.hood(b.hood ?? 'Downtown')?.[stat] },
+      hoods: M.hoods.map((h) => ({ name: h.name, value: h[stat], ...hoodCentre(h.name) })).filter((h) => h.x != null),
+      closed: M.businesses.filter((b) => !b.open),
+    });
+    const bar = (v) => `<span class="ch-bar"><i style="width:${Math.round(v)}%;background:${statColor(v, 1)}"></i></span>`;
+    const refresh = () => {
+      const p = M.projection();
+      $('#ch-cash').textContent = money(M.cash); $('#ch-cash').className = M.cash < 0 ? 'neg' : '';
+      $('#ch-appr').textContent = `${Math.round(M.approval)}%`; $('#ch-appr').style.color = statColor(M.approval, 1);
+      $('#ch-open').textContent = `${M.openCount()} / ${M.businesses.length}`;
+      $('#ch-tax-v').textContent = `${Math.round(M.budget.tax * 100)}%`;
+      for (const [k] of DEPTS) this.root.querySelector(`[data-v="${k}"]`).textContent = money(M.budget[k]);
+      $('#ch-proj').innerHTML = `<span>Income <b>${money(p.income)}</b> <i>(shops ${money(p.business)}, homes ${money(p.property)})</i></span><span>Spending <b>${money(p.spend)}</b></span><span>This week <b class="${p.net < 0 ? 'neg' : 'pos'}">${p.net >= 0 ? '+' : ''}${money(p.net)}</b></span>`;
+      $('#ch-hoods').innerHTML = `<div class="ch-h head"><span></span>${STATS.map((k) => `<em>${LABEL[k]}</em>`).join('')}<em>Shops</em></div>` + M.hoods.map((h) => `<div class="ch-h"><span><b>${esc(h.name)}</b><i>${h.households} homes${h.gang > 0.2 ? ' · gang turf' : ''}</i></span>${STATS.map((k) => bar(h[k])).join('')}<em>${h.businesses.filter((b) => b.open).length}/${h.businesses.length}</em></div>`).join('');
+      const r = M.reports[0];
+      $('#ch-report').innerHTML = r ? `<p>Week ${r.week}: ${r.money.net >= 0 ? '+' : ''}${money(r.money.net)} · approval ${Math.round(r.approval)}%</p>${r.events.length ? `<ul>${r.events.slice(0, 8).map((e) => `<li class="${e.kind}">${esc(e.text)}</li>`).join('')}</ul>` : '<p class="quiet">No shops opened or closed.</p>'}` : '<p class="quiet">Your first week is under way. The books settle at the end of it.</p>';
+    };
+    for (const el of this.root.querySelectorAll('[data-stat]')) el.onclick = () => { stat = this.chStat = el.dataset.stat; for (const q of this.root.querySelectorAll('[data-stat]')) q.classList.toggle('on', q === el); drawMap(); };
+    $('#ch-tax').oninput = (e) => { M.setBudget({ tax: +e.target.value }); refresh(); };
+    for (const el of this.root.querySelectorAll('[data-dept]')) el.oninput = (e) => { M.setBudget({ [el.dataset.dept]: +e.target.value }); refresh(); };
+    $('#ch-focus').onchange = (e) => { M.setBudget({ focus: e.target.value || null }); refresh(); };
+    $('#ch-back').onclick = () => this.h.cityhallBack();
+    refresh();
+    requestAnimationFrame(drawMap);
+    void seed;
   }
 
   dead({ cents }) {

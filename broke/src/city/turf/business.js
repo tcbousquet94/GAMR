@@ -84,6 +84,8 @@ export function buildBusiness(kit, fr, biz, opts = {}) {
   const gr = R(doorU0, -0.4, doorU1, 0);
   biz.gate = { ...gr, y0: G, y1: 2.55, open: true };
   biz.door = P((doorU0 + doorU1) / 2, -0.8);
+  // The street face (for boarding the place up when it closes): window and door spans, the outward normal.
+  biz.front = { win: [fr.at(winU0, -0.02), fr.at(winU1, -0.02)], door: [fr.at(doorU0, -0.02), fr.at(doorU1, -0.02)], out: { x: out.x, z: out.z }, winY: [0.85, 2.85], doorY: [G, 2.55] };
   biz.doorInside = P((doorU0 + doorU1) / 2, 1.2);
   // Mullions on the big window.
   for (let u = winU0 + 2.5; u < winU1 - 0.5; u += 2.5) box(u - 0.06, -0.05, u + 0.06, t + 0.05, 0.85, 2.85, pal.metal, MAT.METAL);

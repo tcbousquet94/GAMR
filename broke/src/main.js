@@ -27,6 +27,7 @@ import { ABILITY_ICONS } from './ui/hud.js';
 import { icon } from './ui/icons.js';
 import { FlyCam } from './debug/flycam.js';
 import { buildDebugOverlay } from './render/debugOverlay.js';
+import { buildClosedShops } from './render/kit/closedShops.js';
 
 const params = new URLSearchParams(location.search);
 const canvas = document.getElementById('game');
@@ -37,15 +38,18 @@ const HERO = params.get('scene') === 'hero' || (params.get('scene') == null && s
 const CLASSIC = params.get('mode') === 'classic'; // the retired roguelike keeps its old renderer
 // Modes: the turf war on a generated seed (default; ?mode=turf also works), ?mode=town (the superhero town game on
 // the handcrafted map; ?map=<name>), ?mode=classic (the roguelike), ?scene=hero ("h", the look test).
-const TOWN = !HERO && !CLASSIC && (params.get('mode') === 'town' || params.has('map'));
+// The mayor game (town) can also be picked on the title screen, remembered for the session (the URL can't always be
+// edited where the game is played).
+const modeFlag = () => { try { return sessionStorage.getItem('broke.mode'); } catch { return null; } };
+const TOWN = !HERO && !CLASSIC && (params.get('mode') === 'town' || params.has('map') || (params.get('mode') == null && modeFlag() === 'town'));
 const TURF = !HERO && !CLASSIC && !TOWN;
 // The playable character for this mode. The turf war is played as your own character (the creator on the title
 // screen; remembered in this browser).
 let look = loadLook();
-let PC = TOWN ? BEACON : TURF ? makeCustomHero(look) : DEE;
+let PC = TOWN || TURF ? makeCustomHero(look) : DEE; // the mayor is your own character too
 let townMap = null;
 const loadTownMap = async () => { const name = MAPS[params.get('map')] ? params.get('map') : DEFAULT_MAP; const [base, edits] = await MAPS[name].load(); townMap = { name, base: base.default, edits: edits.default }; };
-const newTown = () => new TownGame({ city: loadMap(townMap.base, townMap.edits), survivor: BEACON });
+const newTown = () => new TownGame({ city: loadMap(townMap.base, townMap.edits), survivor: PC });
 const view = new (CLASSIC ? View : KitView)(canvas, { quality: params.get('quality') || 'auto', preserve: params.has('shot') || params.has('bot') });
 const input = new Input(canvas);
 const aimAssist = new AimAssist(input);
@@ -78,10 +82,29 @@ const screens = new Screens(document.getElementById('screens'), {
   aimAssist: (on) => { aimAssist.enabled = on; },
   creator: () => showCreator(),
   creatorDone: (l) => { if (l) { look = l; saveLook(l); PC = makeCustomHero(l); } showTitle(); },
+  mode: (m) => { try { sessionStorage.setItem('broke.mode', m); } catch { /* storage blocked */ } const u = new URL(location.href); u.searchParams.set('mode', m); u.searchParams.delete('map'); location.href = u.toString(); },
+  cityhall: () => showCityHall(),
+  cityhallBack: () => (app.hallFromPlay ? resume() : pause()),
   map: () => showMap(),
   mapBack: () => (app.mapFromPlay ? resume() : pause()),
 });
 app.fly = new FlyCam(input);
+
+// City Hall (C or the pause menu, the mayor game): the budget and the neighbourhoods.
+function showCityHall() {
+  const g = app.game;
+  if (!g?.mayor) return;
+  if (app.state === 'playing' && !app.paused) { app.hallFromPlay = true; pause(); } else app.hallFromPlay = false;
+  screens.show('cityhall', { mayor: g.mayor, turf: g.turf, player: { x: g.player.pos.x, z: g.player.pos.z, yaw: g.player.yaw }, seed: app.seed });
+}
+app.showCityHall = showCityHall;
+// Boarded-up storefronts for the shops the mayor's city has lost (rebuilt with each loaded game).
+function attachMayor(g) {
+  screens.cityhallOn = !!g.mayor;
+  if (!g.mayor) return;
+  app.closed = buildClosedShops(g.city, g.mayor);
+  view.scene.add(app.closed.group);
+}
 
 // Town map (M or the pause menu). Only the turf game has one.
 function showMap() {
@@ -116,6 +139,16 @@ export function startRun(seed, opts = {}) {
   if (params.get('god') === '1' || opts.god) g.godMode = true;
   if (app.fly?.active) app.fly.toggle(view);
   view.load(g);
+  attachMayor(g);
+  if (g.mayor) {
+    g.mayorLive = true;
+    g.events.on('mayorWeek', (r) => {
+      app.closed?.sync(g.mayor);
+      const shut = r.events.filter((e) => e.kind === 'closed').length, back = r.events.filter((e) => e.kind === 'opened').length;
+      const net = r.money.net, m = `${net < 0 ? '-' : '+'}$${Math.abs(net).toLocaleString('en-US')}`;
+      hud.flashPrompt(`Week ${r.week} settled · ${m}`, `Approval ${Math.round(r.approval)}%${shut ? ` · ${shut} shop${shut > 1 ? 's' : ''} closed` : ''}${back ? ` · ${back} reopened` : ''} · C for City Hall`);
+    });
+  }
   hud.bind(g, PC, touch);
   audio.bind(g);
   input.yaw = g.player.yaw;
@@ -162,6 +195,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyH' && (app.state === 'title' || app.paused)) { try { sessionStorage.setItem('broke.scene', HERO ? 'city' : 'hero'); } catch { /* storage blocked */ } location.reload(); return; }
   if (e.code === 'Escape' || e.code === 'KeyP') { if (app.state === 'playing') (app.paused ? resume() : pause()); }
   if (e.code === 'F3') { perf.toggle(); e.preventDefault(); }
+  if (e.code === 'KeyC' && app.game?.mayor) { if (screens.current === 'cityhall') app.hallFromPlay ? resume() : pause(); else if (app.state === 'playing') showCityHall(); }
   if (e.code === 'KeyM' && app.game?.turf) { if (screens.current === 'map') app.mapFromPlay ? resume() : pause(); else if (app.state === 'playing') showMap(); }
   if (e.code === 'F1' && app.state === 'playing') { app.fly.toggle(view); e.preventDefault(); }
   if (e.code === 'F2') { toggleOverlay(); e.preventDefault(); }
@@ -243,10 +277,11 @@ function showTitle() {
   const g = (app.game = CLASSIC ? new Game({ seed: app.seed, district: downtown, survivor: DEE }) : TOWN ? newTown() : new TurfGame({ seed: app.seed, survivor: PC }));
   g.director.enabled = false;
   view.load(g);
+  attachMayor(g);
   hud.bind(g, PC, touch);
   hud.setVisible(false);
   app.state = 'title';
-  screens.show('title', { survivor: PC, seed: app.seed, creator: TURF });
+  screens.show('title', { survivor: PC, seed: app.seed, creator: TURF || TOWN, town: TOWN, modes: !HERO && !CLASSIC });
 }
 
 // Character creator (turf war): edits the look with a live turntable preview of the model.

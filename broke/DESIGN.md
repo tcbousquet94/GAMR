@@ -226,6 +226,20 @@ COFFEE / BETTER DAYS" sign, a wood-fronted counter with a stone top, register an
 chalk menu board, a rust banquette with tables, wood tables and chairs by the window, black pendant lights, a sunset
 print, a barista and two customers (`kit.interiorPeople`, added to the kit-data people).
 
+# WALK-IN HOMES
+
+Every ordinary pitched-roof kit house at least 8.5 m wide and 9 m deep (`isHome` in `kitdata/home.js`) is a walk-in
+home after the user's reference image (style only). One layout (`homeLayout`) drives the colliders
+(`kitdata/data.js`), the renderer (`render/kit/houses.js`) and the generator's room light and resident, so what you
+see is what you bump into. The front door stands open (1.2 m wide); windows are see-through glass with part-drawn
+venetian blinds. Living room at the front: dark varnished boards, two-tone walls (dark blue-grey wainscot, a chair
+rail, pale above, crown moulding), a rug, an olive sofa facing a TV on a low unit between tall speakers, a coffee table
+with a bottle and ashtray, a poster and a framed picture, a potted plant, pendant lamps; stairs with a banister up the
+left wall in two-storey houses (the upper floor is not built). A cased opening in a partition leads to the
+kitchen-diner across the back: green checker floor, honey-oak cabinets on two walls (upper ones skip the windows), sink
+under a window, stove, an almond fridge, a table and four ladder-back chairs. One warm, dim room light per home and
+someone on the sofa in about half (both placed by position, no rng). Houses without a porch get a concrete stoop.
+
 # THE TURF MAP (how Downtown is generated) — decisions
 
 - **District as data** (`src/city/turf/districts/downtown.js`): personality, landmark, road style, edges per side,

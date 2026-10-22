@@ -95,6 +95,35 @@ test('corner markets are walk-in: through the door, blocked by the counter, staf
   assert.ok(checked >= 3, `checked ${checked} markets`);
 });
 
+test('ordinary houses are walk-in homes: through the front door, through the opening to the kitchen, lit', async () => {
+  const { isHome, homeLayout, homeToWorld, HOME } = await import('../../src/city/kitdata/home.js');
+  const { houseYaw, FL } = await import('../../src/city/kitdata/data.js');
+  const g = new TurfGame({ seed: 454473, survivor: DEE });
+  const homes = g.city.kitData.houses.filter(isHome);
+  assert.ok(homes.length >= 10, `homes on this seed (${homes.length})`);
+  let checked = 0;
+  for (const h of homes.slice(0, 4)) {
+    const P = g.player, yaw = houseYaw(h), L = homeLayout(h), y = (h.y ?? 0.15) + FL;
+    const local = () => { const dx = P.pos.x - h.x, dz = P.pos.z - h.z, c = Math.cos(yaw), sn = Math.sin(yaw); return { x: dx * c - dz * sn, z: dx * sn + dz * c }; };
+    const put = (lx, lz, yy) => { const w = homeToWorld(h, lx, lz); Object.assign(P.body.pos, { x: w.x, y: yy, z: w.z }); Object.assign(P.body.vel, { x: 0, y: 0, z: 0 }); for (let i = 0; i < 30; i++) g.step({ yaw }); };
+    // From outside the front door, straight in.
+    put(L.doorX + 0.1, h.d / 2 + 1.2, y + 0.6);
+    for (let i = 0; i < 90; i++) g.step({ moveZ: 1, yaw });
+    let l = local();
+    assert.ok(l.z < h.d / 2 - 1.5, `walked in the front door (local z ${l.z.toFixed(2)})`);
+    assert.ok(Math.abs(l.x) < h.w / 2 - HOME.wall && P.pos.y < y + 0.3, 'inside the walls, on the floor');
+    // From the living room, through the opening into the kitchen, stopped by the counters.
+    put(L.xo, L.zp + 1.2, y + 0.3);
+    for (let i = 0; i < 90; i++) g.step({ moveZ: 1, yaw });
+    l = local();
+    assert.ok(l.z < L.zp - 0.5 && l.z > L.kz0 + 0.62, `in the kitchen (local z ${l.z.toFixed(2)})`);
+    checked++;
+  }
+  assert.ok(checked === 4);
+  assert.ok(g.city.kitData.people.some((p) => p.pose === 'sit'), 'someone on a sofa');
+  assert.ok(g.city.kit.lights.filter((l) => l.kind === 'shop' && l.tint).length >= homes.length, 'a room light per home');
+});
+
 test('cafe storefronts are walk-in rooms: open inside, glazed, staffed and lit', () => {
   const g = new TurfGame({ seed: 454473, survivor: DEE });
   const s = g.city.kit.signs.find((q) => q.text === 'LUMO CAFE');

@@ -12,6 +12,7 @@
 //   palms, trees, shrubs, hedges, poleLines, lights, cars, trucks, bins, hydrants, props, people
 
 import { BODEGA, bodegaFixtures, storeToWorld, isWalkIn } from './bodega.js';
+import { HOME, isHome, homeLayout, homeToWorld } from './home.js';
 
 export const CURB = 0.15;
 export const FH = 2.9, FL = 0.45; // floor height, foundation height (houses)
@@ -59,7 +60,8 @@ export function rotRect(add, cx, cz, w, d, yaw, y0, y1, tag) {
 export function kitColliders(D, add, TAG) {
   for (const h of D.houses) {
     const y = h.y ?? CURB, yaw = houseYaw(h);
-    rotRect(add, h.x, h.z, h.w, h.d, yaw, y, y + houseHeight(h) + 2, TAG.BUILDING);
+    if (isHome(h)) homeColliders(h, add, TAG, y, yaw);
+    else rotRect(add, h.x, h.z, h.w, h.d, yaw, y, y + houseHeight(h) + 2, TAG.BUILDING);
     if (h.porch) { const c = Math.cos(yaw), s = Math.sin(yaw), off = h.d / 2 + h.porch.depth / 2; rotRect(add, h.x + off * s, h.z + off * c, h.w - 1, h.porch.depth, yaw, y, y + FL, TAG.PLATFORM); }
   }
   for (const a of D.apartments) rotRect(add, a.x, a.z, a.w, a.d, houseYaw(a), a.y ?? CURB, (a.y ?? CURB) + (a.floors || 2) * 3 + 1.2, TAG.BUILDING);
@@ -95,6 +97,30 @@ export function kitColliders(D, add, TAG) {
   for (const b of D.bins) add(b.x - 0.32, b.y ?? CURB, b.z - 0.36, b.x + 0.32, (b.y ?? CURB) + 1.1, b.z + 0.36, TAG.PROP);
   for (const p of D.props) { const r = PROP_SIZE[p.type]; if (r) rotRect(add, p.x, p.z, r[0], r[1], p.yaw || 0, p.y ?? CURB, (p.y ?? CURB) + r[2], TAG.PROP); }
 }
+// A walk-in home: foundation as floor, the four walls with the front doorway, the partition with its opening, the
+// ceiling and everything above it, the stairs as a run of steps, the open front door, and the furniture.
+function homeColliders(h, add, TAG, y, yaw) {
+  const L = homeLayout(h), W = h.w, Dp = h.d, t = HOME.wall, fl = y + FL, ceil = y + L.ceil, top = y + houseHeight(h) + 2;
+  const R = (x0, z0, x1, z1, y0, y1, tag) => { const c = homeToWorld(h, (x0 + x1) / 2, (z0 + z1) / 2); rotRect(add, c.x, c.z, x1 - x0, z1 - z0, yaw, y0, y1, tag); };
+  const dx0 = L.doorX - HOME.doorHalf, dx1 = L.doorX + HOME.doorHalf;
+  R(-W / 2, -Dp / 2, W / 2, Dp / 2, y, fl, TAG.GROUND);
+  R(-W / 2, -Dp / 2, -W / 2 + t, Dp / 2, y, top, TAG.BUILDING); R(W / 2 - t, -Dp / 2, W / 2, Dp / 2, y, top, TAG.BUILDING);
+  R(-W / 2 + t, -Dp / 2, W / 2 - t, -Dp / 2 + t, y, top, TAG.BUILDING);
+  R(-W / 2 + t, Dp / 2 - t, dx0, Dp / 2, y, top, TAG.BUILDING); R(dx1, Dp / 2 - t, W / 2 - t, Dp / 2, y, top, TAG.BUILDING);
+  R(dx0, Dp / 2 - t, dx1, Dp / 2, fl + HOME.doorH, top, TAG.BUILDING); // over the door
+  R(-W / 2, -Dp / 2, W / 2, Dp / 2, ceil, top, TAG.BUILDING); // ceiling, attic and roof
+  // Partition: wall either side of the opening, a header over it.
+  R(-L.a, L.zp - L.p, L.xo - HOME.openHalf, L.zp + L.p, fl, ceil, TAG.BUILDING); R(L.xo + HOME.openHalf, L.zp - L.p, L.a, L.zp + L.p, fl, ceil, TAG.BUILDING);
+  R(L.xo - HOME.openHalf, L.zp - L.p, L.xo + HOME.openHalf, L.zp + L.p, fl + 2.2, ceil, TAG.BUILDING);
+  // Open front door, swung in against the hinge side.
+  R(dx0 + 0.08, Dp / 2 - t - 1.1, dx0 + 0.14, Dp / 2 - t, fl, fl + 2.15, TAG.PROP);
+  if (L.stairs) {
+    const S = L.stairs, n = 12, run = (S.z1 - S.z0) / n;
+    for (let i = 0; i < n; i++) R(S.x0, S.z1 - (i + 1) * run, S.x1, S.z1 - i * run, fl, fl + (i + 1) * (FH / (n + 1)), TAG.PROP);
+  }
+  for (const f of L.fixtures) R(f.x0, f.z0, f.x1, f.z1, fl, fl + f.h, TAG.PROP);
+}
+
 // Collider footprint (w, d, h) for solid props.
 export const PROP_SIZE = { dumpster: [1.9, 1.2, 1.3], ice: [1.3, 0.8, 1.9], phone: [0.5, 0.4, 2.1], newsbox: [0.5, 0.45, 1.1], shed: [2.4, 2, 2.4], hoop: [0.3, 0.3, 3.2], pallets: [1.2, 1.0, 1.0], container: [2.4, 6, 2.6], bench: [1.6, 0.5, 0.8] };
 

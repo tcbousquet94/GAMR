@@ -27,6 +27,7 @@ import { emptyKitData, kitColliders, CURB } from '../kitdata/data.js';
 import { placeModules } from '../kitdata/hood.js';
 import { streetData } from '../kitdata/streets.js';
 import { bodegaStaff, isWalkIn } from '../kitdata/bodega.js';
+import { isHome, homeLife } from '../kitdata/home.js';
 
 // opts.kit (default true): the remastered look. Streets, kerbs, verges and furniture come from the kit (as kit data),
 // free blocks are filled with neighbourhood modules, and the generator's own boxes are drawn with kit materials.
@@ -89,6 +90,14 @@ export function generateTurf(cfg, seed, opts = {}) {
       KD.people.push(clerk);
       kit.light(light.x, light.y, light.z, 0xf2ead2, 8, 'shop');
       Object.assign(kit.lights[kit.lights.length - 1], { power: 0.4, tint: 0xf2e8d0 });
+    }
+    // Walk-in homes: a warm, dim room light, and in about half of them someone on the sofa (no rng: by position).
+    for (const h of KD.houses) {
+      if (!isHome(h)) continue;
+      const { light, resident } = homeLife(h, (Math.round(h.x * 11 + h.z * 17) % 1e6 + 1e6) % 1e6);
+      if (resident) KD.people.push(resident);
+      kit.light(light.x, light.y, light.z, 0xffd6a0, 7, 'shop');
+      Object.assign(kit.lights[kit.lights.length - 1], { power: 0.5, tint: 0xffe0b0 });
     }
     // The rest of the city beyond the edges: a ring of real high-rises (the old flat skyline is not drawn in the kit look).
     const I = city.inner, cxm = (I.x0 + I.x1) / 2, czm = (I.z0 + I.z1) / 2, R0 = Math.max(I.x1 - I.x0, I.z1 - I.z0) / 2;

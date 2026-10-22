@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { mat, tris } from './batch.js';
 import { CURB, houseHeight, houseYaw } from '../../city/kitdata/data.js';
+import { HOME, isHome, homeLayout } from '../../city/kitdata/home.js';
 
 const FH = 2.9, T = 0.24, E = 0.55, PITCH = 0.42;
 let FL = 0.45; // foundation height of the building being built (sheds and warehouses sit lower)
@@ -16,6 +17,7 @@ const _a = new THREE.Vector3(), _b = new THREE.Vector3();
 // doorKey (roll-up doors), storefront (wide glazing), units (apartment doors on every floor), industrial (high windows).
 export function buildHouse(B, h, rng) {
   FL = h.fl ?? 0.45;
+  if (isHome(h) && !h.home) h = { ...h, home: true };
   const M = mat(h.x, h.y ?? CURB, h.z, houseYaw(h));
   const W = h.w, D = h.d;
   // Axis-aligned box in house-local space.
@@ -61,6 +63,19 @@ export function buildHouse(B, h, rng) {
         piece(w, key, a, b, y0 + o.v1, y1, color);
       }
       for (const o of fo) opening(w, o, y0, piece, trim, h, rng, f);
+      if (h.home && f === 0) {
+        // Inside the home: the same columns lined in two-tone paint (dark wainscot, pale above) with a chair rail,
+        // skirting and a crown moulding, leaving the openings clear.
+        for (let i = 0; i < cuts.length - 1; i++) {
+          const a = cuts[i], b = cuts[i + 1];
+          if (b - a < 1e-3) continue;
+          const o = fo.find((q) => q.u0 <= a + 1e-3 && q.u1 >= b - 1e-3);
+          const spans = o ? [[0, o.v0], [o.v1, floorH]].filter(([p, q]) => q - p > 1e-3) : [[0, floorH]];
+          const ia = Math.max(a, T - 0.001), ib = Math.min(b, w.L - T + 0.001); // inside the corners
+          if (ib - ia < 1e-3) continue;
+          for (const [p, q] of spans) lining(w, piece, ia, ib, y0 + p, y0 + q, y0);
+        }
+      }
       // Floor band between storeys.
       if (f > 0) piece(w, 'trim', -0.05, w.L + 0.05, y0 - 0.1, y0 + 0.12, trim, 0.035, 0.06);
     }
@@ -135,11 +150,178 @@ export function buildHouse(B, h, rng) {
 
   // ---- porch --------------------------------------------------------------------------------------------------------
   if (h.porch) porch(box, boxR, h, W, D, Yt, trim);
+  if (h.home) {
+    homeInterior(box, boxR, h, rng);
+    // No porch: a concrete stoop up to the door.
+    if (!h.porch) { const L = homeLayout(h); box('concrete', L.doorX - 0.8, 0, D / 2, L.doorX + 0.8, FL * 0.5, D / 2 + 0.7, 0xb0aca4); box('concrete', L.doorX - 0.8, 0, D / 2, L.doorX + 0.8, FL - 0.01, D / 2 + 0.35, 0xb0aca4); }
+  }
   if (h.chimney) {
     const x = W / 2 - 1.6, z = -D / 2 + 1.2;
     box('brick', x - 0.5, 0, z - 0.4, x + 0.5, Yt + 2.6, z + 0.4, 0xffffff);
     box('concrete', x - 0.58, Yt + 2.6, z - 0.48, x + 0.58, Yt + 2.72, z + 0.48, 0x9a948c);
   }
+}
+
+// Interior wall finish for one span of a home's wall (heights v0..v1 absolute, floor at y0).
+const WAIN = 0x3a4652, UPPER = 0x8a8678, WOOD = 0x4a3020;
+function lining(w, piece, u0, u1, v0, v1, y0) {
+  const band = (key, lo, hi, col, depth) => { const p = Math.max(v0, lo), q = Math.min(v1, hi); if (q - p > 1e-3) piece(w, key, u0, u1, p, q, col, -T, depth); };
+  band('plaster', y0, y0 + 0.95, WAIN, 0.015);
+  band('plaster', y0 + 0.95, y0 + FH, UPPER, 0.015);
+  band('trim', y0 + 0.9, y0 + 1.0, WOOD, 0.045); // chair rail
+  band('trim', y0, y0 + 0.13, WOOD, 0.035); // skirting
+  band('trim', y0 + FH - 0.14, y0 + FH, WOOD, 0.05); // crown
+}
+
+// The home's rooms (layout from kitdata/home.js): wood floor and rug, ceiling with pendant lamps, the partition with a
+// cased opening, sofa, coffee table with a bottle and ashtray, TV on a low unit between tall speakers, a poster and a
+// framed picture, a potted plant; stairs with a banister up the left wall in two-storey houses; through the opening,
+// a kitchen-diner with a green checker floor, honey-oak cabinets on two walls, sink, stove, an old fridge, a table and
+// four chairs under a hanging lamp.
+function homeInterior(box, boxR, h, rng) {
+  const L = homeLayout(h), { a, b, zp, p, xo, zl, kz0, kz1, kz, tx } = L, F = FL, C = FL + FH;
+  const fx = Object.fromEntries(L.fixtures.map((f) => [f.name, f]));
+  // Floors: dark varnished boards in the living room, worn green-and-cream checker in the kitchen.
+  box('planks', -a, F, zp - p, a, F + 0.012, b, 0x5a3a24);
+  const sq = 0.5;
+  for (let x = -a, i = 0; x < a - 0.01; x += sq, i++) for (let z = kz0, j = 0; z < kz1 - 0.01; z += sq, j++) box('tile', x, F, z, Math.min(a, x + sq), F + 0.014, Math.min(kz1, z + sq), (i + j) % 2 ? 0x3e5a48 : 0xb0ae98);
+  // Ceiling.
+  box('plaster', -a, C - 0.05, -b, a, C, b, 0x6e6a60);
+  // Partition, lined both sides, with a cased opening.
+  for (const [x0, x1] of [[-a, xo - HOME.openHalf], [xo + HOME.openHalf, a]]) {
+    box('plaster', x0, F, zp - p, x1, C, zp + p, UPPER);
+    for (const s of [-1, 1]) {
+      const z = zp + s * p;
+      box('plaster', x0, F, z, x1, F + 0.95, z + s * 0.015, WAIN);
+      box('trim', x0, F + 0.9, z, x1, F + 1.0, z + s * 0.045, WOOD); box('trim', x0, F, z, x1, F + 0.13, z + s * 0.035, WOOD); box('trim', x0, C - 0.14, z, x1, C, z + s * 0.05, WOOD);
+    }
+  }
+  box('plaster', xo - HOME.openHalf, F + 2.2, zp - p, xo + HOME.openHalf, C, zp + p, UPPER);
+  for (const s of [-1, 1]) { // casing round the opening
+    box('trim', xo - HOME.openHalf - 0.1, F, zp + s * p, xo - HOME.openHalf, F + 2.3, zp + s * (p + 0.04), WOOD);
+    box('trim', xo + HOME.openHalf, F, zp + s * p, xo + HOME.openHalf + 0.1, F + 2.3, zp + s * (p + 0.04), WOOD);
+    box('trim', xo - HOME.openHalf - 0.1, F + 2.2, zp + s * p, xo + HOME.openHalf + 0.1, F + 2.32, zp + s * (p + 0.04), WOOD);
+  }
+  for (const x of [xo - HOME.openHalf, xo + HOME.openHalf - 0.04]) box('trim', x, F, zp - p, x + 0.04, F + 2.2, zp + p, WOOD);
+  box('trim', xo - HOME.openHalf, F + 2.16, zp - p, xo + HOME.openHalf, F + 2.2, zp + p, WOOD);
+  // Pendant lamps: a cone shade on a cord.
+  const pendant = (x, z, drop) => {
+    box('metalPaint', x - 0.01, C - drop, z - 0.01, x + 0.01, C, z + 0.01, 0x2a2a2a);
+    box('metalPaint', x - 0.28, C - drop - 0.22, z - 0.28, x + 0.28, C - drop - 0.12, z + 0.28, 0x6a6458);
+    box('metalPaint', x - 0.16, C - drop - 0.12, z - 0.16, x + 0.16, C - drop, z + 0.16, 0x6a6458);
+    box('trim', x - 0.22, C - drop - 0.24, z - 0.22, x + 0.22, C - drop - 0.22, z + 0.22, 0xfff0c8);
+  };
+  pendant((a - 3.0 + xo) / 2, zl + 0.3, 0.35);
+  pendant(tx, kz, 0.5);
+
+  // ---- living room ---------------------------------------------------------------------------------------------------
+  box('trim', a - 3.9, F + 0.012, zl - 1.6, a - 0.9, F + 0.025, zl + 1.6, 0x3a3028); // rug
+  box('trim', a - 3.75, F + 0.025, zl - 1.45, a - 1.05, F + 0.03, zl + 1.45, 0x4a3e30);
+  // Sofa: worn olive fabric, back to the room, facing the TV (+x).
+  const so = fx.sofa, SOFA = 0x5a5440;
+  box('plaster', so.x0 + 0.05, F + 0.08, so.z0, so.x1, F + 0.45, so.z1, SOFA);
+  box('plaster', so.x0, F + 0.08, so.z0, so.x0 + 0.28, F + 0.85, so.z1, SOFA); // back
+  for (const z of [so.z0, so.z1 - 0.22]) box('plaster', so.x0, F + 0.08, z, so.x1, F + 0.62, z + 0.22, SOFA); // arms
+  for (const z of [so.z0 + 0.24, (so.z0 + so.z1) / 2 + 0.01]) box('plaster', so.x0 + 0.28, F + 0.45, z, so.x1 - 0.04, F + 0.55, z + (so.z1 - so.z0) / 2 - 0.26, 0x625c48); // cushions
+  for (const [x, z] of [[so.x0 + 0.1, so.z0 + 0.1], [so.x1 - 0.1, so.z0 + 0.1], [so.x0 + 0.1, so.z1 - 0.1], [so.x1 - 0.1, so.z1 - 0.1]]) box('trim', x - 0.04, F, z - 0.04, x + 0.04, F + 0.08, z + 0.04, 0x2a1e14);
+  // Coffee table: a heavy wood top on legs, a bottle, an ashtray, a magazine.
+  const ct = fx.table;
+  box('planks', ct.x0, F + 0.36, ct.z0, ct.x1, F + 0.42, ct.z1, 0x6a4428);
+  for (const [x, z] of [[ct.x0 + 0.06, ct.z0 + 0.06], [ct.x1 - 0.06, ct.z0 + 0.06], [ct.x0 + 0.06, ct.z1 - 0.06], [ct.x1 - 0.06, ct.z1 - 0.06]]) box('planks', x - 0.04, F, z - 0.04, x + 0.04, F + 0.36, z + 0.04, 0x5a3820);
+  box('carGlass', (ct.x0 + ct.x1) / 2 - 0.04, F + 0.42, zl + 0.2, (ct.x0 + ct.x1) / 2 + 0.04, F + 0.66, zl + 0.28, 0x2a5a2a);
+  box('metalPaint', ct.x0 + 0.2, F + 0.42, zl - 0.35, ct.x0 + 0.36, F + 0.45, zl - 0.19, 0x2a2a2c);
+  box('trim', ct.x0 + 0.15, F + 0.42, zl - 0.05, ct.x0 + 0.45, F + 0.43, zl + 0.15, 0xd8d0c0);
+  // TV on a low unit with a VCR, a tall speaker either side.
+  const tv = fx.tv;
+  box('planks', tv.x0, F, tv.z0, tv.x1, F + 0.5, tv.z1, 0x4a2c1a);
+  box('metalPaint', tv.x0 + 0.08, F + 0.3, tv.z0 + 0.4, tv.x0 + 0.1, F + 0.38, tv.z1 - 0.4, 0x1a1a1c); // VCR face
+  box('metalPaint', tv.x0 + 0.05, F + 0.5, zl - 0.6, tv.x1 - 0.02, F + 1.22, zl + 0.6, 0x18181a);
+  box('carGlass', tv.x0 + 0.03, F + 0.56, zl - 0.52, tv.x0 + 0.05, F + 1.16, zl + 0.52, 0x5a7a9a); // screen
+  for (const sp of [fx.speakerA, fx.speakerB]) {
+    box('metalPaint', sp.x0, F, sp.z0, sp.x1, F + 1.05, sp.z1, 0x141416);
+    for (const [y, r] of [[0.75, 0.1], [0.35, 0.14]]) box('rubber', sp.x0 - 0.01, F + y - r, (sp.z0 + sp.z1) / 2 - r, sp.x0, F + y + r, (sp.z0 + sp.z1) / 2 + r, 0x2a2a2c);
+  }
+  // Poster by the TV, a framed picture on the partition, a potted plant by the front window.
+  box('trim', a - 0.015, F + 1.4, zl + 1.6, a, F + 2.3, zl + 2.2, rng.pick([0xc8a070, 0x6a8aa8, 0xb86a4a]));
+  box('trim', a - 0.02, F + 1.45, zl + 1.65, a - 0.012, F + 2.25, zl + 2.15, rng.pick([0xe0b890, 0x2a6a8a, 0xd8c8a0]));
+  const px = Math.min(a - 0.6, xo + HOME.openHalf + 1.2);
+  box('trim', px - 0.35, F + 1.3, zp + p, px + 0.35, F + 1.8, zp + p + 0.04, 0x3a2414);
+  box('trim', px - 0.28, F + 1.36, zp + p + 0.04, px + 0.28, F + 1.74, zp + p + 0.045, rng.pick([0x7a8a6a, 0x9a7a5a, 0x6a7a8a]));
+  const pl = fx.plant;
+  box('concrete', pl.x0 + 0.05, F, pl.z0 + 0.05, pl.x1 - 0.05, F + 0.32, pl.z1 - 0.05, 0xc8c0b0);
+  for (let i = 0; i < 7; i++) { const ang = i * 0.9; box('trim', (pl.x0 + pl.x1) / 2 + Math.cos(ang) * 0.08 - 0.02, F + 0.3, (pl.z0 + pl.z1) / 2 + Math.sin(ang) * 0.08 - 0.02, (pl.x0 + pl.x1) / 2 + Math.cos(ang) * 0.12 + 0.02, F + 0.75 + (i % 3) * 0.12, (pl.z0 + pl.z1) / 2 + Math.sin(ang) * 0.12 + 0.02, 0x4a6a32); }
+  // Stairs and banister.
+  if (L.stairs) {
+    const S = L.stairs, n = 12, run = (S.z1 - S.z0) / n, rise = FH / (n + 1);
+    for (let i = 0; i < n; i++) {
+      const z1 = S.z1 - i * run, y = F + (i + 1) * rise;
+      box('planks', S.x0, F, z1 - run, S.x1, y, z1, 0x3a2a1e);
+      box('trim', S.x0, y - 0.02, z1 - 0.03, S.x1, y + 0.01, z1 + 0.01, 0x2a1e14);
+    }
+    const x = S.x1 - 0.06, ang = Math.atan2(FH, S.z1 - S.z0), len = Math.hypot(FH, S.z1 - S.z0);
+    box('planks', x - 0.07, F, S.z1 - 0.07, x + 0.07, F + 1.15, S.z1 + 0.07, 0x5a3a24); // newel post
+    for (let k = 1; k < 8; k++) { const z = S.z1 - k * (S.z1 - S.z0) / 8, y = F + (k / 8) * FH * (n / (n + 1)); box('trim', x - 0.02, y, z - 0.02, x + 0.02, y + 0.85, z + 0.02, 0x5a3a24); }
+    boxR('planks', 0.08, 0.08, len, mat(x, F + FH / 2 + 0.9, (S.z0 + S.z1) / 2, 0, ang), 0x5a3a24); // handrail
+    box('planks', S.x1 - 0.03, F, S.z0, S.x1, F + 0.25, S.z1, 0x3a2a1e); // stringer
+  }
+
+  // ---- kitchen-diner -------------------------------------------------------------------------------------------------
+  const OAK = 0xb08a4a, TOP = 0xc8c0a8;
+  const cb = fx.counterBack, cs = fx.counterSide;
+  const base = (x0, z0, x1, z1) => {
+    box('planks', x0, F + 0.1, z0, x1, F + 0.88, z1, OAK);
+    box('trim', x0, F, z0, x1, F + 0.1, z1, 0x2a2018); // toe kick
+    box('concrete', x0 - 0.02, F + 0.88, z0 - 0.02, x1 + 0.02, F + 0.93, z1 + 0.02, TOP);
+  };
+  base(cb.x0, cb.z0, cb.x1, cb.z1); base(cs.x0, cs.z0, cs.x1, cs.z1);
+  for (let x = cb.x0 + 0.6; x < cb.x1 - 0.1; x += 0.6) box('trim', x - 0.01, F + 0.14, cb.z1, x + 0.01, F + 0.84, cb.z1 + 0.01, 0x6a4a24); // door seams
+  for (let z = cs.z0 + 0.6; z < cs.z1 - 0.1; z += 0.6) box('trim', cs.x1, F + 0.14, z - 0.01, cs.x1 + 0.01, F + 0.84, z + 0.01, 0x6a4a24);
+  // Windows on the back wall: the sink under the middle one, upper cabinets between them.
+  const n = Math.max(1, Math.floor(h.w / 3.4)), sp = h.w / n, wins = Array.from({ length: n }, (_, i) => h.w / 2 - sp * (i + 0.5));
+  const sinkX = wins.reduce((q, x) => (Math.abs(x) < Math.abs(q) && x < cb.x1 - 0.6 ? x : q), wins[0]);
+  box('metal', sinkX - 0.4, F + 0.8, cb.z0 + 0.12, sinkX + 0.4, F + 0.935, cb.z1 - 0.1, 0xb8b8b4);
+  box('chrome', sinkX - 0.02, F + 0.93, cb.z0 + 0.06, sinkX + 0.02, F + 1.2, cb.z0 + 0.1, 0xffffff);
+  box('chrome', sinkX - 0.02, F + 1.16, cb.z0 + 0.06, sinkX + 0.02, F + 1.2, cb.z0 + 0.28, 0xffffff);
+  const stoveX = cb.x1 - 0.45;
+  box('metalPaint', stoveX - 0.38, F + 0.1, cb.z0, stoveX + 0.38, F + 0.94, cb.z1 + 0.01, 0xd8d0c0);
+  box('metalPaint', stoveX - 0.3, F + 0.25, cb.z1 + 0.01, stoveX + 0.3, F + 0.7, cb.z1 + 0.02, 0x2a2a2c); // oven door
+  for (const [ox, oz] of [[-0.18, 0.18], [0.18, 0.18], [-0.18, 0.42], [0.18, 0.42]]) box('metalPaint', stoveX + ox - 0.1, F + 0.94, cb.z0 + oz - 0.1, stoveX + ox + 0.1, F + 0.96, cb.z0 + oz + 0.1, 0x1a1a1a);
+  for (let x = cb.x0; x < cb.x1 - 0.05; x += 0.7) {
+    const x1 = Math.min(cb.x1, x + 0.7);
+    if (wins.some((w) => x1 > w - 0.75 && x < w + 0.75)) continue;
+    box('planks', x + 0.01, F + 1.5, cb.z0, x1 - 0.01, F + 2.25, cb.z0 + 0.34, OAK);
+    box('trim', (x + x1) / 2 - 0.01, F + 1.55, cb.z0 + 0.34, (x + x1) / 2 + 0.01, F + 2.2, cb.z0 + 0.35, 0x6a4a24);
+  }
+  const sn = Math.max(1, Math.floor(h.d / 3.4)), ssp = h.d / sn, sideWins = Array.from({ length: sn }, (_, i) => -h.d / 2 + ssp * (i + 0.5));
+  for (let z = cs.z0; z < cs.z1 - 0.05; z += 0.7) {
+    const z1 = Math.min(cs.z1, z + 0.7);
+    if (sideWins.some((w) => z1 > w - 0.7 && z < w + 0.7)) continue;
+    box('planks', cs.x0, F + 1.5, z + 0.01, cs.x0 + 0.34, F + 2.25, z1 - 0.01, OAK);
+  }
+  // Old almond fridge.
+  const fr = fx.fridge;
+  box('metalPaint', fr.x0, F, fr.z0, fr.x1, F + 1.8, fr.z1, 0xd8d2bc);
+  box('trim', fr.x0, F + 1.18, fr.z1, fr.x1, F + 1.2, fr.z1 + 0.01, 0x8a8678);
+  box('chrome', fr.x0 + 0.08, F + 0.8, fr.z1, fr.x0 + 0.11, F + 1.1, fr.z1 + 0.04, 0xffffff);
+  // Clutter on the counter: a kettle, a toaster, a bread box.
+  box('metalPaint', cb.x0 + 0.4, F + 0.93, cb.z0 + 0.15, cb.x0 + 0.65, F + 1.15, cb.z0 + 0.4, 0xc8c4bc);
+  box('metalPaint', sinkX + 0.7, F + 0.93, cb.z0 + 0.12, sinkX + 1.0, F + 1.12, cb.z0 + 0.32, 0x8a8a88);
+  // Table and chairs.
+  const dt = fx.dining;
+  box('planks', dt.x0, F + 0.7, dt.z0, dt.x1, F + 0.76, dt.z1, 0x3a2416);
+  for (const [x, z] of [[dt.x0 + 0.06, dt.z0 + 0.06], [dt.x1 - 0.06, dt.z0 + 0.06], [dt.x0 + 0.06, dt.z1 - 0.06], [dt.x1 - 0.06, dt.z1 - 0.06]]) box('planks', x - 0.03, F, z - 0.03, x + 0.03, F + 0.7, z + 0.03, 0x2a1a10);
+  for (const [x, z, fxd, fzd] of L.chairs) {
+    box('planks', x - 0.21, F + 0.44, z - 0.21, x + 0.21, F + 0.48, z + 0.21, 0x2a1a10);
+    for (const [ox, oz] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) box('planks', x + ox - 0.02, F, z + oz - 0.02, x + ox + 0.02, F + 0.44, z + oz + 0.02, 0x2a1a10);
+    // Ladder back on the side away from the table.
+    const bx = x - fxd * 0.19, bz = z - fzd * 0.19;
+    if (fxd) for (const y of [0.62, 0.78, 0.92]) box('planks', bx - 0.02, F + y, z - 0.2, bx + 0.02, F + y + 0.05, z + 0.2, 0x2a1a10);
+    else for (const y of [0.62, 0.78, 0.92]) box('planks', x - 0.2, F + y, bz - 0.02, x + 0.2, F + y + 0.05, bz + 0.02, 0x2a1a10);
+    for (const s of [-1, 1]) { if (fxd) box('planks', bx - 0.02, F + 0.44, z + s * 0.18 - 0.02, bx + 0.02, F + 0.98, z + s * 0.18 + 0.02, 0x2a1a10); else box('planks', x + s * 0.18 - 0.02, F + 0.44, bz - 0.02, x + s * 0.18 + 0.02, F + 0.98, bz + 0.02, 0x2a1a10); }
+  }
+  box('trim', dt.x0 + 0.3, F + 0.76, dt.z0 + 0.2, dt.x0 + 0.6, F + 0.77, dt.z0 + 0.45, 0xe8e4dc); // newspaper
+  // Kitchen walls a paler cream above the counters.
+  box('plaster', -a + 0.016, F + 0.93, kz0 + 0.016, a - 0.016, F + 1.5, kz0 + 0.02, 0xb8b096);
 }
 
 // Eave soffit (under the overhang) and fascia boards around it.
@@ -205,7 +387,7 @@ function openings(h, w, floors, floorH) {
       if (f === 0 && door != null && Math.abs(c - door) < 1.6) continue;
       out.push({ floor: f, kind: 'window', u0: c - ww / 2, u1: c + ww / 2, v0: 0.9, v1: 2.35 });
     }
-    if (f === 0 && door != null) out.push({ floor: 0, kind: 'door', u0: door - 0.48, u1: door + 0.48, v0: 0, v1: 2.15 });
+    if (f === 0 && door != null) out.push({ floor: 0, kind: 'door', u0: door - (h.home ? HOME.doorHalf : 0.48), u1: door + (h.home ? HOME.doorHalf : 0.48), v0: 0, v1: h.home ? HOME.doorH : 2.15 });
   }
   return out;
 }
@@ -223,6 +405,36 @@ function opening(w, o, y0, piece, trim, h, rng, floor) {
     // A walk-in shop's door stands open: just the aluminium frame (jambs, head) around the doorway.
     piece(w, 'metalPaint', u0, u0 + 0.06, v0, v1, 0x8a8e94, 0.02, T + 0.04); piece(w, 'metalPaint', u1 - 0.06, u1, v0, v1, 0x8a8e94, 0.02, T + 0.04);
     piece(w, 'metalPaint', u0, u1, v1 - 0.08, v1, 0x8a8e94, 0.02, T + 0.04);
+    return;
+  }
+  if (o.kind === 'door' && h.home) {
+    // The front door stands open, swung in against its hinge side: jambs, head, threshold and the door leaf.
+    piece(w, 'trim', u0, u0 + 0.07, v0, v1, trim, 0.02, T + 0.04); piece(w, 'trim', u1 - 0.07, u1, v0, v1, trim, 0.02, T + 0.04);
+    piece(w, 'trim', u0, u1, v1 - 0.07, v1, trim, 0.02, T + 0.04); piece(w, 'planks', u0, u1, v0, v0 + 0.02, 0x5a3a24, 0.02, T + 0.04);
+    const [ox, oz] = w.o, [dx, dz] = w.d, [nx, nz] = w.n, hx = ox + dx * (u0 + 0.08), hz = oz + dz * (u0 + 0.08), col = h.door ?? 0x5a4030;
+    const leaf = (along0, along1, y0, y1, out0, out1, c) => piece({ o: [hx - nx * T, hz - nz * T], d: [-nx, -nz], n: [dx, dz], L: 1 }, 'trim', along0, along1, y0, y1, c, out0, out1);
+    leaf(0, 1.06, v0 + 0.02, v1 - 0.08, 0.05, 0.05, col);
+    for (const [a, b] of [[0.3, 0.95], [1.15, 1.9]]) { leaf(0.14, 0.48, v0 + a, v0 + b, 0.07, 0.03, col); leaf(0.58, 0.92, v0 + a, v0 + b, 0.07, 0.03, col); }
+    leaf(0.9, 0.96, v0 + 0.95, v0 + 1.02, 0.09, 0.04, 0xc8b878);
+    piece(w, 'trim', u0 - 0.09, u0, v0, v1, trim, 0.025, 0.05); piece(w, 'trim', u1, u1 + 0.09, v0, v1, trim, 0.025, 0.05);
+    piece(w, 'trim', u0 - 0.13, u1 + 0.13, v1, v1 + 0.13, trim, 0.04, 0.07);
+    return;
+  }
+  if (o.kind === 'window' && h.home) {
+    // Glass you can see through, a sash frame, venetian blinds part-drawn inside, sill and casing.
+    piece(w, 'shopGlass', u0, u1, v0, v1, 0xffffff, -0.13, 0.03);
+    piece(w, 'trim', u0, u0 + 0.06, v0, v1, trim, -0.07, 0.07); piece(w, 'trim', u1 - 0.06, u1, v0, v1, trim, -0.07, 0.07);
+    piece(w, 'trim', u0, u1, v1 - 0.06, v1, trim, -0.07, 0.07); piece(w, 'trim', u0, u1, v0, v0 + 0.06, trim, -0.07, 0.07);
+    piece(w, 'trim', u0, u1, (v0 + v1) / 2 - 0.03, (v0 + v1) / 2 + 0.03, trim, -0.09, 0.05);
+    const drop = v1 - (v1 - v0) * (0.35 + rng.next() * 0.35);
+    for (let y = v1 - 0.06; y > drop; y -= 0.07) piece(w, 'trim', u0 + 0.02, u1 - 0.02, y - 0.03, y, 0xd8d0bc, -T + 0.06, 0.04);
+    piece(w, 'trim', u0 - 0.02, u1 + 0.02, drop - 0.05, drop, 0xc8c0ac, -T + 0.07, 0.06);
+    piece(w, 'trim', u0 - 0.1, u1 + 0.1, v0 - 0.06, v0, trim, 0.07, 0.12);
+    if (floor === 0 && h.bars) for (let b = u0 + 0.12; b < u1 - 0.05; b += 0.13) piece(w, 'metalPaint', b - 0.012, b + 0.012, v0, v1, 0x2a2a2c, 0.06, 0.03);
+    piece(w, 'trim', u0 - 0.09, u0, v0, v1, trim, 0.025, 0.05); piece(w, 'trim', u1, u1 + 0.09, v0, v1, trim, 0.025, 0.05);
+    piece(w, 'trim', u0 - 0.13, u1 + 0.13, v1, v1 + 0.13, trim, 0.04, 0.07);
+    // Inside: an interior sill and casing.
+    piece(w, 'trim', u0 - 0.08, u1 + 0.08, v0 - 0.05, v0, WOOD, -T + 0.0, 0.08);
     return;
   }
   if (o.kind === 'door') {

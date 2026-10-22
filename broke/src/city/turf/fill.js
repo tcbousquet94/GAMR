@@ -218,10 +218,110 @@ export function park(kit, city, b, raster) {
   }
 }
 
-// City Hall, handcrafted: a limestone block on a rusticated base, tall windows on every face, a portico of columns
-// under a pediment with CITY HALL across it, wide steps, a domed cupola with a flag, flagpoles and lamps out front.
+// The White House, handcrafted: a long white neoclassical block of three storeys (pedimented windows on the main
+// floor), a cornice and balustrade round a low hipped roof with chimneys, the flag over the middle, and the North
+// Portico: columns under a pediment, a lantern hanging over the door. A black iron fence and lawns out front.
 // The front faces -z (the plaza). No random draws: it is the same building every time.
-function cityHall(kit, r, cx, town) {
+function whiteHouse(kit, r, cx) {
+  const WHITE = 0xf2f0ea, TRIM = 0xe6e3da, SHADE = 0xd6d2c8, ROOF = 0x6e7276, IRON = 0x1c1d20, DARK = 0x2a2c2e;
+  const W = r.x1 - r.x0, Dp = r.z1 - r.z0, H = 13, cz = (r.z0 + r.z1) / 2;
+  const box = (x0, y0, z0, x1, y1, z1, c, surf, mat = MAT.STD) => kit.box(x0, y0, z0, x1, y1, z1, c, mat, surf ? { surf } : {});
+  // Body, water table, belt course, cornice and balustrade.
+  kit.solid(r.x0, G, r.z0, r.x1, H, r.z1, null, MAT.STD, TAG.BUILDING);
+  box(r.x0, G, r.z0, r.x1, H, r.z1, WHITE, 'stucco');
+  box(r.x0 - 0.15, G, r.z0 - 0.15, r.x1 + 0.15, G + 0.9, r.z1 + 0.15, SHADE, 'concrete');
+  box(r.x0 - 0.2, 4.4, r.z0 - 0.2, r.x1 + 0.2, 4.7, r.z1 + 0.2, TRIM, 'trim');
+  box(r.x0 - 0.5, H - 0.2, r.z0 - 0.5, r.x1 + 0.5, H + 0.5, r.z1 + 0.5, TRIM, 'trim');
+  const rail = (x0, z0, x1, z1) => {
+    const L = Math.hypot(x1 - x0, z1 - z0), n = Math.round(L / 0.7);
+    for (let i = 0; i <= n; i++) { const x = x0 + (x1 - x0) * i / n, z = z0 + (z1 - z0) * i / n; box(x - 0.1, H + 0.5, z - 0.1, x + 0.1, H + 1.3, z + 0.1, TRIM, 'trim'); }
+    box(Math.min(x0, x1) - 0.15, H + 1.3, Math.min(z0, z1) - 0.15, Math.max(x0, x1) + 0.15, H + 1.45, Math.max(z0, z1) + 0.15, TRIM, 'trim');
+  };
+  rail(r.x0 - 0.3, r.z0 - 0.3, r.x1 + 0.3, r.z0 - 0.3); rail(r.x0 - 0.3, r.z1 + 0.3, r.x1 + 0.3, r.z1 + 0.3);
+  rail(r.x0 - 0.3, r.z0 - 0.3, r.x0 - 0.3, r.z1 + 0.3); rail(r.x1 + 0.3, r.z0 - 0.3, r.x1 + 0.3, r.z1 + 0.3);
+  // Low hipped roof behind the balustrade, and chimneys.
+  for (let k = 0; k < 5; k++) box(r.x0 + 0.8 + k * 1.1, H + 0.5 + k * 0.55, r.z0 + 0.8 + k * 1.1, r.x1 - 0.8 - k * 1.1, H + 1.05 + k * 0.55, r.z1 - 0.8 - k * 1.1, ROOF, 'metalPaint');
+  for (const fx of [-0.36, -0.14, 0.14, 0.36]) for (const fz of [-0.22, 0.22]) {
+    const x = cx + fx * W, z = cz + fz * Dp;
+    box(x - 0.5, H + 1, z - 0.8, x + 0.5, H + 4.6, z + 0.8, WHITE, 'stucco'); box(x - 0.6, H + 4.6, z - 0.9, x + 0.6, H + 4.85, z + 0.9, TRIM, 'trim');
+  }
+  // Windows: squat ones on the ground floor, tall pedimented ones on the main floor (triangular and curved caps
+  // alternate), square ones up top. None behind the portico.
+  const faces = [[0, -1, r.z0, W], [0, 1, r.z1, W], [-1, 0, r.x0, Dp], [1, 0, r.x1, Dp]];
+  for (const [nx, nz, at, L] of faces) {
+    const n = Math.floor(L / 3.2), sp = L / n;
+    for (let i = 0; i < n; i++) {
+      const t = -L / 2 + sp * (i + 0.5);
+      if (nz === -1 && Math.abs(t) < 7.5) continue;
+      const x = nz ? cx + t : at + nx * 0.02, z = nz ? at + nz * 0.02 : cz + t, o = 0.12;
+      const ox = nx * o, oz = nz * o, along = (w) => (nz ? [x - w, x + w, z, z + oz] : [x, x + ox, z - w, z + w]);
+      kit.quad(x, 2.5, z, 1.2, 1.7, nx, nz, 0x3e4a5e, 0xffd9a0);
+      kit.quad(x, 7.0, z, 1.4, 2.8, nx, nz, 0x3e4a5e, 0xffd9a0);
+      kit.quad(x, 11.0, z, 1.3, 1.5, nx, nz, 0x3e4a5e, 0xffd9a0);
+      const [a0, a1, b0, b1] = along(0.95);
+      box(Math.min(a0, a1), 8.45, Math.min(b0, b1), Math.max(a0, a1), 8.65, Math.max(b0, b1), TRIM, 'trim'); // cap
+      const [c0, c1, d0, d1] = along(0.85);
+      box(Math.min(c0, c1), 5.45, Math.min(d0, d1), Math.max(c0, c1), 5.6, Math.max(d0, d1), TRIM, 'trim'); // sill
+      if (i % 2 === 0) for (const sg of [-1, 1]) kit.boxC(x + (nz ? sg * 0.45 : ox / 2), 8.95, z + (nz ? oz / 2 : sg * 0.45), nz ? 1.05 : 0.14, 0.14, nz ? 0.14 : 1.05, TRIM, MAT.STD, { [nz ? 'rz' : 'rx']: -sg * 0.42 * (nz ? 1 : -1), surf: 'trim' }); // triangular pediment
+      else { const [e0, e1, f0, f1] = along(0.6); box(Math.min(e0, e1), 8.65, Math.min(f0, f1), Math.max(e0, e1), 8.95, Math.max(f0, f1), TRIM, 'trim'); } // curved cap (stepped)
+    }
+  }
+  // North Portico: a podium with steps, six columns (four across the front, one back on each side), entablature,
+  // pediment; the front door with a fanlight and a lantern hanging over it.
+  const px0 = cx - 7, px1 = cx + 7, pz0 = r.z0 - 7, top = 12.2;
+  kit.solid(px0 - 0.8, G, pz0 - 0.2, px1 + 0.8, G + 0.9, r.z0, SHADE, MAT.STD, TAG.GROUND);
+  kit.ramp(px0, pz0 - 3.4, px1, pz0 - 0.2, 'z+', G, G + 0.9, SHADE, { solidBelow: true, stepRise: 0.3 });
+  const column = (x, z) => {
+    kit.solid(x - 0.45, G + 0.9, z - 0.45, x + 0.45, top, z + 0.45, null, MAT.STD, TAG.PROP);
+    for (const ry of [0, Math.PI / 4]) kit.boxC(x, (G + 0.9 + top) / 2, z, 0.82, top - G - 0.9, 0.82, WHITE, MAT.STD, { ry, surf: 'stucco' });
+    box(x - 0.6, G + 0.9, z - 0.6, x + 0.6, G + 1.3, z + 0.6, TRIM, 'trim');
+    box(x - 0.7, top - 0.45, z - 0.5, x + 0.7, top, z + 0.5, TRIM, 'trim'); // Ionic capital (volutes either side)
+    for (const sg of [-1, 1]) kit.boxC(x + sg * 0.62, top - 0.3, z, 0.22, 0.32, 0.9, TRIM, MAT.STD, { surf: 'trim' });
+  };
+  for (let k = 0; k < 4; k++) column(px0 + 0.7 + k * ((px1 - px0 - 1.4) / 3), pz0 + 0.7);
+  for (const x of [px0 + 0.7, px1 - 0.7]) column(x, pz0 + 3.6);
+  box(px0 - 0.5, top, pz0 - 0.1, px1 + 0.5, top + 1.3, r.z0, WHITE, 'stucco'); // entablature
+  box(px0 - 0.7, top + 1.3, pz0 - 0.3, px1 + 0.7, top + 1.6, r.z0, TRIM, 'trim');
+  box(px0 - 0.4, top - 0.3, pz0 + 0.2, px1 + 0.4, top, r.z0, SHADE, 'stucco'); // portico ceiling
+  const ph = 3.0, half = (px1 - px0) / 2 + 0.7, slope = Math.atan2(ph, half), len = Math.hypot(ph, half);
+  for (let k = 0; k < 8; k++) { const f = k / 8, w = (1 - f) * half * 2; box(cx - w / 2, top + 1.6 + f * ph, pz0, cx + w / 2, top + 1.6 + (k + 1) / 8 * ph, pz0 + 0.4, WHITE, 'stucco'); }
+  for (const sgn of [-1, 1]) kit.boxC(cx + sgn * half / 2, top + 1.6 + ph / 2, (pz0 + r.z0) / 2 - 0.1, len + 0.4, 0.32, r.z0 - pz0 + 0.5, TRIM, MAT.STD, { rz: -sgn * slope, surf: 'trim' });
+  kit.solid(px0 - 0.7, top, pz0 - 0.3, px1 + 0.7, top + ph + 1.8, r.z0, null, MAT.STD, TAG.BUILDING);
+  box(cx - 1.1, G + 0.9, r.z0 - 0.06, cx + 1.1, G + 4.1, r.z0, 0xf6f4ee, 'trim'); // door frame
+  box(cx - 0.8, G + 0.9, r.z0 - 0.1, cx + 0.8, G + 3.6, r.z0 - 0.04, DARK, 'metalPaint', MAT.METAL);
+  box(cx - 0.9, G + 3.65, r.z0 - 0.09, cx + 0.9, G + 4.05, r.z0 - 0.05, 0xffe2a8, null, MAT.GLOW); // fanlight
+  for (const dx of [-3.4, 3.4]) kit.quad(cx + dx, G + 3, r.z0 - 0.02, 1.3, 2.6, 0, -1, 0x3e4a5e, 0xffd9a0);
+  const lz = pz0 + 3;
+  box(cx - 0.02, top - 3.2, lz - 0.02, cx + 0.02, top, lz + 0.02, IRON, 'metalPaint', MAT.METAL);
+  box(cx - 0.35, top - 4.2, lz - 0.35, cx + 0.35, top - 3.2, lz + 0.35, 0xffe2a8, null, MAT.GLOW);
+  kit.light(cx, top - 3.8, lz, 0xffd9a0, 12, 'plaza');
+  // The flag over the middle of the roof: thirteen stripes and a blue canton.
+  const fx = cx, fz = cz + 2, fy = H + 4.2;
+  box(fx - 0.05, H + 1, fz - 0.05, fx + 0.05, fy + 4.6, fz + 0.05, 0xd8d8d4, 'chrome', MAT.METAL);
+  for (let k = 0; k < 13; k++) box(fx + 0.05, fy + 2.2 + k * 0.16, fz - 0.02, fx + 3.6, fy + 2.36 + k * 0.16, fz + 0.02, k % 2 ? 0xeeeeea : 0xb22234, 'trim');
+  box(fx + 0.05, fy + 3.32, fz - 0.03, fx + 1.5, fy + 4.28, fz + 0.03, 0x3c3b6e, 'trim');
+  // Lawns either side of the drive, and a black iron fence with a gate opening on the plaza.
+  const lz0 = r.z0 - 12.4, lz1 = pz0 - 3.6;
+  for (const [x0, x1] of [[r.x0 - 1, px0 - 2], [px1 + 2, r.x1 + 1]]) box(x0, G, lz0, x1, G + 0.06, lz1, 0x4f7a3a, 'grass');
+  const FZ = r.z0 - 12.6;
+  for (const [x0, x1] of [[r.x0 - 1.5, cx - 4], [cx + 4, r.x1 + 1.5]]) {
+    kit.solid(x0, G, FZ - 0.1, x1, G + 2.1, FZ + 0.1, null, MAT.STD, TAG.PROP);
+    box(x0, G, FZ - 0.25, x1, G + 0.45, FZ + 0.25, SHADE, 'concrete');
+    box(x0, G + 1.85, FZ - 0.03, x1, G + 1.92, FZ + 0.03, IRON, 'metalPaint', MAT.METAL);
+    for (let x = x0 + 0.1; x < x1; x += 0.22) box(x - 0.018, G + 0.45, FZ - 0.018, x + 0.018, G + 2.05, FZ + 0.018, IRON, 'metalPaint', MAT.METAL);
+  }
+  for (const x of [cx - 4, cx + 4]) { // gate piers with lamps
+    kit.solid(x - 0.45, G, FZ - 0.45, x + 0.45, G + 2.6, FZ + 0.45, null, MAT.STD, TAG.PROP);
+    box(x - 0.45, G, FZ - 0.45, x + 0.45, G + 2.6, FZ + 0.45, WHITE, 'stucco');
+    box(x - 0.2, G + 2.6, FZ - 0.2, x + 0.2, G + 3.1, FZ + 0.2, 0xffe2a8, null, MAT.GLOW);
+    kit.light(x, G + 2.9, FZ, 0xffd9a0, 8, 'plaza');
+  }
+}
+
+// A civic stone hall (the police headquarters next to the White House), handcrafted: a limestone block on a
+// rusticated base, tall windows on every face, a portico of columns under a pediment with `title` across it, wide steps, a domed cupola with a flag, flagpoles and lamps out front.
+// The front faces -z (the plaza). No random draws: it is the same building every time.
+function civicHall(kit, r, cx, town, title) {
   const STONE = 0xe2dacb, BASE = 0xc4bcae, TRIM = 0xd2cab8, DARK = 0x3a3634, BRONZE = 0x4a5a4c;
   const W = r.x1 - r.x0, Dp = r.z1 - r.z0, H = 15, cz = (r.z0 + r.z1) / 2;
   const box = (x0, y0, z0, x1, y1, z1, c, surf, mat = MAT.STD) => kit.box(x0, y0, z0, x1, y1, z1, c, mat, surf ? { surf } : {});
@@ -263,7 +363,7 @@ function cityHall(kit, r, cx, town) {
   }
   box(px0 - 0.6, top, pz0 - 0.2, px1 + 0.6, top + 1.6, r.z0, STONE, 'stucco'); // entablature
   box(px0 - 0.8, top + 1.6, pz0 - 0.4, px1 + 0.8, top + 1.9, r.z0, TRIM, 'trim');
-  kit.sign('CITY HALL', 'paint', cx, top + 0.85, pz0 - 0.22, 12, 1.0, 0, -1, DARK);
+  kit.sign(title, 'paint', cx, top + 0.85, pz0 - 0.22, 12, 1.0, 0, -1, DARK);
   const ph = 3.2, half = (px1 - px0) / 2 + 0.8, slope = Math.atan2(ph, half), len = Math.hypot(ph, half);
   for (let k = 0; k < 8; k++) { const f = k / 8, w = (1 - f) * half * 2; box(cx - w / 2, top + 1.9 + f * ph, pz0 - 0.1, cx + w / 2, top + 1.9 + (k + 1) / 8 * ph, pz0 + 0.3, STONE, 'stucco'); } // tympanum
   for (const sgn of [-1, 1]) kit.boxC(cx + sgn * half / 2, top + 1.9 + ph / 2, (pz0 + r.z0) / 2 - 0.2, len + 0.4, 0.35, r.z0 - pz0 + 0.6, TRIM, MAT.STD, { rz: -sgn * slope, surf: 'trim' });
@@ -300,16 +400,17 @@ function cityHall(kit, r, cx, town) {
 }
 
 export function civic(kit, city, b, raster) {
-  // City hall: a stone block with a colonnade and wide steps, set back behind a plaza.
+  // The White House: a long white block behind a portico and an iron fence, set back behind a plaza.
   const { rng } = kit;
   const cell = city.layout.cellAt(...b.cells[0]).rect;
   for (const [w, d] of [[40, 26], [32, 22], [26, 18]]) {
     const cx = (cell.x0 + cell.x1) / 2, cz = (cell.z0 + cell.z1) / 2 + 4;
     const r = { x0: cx - w / 2, z0: cz - d / 2, x1: cx + w / 2, z1: cz + d / 2 };
     if (!raster.test({ x0: r.x0 - 2, z0: r.z0 - 13, x1: r.x1 + 2, z1: r.z1 + 2 }, R.BLOCK, BUILD_AVOID)) continue;
-    cityHall(kit, r, cx, city.district.name);
+    // The first civic block holds the White House; any others get the stone hall (police headquarters).
+    if (!city.civic) { whiteHouse(kit, r, cx); city.civic = { block: b.id, x: cx, z: cz, name: 'The White House' }; }
+    else civicHall(kit, r, cx, city.district.name, 'POLICE HEADQUARTERS');
     raster.mark({ x0: r.x0 - 1, z0: r.z0 - 13, x1: r.x1 + 1, z1: r.z1 + 1 }, R.BUILT);
-    city.civic = { block: b.id, x: cx, z: cz, name: 'City Hall' };
     break;
   }
   plaza(kit, cell, raster);

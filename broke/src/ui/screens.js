@@ -75,7 +75,7 @@ export class Screens {
         </div>
         <button class="primary-btn" id="s-start">Start</button>
         ${creator ? '<button id="s-create">Edit character</button>' : ''}
-        ${modes ? '<button id="s-mayor">Be the mayor of Palmetto Bay</button>' : ''}
+        ${modes ? '<button id="s-mayor">Be the President</button>' : ''}
         <div class="seed-row"><label>Seed <input id="s-seed" value="${seed}" spellcheck="false"></label></div>
         <p class="controls">WASD move · Mouse look · Shift sprint · Space jump · M town map · Esc pause</p>
       </div>`;
@@ -90,12 +90,12 @@ export class Screens {
     this.root.innerHTML = `
       <div class="title-wrap">
         <h1>BROKE</h1>
-        <p class="tagline">Palmetto Bay needs a mayor. It got you.</p>
+        <p class="tagline">The country needs a president. It got you.</p>
         <div class="lore">
-          <div class="lore-head"><span class="swatch" style="background:#d8b030"></span><div><b>Mayor ${esc(survivor.name)}</b><span>City Hall, Palmetto Bay</span></div></div>
+          <div class="lore-head"><span class="swatch" style="background:#d8b030"></span><div><b>President ${esc(survivor.name)}</b><span>The White House, Palmetto Bay</span></div></div>
           <p>Five neighbourhoods, a few hundred shops and two gangs who were here first. Set the taxes, fund the police, the street sweepers, the parks and the small shops. Every week the books settle and the city answers: safer streets and open shops, or boarded windows and angry residents.</p>
           <ul>
-            <li><b>C · City Hall</b> The budget, every neighbourhood's scores, and last week's report.</li>
+            <li><b>C · Oval Office</b> The budget, every neighbourhood's scores, and last week's report.</li>
             <li><b>Walk the streets</b> See what your choices did: closed shops are boarded up.</li>
             <li><b>Right mouse / click / R</b> The revolver still works. Some problems need a personal touch.</li>
           </ul>
@@ -103,7 +103,7 @@ export class Screens {
         <button class="primary-btn" id="s-start">Take office</button>
         ${creator ? '<button id="s-create">Edit character</button>' : ''}
         ${modes ? '<button id="s-turf">Play the turf war instead</button>' : ''}
-        <p class="controls">WASD move · Mouse look · Shift sprint · Space jump · C City Hall · M map · Esc pause</p>
+        <p class="controls">WASD move · Mouse look · Shift sprint · Space jump · C Oval Office · M map · Esc pause</p>
       </div>`;
     this.root.querySelector('#s-start').onclick = () => this.h.start('palmetto');
     const c = this.root.querySelector('#s-create');
@@ -167,7 +167,7 @@ export class Screens {
         <p class="seed">Seed <b>${seed}</b> · press <b>H</b> to switch city / new-look street</p>
         <button class="primary-btn" id="p-resume">Resume</button>
         ${this.h.map ? '<button id="p-map">Town map</button>' : ''}
-        ${this.cityhallOn ? '<button id="p-hall">City Hall</button>' : ''}
+        ${this.cityhallOn ? '<button id="p-hall">Oval Office</button>' : ''}
         <button id="p-replay">Replay this seed</button>
         <button id="p-new">New city</button>
         <div class="seed-row"><label>Play seed <input id="p-seed" value="${seed}" spellcheck="false"></label><button id="p-go">Go</button></div>
@@ -221,7 +221,7 @@ export class Screens {
           <div class="ch-tabs">${STATS.map((k) => `<button data-stat="${k}" class="${k === stat ? 'on' : ''}">${LABEL[k]}</button>`).join('')}</div>
         </div>
         <div class="ch-side">
-          <h2>City Hall <span>Week ${M.week}</span></h2>
+          <h2>Oval Office <span>Week ${M.week}</span></h2>
           <div class="ch-kpis">
             <div><em>Treasury</em><b id="ch-cash"></b></div>
             <div><em>Approval</em><b id="ch-appr"></b></div>

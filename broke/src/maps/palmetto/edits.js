@@ -21,7 +21,7 @@ export default function edits(city) {
   // Civic sites: City Hall (the generator's), a police station and the clinics.
   const civic = city.blocks.filter((b) => b.zone === 'civic');
   const hall = city.turf.civic;
-  place('cityHall', 'Palmetto Bay City Hall', hall.x, hall.z, { block: hall.block });
+  place('cityHall', 'The White House', hall.x, hall.z, { block: hall.block });
   const pd = civic.find((b) => b.id !== hall.block);
   if (pd) place('police', 'Palmetto Bay PD, 1st Precinct', pd.center.x, pd.center.z, { block: pd.id });
   for (const c of city.businesses.filter((b) => b.type === 'clinic')) place('clinic', c.name, c.capture.x, c.capture.z, { business: c.id });

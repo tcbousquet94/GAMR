@@ -41,8 +41,8 @@ const CLASSIC = params.get('mode') === 'classic'; // the retired roguelike keeps
 // The mayor game (town) can also be picked on the title screen, remembered for the session (the URL can't always be
 // edited where the game is played).
 const modeFlag = () => { try { return sessionStorage.getItem('broke.mode'); } catch { return null; } };
-const TOWN = !HERO && !CLASSIC && (params.get('mode') === 'town' || params.has('map') || (params.get('mode') == null && modeFlag() === 'town'));
-const TURF = !HERO && !CLASSIC && !TOWN;
+let TOWN = !HERO && !CLASSIC && (params.get('mode') === 'town' || params.has('map') || (params.get('mode') == null && modeFlag() === 'town'));
+let TURF = !HERO && !CLASSIC && !TOWN;
 // The playable character for this mode. The turf war is played as your own character (the creator on the title
 // screen; remembered in this browser).
 let look = loadLook();
@@ -82,7 +82,9 @@ const screens = new Screens(document.getElementById('screens'), {
   aimAssist: (on) => { aimAssist.enabled = on; },
   creator: () => showCreator(),
   creatorDone: (l) => { if (l) { look = l; saveLook(l); PC = makeCustomHero(l); } showTitle(); },
-  mode: (m) => { try { sessionStorage.setItem('broke.mode', m); } catch { /* storage blocked */ } const u = new URL(location.href); u.searchParams.set('mode', m); u.searchParams.delete('map'); location.href = u.toString(); },
+  // Switch between the turf war and the mayor game in place: no navigation (the page may live in a viewer that
+  // can't load another address).
+  mode: (m) => switchMode(m),
   cityhall: () => showCityHall(),
   cityhallBack: () => (app.hallFromPlay ? resume() : pause()),
   map: () => showMap(),
@@ -282,6 +284,15 @@ function showTitle() {
   hud.setVisible(false);
   app.state = 'title';
   screens.show('title', { survivor: PC, seed: app.seed, creator: TURF || TOWN, town: TOWN, modes: !HERO && !CLASSIC });
+}
+
+async function switchMode(m) {
+  try { sessionStorage.setItem('broke.mode', m); } catch { /* storage blocked: this page load only */ }
+  TOWN = m === 'town'; TURF = !TOWN;
+  screens.show('loading', { text: TOWN ? 'Opening City Hall\u2026' : 'Back to the streets\u2026' });
+  await new Promise((r) => setTimeout(r, 30)); // let the loading card paint before the city builds
+  if (TOWN && !townMap) await loadTownMap();
+  showTitle();
 }
 
 // Character creator (turf war): edits the look with a live turntable preview of the model.

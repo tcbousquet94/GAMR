@@ -270,6 +270,10 @@ export class Screens {
     void seed;
   }
 
+  loading({ text }) {
+    this.root.innerHTML = `<div class="panel"><h2>${esc(text || 'Loading\u2026')}</h2></div>`;
+  }
+
   dead({ cents }) {
     this.root.innerHTML = `
       <div class="panel dead">

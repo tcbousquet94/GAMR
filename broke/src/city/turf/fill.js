@@ -30,7 +30,7 @@ export function kitTower(rng, x, z, w, d, h, yaw) {
   return { x, z, w, d, h: hh, yaw, style, color: rng.pick(C.color), skinTint: rng.pick(C.skin), shape: rng.chance(0.3) ? 'L' : 'rect', setback: rng.chance(0.4),
     crown: pickW(rng, [['flat', 3], ['stepped', 2], ['hat', style === 'glass' || style === 'piers' ? 1.5 : 0.3], ['billboard', style === 'glass' ? 0.2 : 1.2]]) };
 }
-function kitBlock(rng, x, z, w, d, h, yaw) {
+export function kitBlock(rng, x, z, w, d, h, yaw) {
   const wall = pickW(rng, [['brick', 3], ['stucco', 3], ['siding', 0.6]]);
   const WALL = { brick: [0xffffff, 0xe8d0c0, 0xd8b8a0, 0xc8a898], stucco: [0xd8c3a0, 0xcfc6b4, 0xb8b6ae, 0xc8b89c, 0xe0cfb0, 0xd8d0c0, 0xc8d0c4, 0xe0c0a8, 0xb8c0c8], siding: [0x8a7a68, 0x7e8a92, 0x9a8a72] };
   const floors = pickW(rng, [[2, 2], [3, 3], [4, 2.5], [5, 1.5], [6, 1]]); void h;

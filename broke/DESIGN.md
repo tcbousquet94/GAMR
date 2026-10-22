@@ -226,6 +226,29 @@ COFFEE / BETTER DAYS" sign, a wood-fronted counter with a stone top, register an
 chalk menu board, a rust banquette with tables, wood tables and chairs by the window, black pendant lights, a sunset
 print, a barista and two customers (`kit.interiorPeople`, added to the kit-data people).
 
+# THE LOT GENERATOR (asset catalogue + lot subdivision)
+
+The city is built from the handcrafted kit assets only, placed lot by lot (kit look; the old stepped boxes remain for
+the legacy look). `city/lots/catalogue.js` lists every asset with its frontage and depth ranges (metres), zone
+weights (residential, commercial, industrial, civic, and core = commercial blocks in the downtown core), a corner
+weight (or cornerOnly), a per-cell limit and its builder: house (front yard, path, maybe a driveway and a car, a fenced
+backyard with a garage or shed, laundry, a tree), porch house (two storeys), walk-up (entry court with palms, parking
+behind), shop (taco stand, discount store or walk-in market), corner market (parking in front, corners only), surface
+parking, pocket park, workshop, warehouse yard, mid-rise storefront block and tower (core).
+
+`city/lots/lots.js` subdivides each cell after the businesses, warehouse compounds, garages and whole-cell
+neighbourhood modules have taken their ground: corners first (where two streets meet; shops and corner markets are
+most likely there), then each open side walked end to end, cutting lots back to back so the street wall is
+continuous. Lot width comes from the chosen asset, depth too, capped so lots on opposite sides meet in the middle of
+the cell (residential backyards fill the block). Sizes are whole metres so lots tile the 1 m raster exactly.
+`city.lots` records every lot (rect, asset, front, corner); tests check no overlaps, every lot inside its cell,
+catalogue assets only, corner-only rules, determinism.
+
+Next steps (planned): a street hierarchy (wide main roads with shopfronts and bus stops, residential streets, rear
+service alleys, some curves and dead ends in the suburbs), zoning by distance and road type, the remaining plain
+boxes (City Hall, the turf business shells) replaced by handcrafted assets, and per-city checks (every door
+reachable, a phone frame budget).
+
 # STREETS, NOT MEWS (Downtown)
 
 Playtest: the pedestrianised mews (the same paved strip again and again, and dead space when you need to get

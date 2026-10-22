@@ -3,6 +3,7 @@
 // layout, blocks, businesses, warehouses, territories, kit-look streets and modules). Hand edits live separately in
 // src/maps/<name>/edits.js and are applied on load, so a re-bake never wipes them.
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { generateTurf } from '../src/city/turf/generate.js';
 import { DOWNTOWN } from '../src/city/turf/districts/downtown.js';
 import { TOWN } from '../src/city/turf/districts/town.js';
@@ -18,6 +19,6 @@ const round = (k, v) => (typeof v === 'number' && !Number.isInteger(v) ? Math.ro
 const json = JSON.stringify(data, round);
 const dir = new URL(`../src/maps/${name}/`, import.meta.url).pathname;
 mkdirSync(dir, { recursive: true });
-writeFileSync(`${dir}base.js`, `// Baked from seed ${seed} by tools/bakemap.mjs. Regenerate with: node tools/bakemap.mjs ${seed} ${name}\n// Do not hand-edit this file; put changes in edits.js.\nexport default ${json};\n`);
+writeFileSync(`${dir}base.js`, `// Baked from seed ${seed} by tools/bakemap.mjs. Regenerate with: node tools/bakemap.mjs ${seed} ${name}\n// Do not hand-edit this file; put changes in edits.js. Gzipped JSON in base64: read it with decodeMap (src/city/maps/decode.js).\nexport default '${gzipSync(json, { level: 9 }).toString('base64')}';\n`);
 if (!existsSync(`${dir}edits.js`)) writeFileSync(`${dir}edits.js`, `// Hand edits for the "${name}" map, applied on top of base.js when it loads.\nexport default function edits(city) {\n  return city;\n}\n`);
 console.log(`baked seed ${seed} -> src/maps/${name}/base.js (${(json.length / 1024 / 1024).toFixed(2)} MB)`);

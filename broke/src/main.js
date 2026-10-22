@@ -16,6 +16,7 @@ import { HeroGame } from './sim/hero/heroGame.js';
 import { TownGame } from './sim/town/townGame.js';
 import { MAPS, DEFAULT_MAP } from './maps/index.js';
 import { loadMap } from './city/maps/load.js';
+import { decodeMap } from './city/maps/decode.js';
 import { Input } from './input/input.js';
 import { Hud } from './ui/hud.js';
 import { Screens } from './ui/screens.js';
@@ -47,7 +48,7 @@ let TURF = !HERO && !CLASSIC && !TOWN;
 let look = loadLook();
 let PC = TOWN || TURF ? makeCustomHero(look) : DEE; // the mayor is your own character too
 let townMap = null;
-const loadTownMap = async () => { const name = MAPS[params.get('map')] ? params.get('map') : DEFAULT_MAP; const [base, edits] = await MAPS[name].load(); townMap = { name, base: base.default, edits: edits.default }; };
+const loadTownMap = async () => { const name = MAPS[params.get('map')] ? params.get('map') : DEFAULT_MAP; const [base, edits] = await MAPS[name].load(); townMap = { name, base: await decodeMap(base.default), edits: edits.default }; };
 const newTown = () => new TownGame({ city: loadMap(townMap.base, townMap.edits), survivor: PC });
 const view = new (CLASSIC ? View : KitView)(canvas, { quality: params.get('quality') || 'auto', preserve: params.has('shot') || params.has('bot') });
 const input = new Input(canvas);

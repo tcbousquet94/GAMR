@@ -5,8 +5,10 @@ import { loadMap } from '../../src/city/maps/load.js';
 import { TownGame } from '../../src/sim/town/townGame.js';
 import { BEACON } from '../../src/sim/survivors/beacon.js';
 import { Mayor, MAYOR, STATS } from '../../src/sim/mayor/mayor.js';
-import base from '../../src/maps/palmetto/base.js';
+import raw from '../../src/maps/palmetto/base.js';
+import { decodeMap } from '../../src/city/maps/decode.js';
 import edits from '../../src/maps/palmetto/edits.js';
+const base = await decodeMap(raw);
 
 const g = new TownGame({ city: loadMap(base, edits), survivor: BEACON });
 const fresh = () => new Mayor(g.city, 396873, (x, z) => g.blockAt(x, z));

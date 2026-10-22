@@ -6,8 +6,10 @@ import { generateTurf } from '../../src/city/turf/generate.js';
 import { TOWN } from '../../src/city/turf/districts/town.js';
 import { TownGame } from '../../src/sim/town/townGame.js';
 import { BEACON } from '../../src/sim/survivors/beacon.js';
-import base from '../../src/maps/palmetto/base.js';
+import raw from '../../src/maps/palmetto/base.js';
+import { decodeMap } from '../../src/city/maps/decode.js';
 import edits from '../../src/maps/palmetto/edits.js';
+const base = await decodeMap(raw);
 
 const city = loadMap(base, edits);
 

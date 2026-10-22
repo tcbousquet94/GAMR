@@ -30,7 +30,8 @@ test('the hero spawns standing and can walk the town', () => {
   let recovers = 0;
   g.events.on('recover', () => recovers++);
   const p0 = { ...g.player.pos };
-  for (let i = 0; i < 300; i++) g.step(i < 60 ? {} : { moveZ: 1, yaw: g.player.yaw });
+  const along = g.player.yaw + Math.PI / 2; // down the street (the start faces City Hall)
+  for (let i = 0; i < 300; i++) g.step(i < 60 ? {} : { moveZ: 1, yaw: along });
   assert.equal(recovers, 0);
   assert.ok(g.player.body.onGround);
   assert.ok(Math.hypot(g.player.pos.x - p0.x, g.player.pos.z - p0.z) > 5, 'hero moved');

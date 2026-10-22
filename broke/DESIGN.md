@@ -231,7 +231,7 @@ print, a barista and two customers (`kit.interiorPeople`, added to the kit-data 
 Playtest: the pedestrianised mews (the same paved strip again and again, and dead space when you need to get
 somewhere) and the diagonal avenue (always in the way) are gone from Downtown. `roads.keepStreets`: neighbouring cells
 still merge into territory blocks (same block counts), but the street between them stays an open street; `roads.diagonal`
-is null. Palmetto Bay (the baked town map) keeps the original skeleton.
+is null. Palmetto Bay (the town, baked from its seed) uses the same rules.
 
 # DELI & GROCERY (bodega-type businesses)
 

@@ -172,7 +172,9 @@ export function buildBusiness(kit, fr, biz, opts = {}) {
   }
 
   // ---- per-type interior and exterior props (slots) ----------------------------------------------------------------
+  kit.inInterior = true; // furnishings: drawn only near the camera
   INTERIOR[biz.type]?.({ solid, box, cover, P, fr, F, D, GH, rng, pal, biz, out, kit, corner: !!opts.cornerStreet });
+  kit.inInterior = false;
 
   // ---- sidewalk out front: cover (planters, bench, newspaper box) and a parked car at the curb ----------------------
   const sw = opts.sidewalk ?? 3.2;

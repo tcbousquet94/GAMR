@@ -39,17 +39,19 @@ export class Kit {
     this.solids.push(b);
     return b;
   }
-  // Render-only box from min/max corners.
+  // Render-only box from min/max corners. Boxes made while `inInterior` is set are furnishings: the renderer only
+  // builds them near the camera (render/kit/world.js), since you only see them from close up.
   box(x0, y0, z0, x1, y1, z1, color, mat = MAT.STD, opts = {}) {
     this.boxes.push({
       cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, cz: (z0 + z1) / 2,
       sx: Math.abs(x1 - x0), sy: Math.abs(y1 - y0), sz: Math.abs(z1 - z0),
       ry: opts.ry || 0, rx: opts.rx || 0, rz: opts.rz || 0, color, mat, night: opts.night ?? color, flat: opts.flat, surf: opts.surf,
+      ...(this.inInterior ? { interior: 1 } : {}),
     });
   }
   // Render-only box from center/size with rotation.
   boxC(cx, cy, cz, sx, sy, sz, color, mat = MAT.STD, opts = {}) {
-    this.boxes.push({ cx, cy, cz, sx, sy, sz, ry: opts.ry || 0, rx: opts.rx || 0, rz: opts.rz || 0, color, mat, night: opts.night ?? color, ...(opts.surf ? { surf: opts.surf } : {}) });
+    this.boxes.push({ cx, cy, cz, sx, sy, sz, ry: opts.ry || 0, rx: opts.rx || 0, rz: opts.rz || 0, color, mat, night: opts.night ?? color, ...(opts.surf ? { surf: opts.surf } : {}), ...(this.inInterior ? { interior: 1 } : {}) });
   }
   quad(cx, cy, cz, w, h, nx, nz, day, night) { this.quads.push({ cx, cy, cz, w, h, nx, nz, day, night }); }
 

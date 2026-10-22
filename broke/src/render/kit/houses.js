@@ -15,7 +15,8 @@ const _a = new THREE.Vector3(), _b = new THREE.Vector3();
 
 // Extra fields beyond a plain house: fl (foundation), height + floors for flat roofs, garage n with doorW / doorH /
 // doorKey (roll-up doors), storefront (wide glazing), units (apartment doors on every floor), industrial (high windows).
-export function buildHouse(B, h, rng) {
+// opts.interior === false leaves a home's furnished rooms out (buildHomeInterior draws them: near the camera only).
+export function buildHouse(B, h, rng, opts = {}) {
   FL = h.fl ?? 0.45;
   if (isHome(h) && !h.home) h = { ...h, home: true };
   const M = mat(h.x, h.y ?? CURB, h.z, houseYaw(h));
@@ -63,8 +64,8 @@ export function buildHouse(B, h, rng) {
         piece(w, key, a, b, y0 + o.v1, y1, color);
       }
       for (const o of fo) opening(w, o, y0, piece, trim, h, rng, f);
-      if (h.home && f === 0) {
-        // Inside the home: the same columns lined in two-tone paint (dark wainscot, pale above) with a chair rail,
+      if (h.home && f === 0 && opts.interior !== false) {
+        // Inside the home (or in buildHomeInterior when the interior is drawn separately): the same columns lined in two-tone paint (dark wainscot, pale above) with a chair rail,
         // skirting and a crown moulding, leaving the openings clear.
         for (let i = 0; i < cuts.length - 1; i++) {
           const a = cuts[i], b = cuts[i + 1];
@@ -151,7 +152,7 @@ export function buildHouse(B, h, rng) {
   // ---- porch --------------------------------------------------------------------------------------------------------
   if (h.porch) porch(box, boxR, h, W, D, Yt, trim);
   if (h.home) {
-    homeInterior(box, boxR, h, rng);
+    if (opts.interior !== false) homeInterior(box, boxR, h, rng);
     // No porch: a concrete stoop up to the door.
     if (!h.porch) { const L = homeLayout(h); box('concrete', L.doorX - 0.8, 0, D / 2, L.doorX + 0.8, FL * 0.5, D / 2 + 0.7, 0xb0aca4); box('concrete', L.doorX - 0.8, 0, D / 2, L.doorX + 0.8, FL - 0.01, D / 2 + 0.35, 0xb0aca4); }
   }
@@ -160,6 +161,44 @@ export function buildHouse(B, h, rng) {
     box('brick', x - 0.5, 0, z - 0.4, x + 0.5, Yt + 2.6, z + 0.4, 0xffffff);
     box('concrete', x - 0.58, Yt + 2.6, z - 0.48, x + 0.58, Yt + 2.72, z + 0.48, 0x9a948c);
   }
+}
+
+// A home's furnished rooms on their own (floors, ceiling, partition, furniture), for the near-camera interior layer.
+export function buildHomeInterior(B, h, rng) {
+  if (!isHome(h)) return;
+  FL = h.fl ?? 0.45;
+  const M = mat(h.x, h.y ?? CURB, h.z, houseYaw(h));
+  const box = (key, x0, y0, z0, x1, y1, z1, color = 0xffffff) => {
+    _a.set(Math.min(x0, x1), Math.min(y0, y1), Math.min(z0, z1)); _b.set(Math.max(x0, x1), Math.max(y0, y1), Math.max(z0, z1));
+    B.boxM(key, _b.x - _a.x, _b.y - _a.y, _b.z - _a.z, M.clone().multiply(mat((_a.x + _b.x) / 2, (_a.y + _b.y) / 2, (_a.z + _b.z) / 2)), color);
+  };
+  const boxR = (key, w, hh, d, m, color) => B.boxM(key, w, hh, d, M.clone().multiply(m), color);
+  const hh = { ...h, home: true }, W = h.w, D = h.d, floorH = FH;
+  // The two-tone wall finish on the ground floor, around the same openings the outside builder cuts.
+  const walls = [
+    { o: [-W / 2, D / 2], d: [1, 0], n: [0, 1], L: W, front: true },
+    { o: [W / 2, D / 2], d: [0, -1], n: [1, 0], L: D },
+    { o: [W / 2, -D / 2], d: [-1, 0], n: [0, -1], L: W },
+    { o: [-W / 2, -D / 2], d: [0, 1], n: [-1, 0], L: D },
+  ];
+  const piece = (w, key, u0, u1, v0, v1, color, out = 0, t = T) => {
+    const [ox, oz] = w.o, [dx, dz] = w.d, [nx, nz] = w.n;
+    box(key, ox + dx * u0 + nx * out, v0, oz + dz * u0 + nz * out, ox + dx * u1 - nx * (t - out), v1, oz + dz * u1 - nz * (t - out), color);
+  };
+  for (const w of walls) {
+    const fo = openings(hh, w, h.floors || 1, floorH).filter((o) => o.floor === 0), y0 = FL;
+    const cuts = [0, w.L, ...fo.flatMap((o) => [o.u0, o.u1])].sort((a, b) => a - b);
+    for (let i = 0; i < cuts.length - 1; i++) {
+      const a = cuts[i], b = cuts[i + 1];
+      if (b - a < 1e-3) continue;
+      const o = fo.find((q) => q.u0 <= a + 1e-3 && q.u1 >= b - 1e-3);
+      const spans = o ? [[0, o.v0], [o.v1, floorH]].filter(([p, q]) => q - p > 1e-3) : [[0, floorH]];
+      const ia = Math.max(a, T - 0.001), ib = Math.min(b, w.L - T + 0.001);
+      if (ib - ia < 1e-3) continue;
+      for (const [p, q] of spans) lining(w, piece, ia, ib, y0 + p, y0 + q, y0);
+    }
+  }
+  homeInterior(box, boxR, hh, rng);
 }
 
 // Interior wall finish for one span of a home's wall (heights v0..v1 absolute, floor at y0).
@@ -421,16 +460,16 @@ function opening(w, o, y0, piece, trim, h, rng, floor) {
     return;
   }
   if (o.kind === 'window' && h.home) {
-    // Glass you can see through, a sash frame, venetian blinds part-drawn inside, sill and casing.
+    // Glass you can see through, the sash's meeting rail, venetian blinds part-drawn inside, sill and casing (the
+    // casing reads as the frame; a separate sash frame inside the reveal cost four boxes a window).
     piece(w, 'shopGlass', u0, u1, v0, v1, 0xffffff, -0.13, 0.03);
-    piece(w, 'trim', u0, u0 + 0.06, v0, v1, trim, -0.07, 0.07); piece(w, 'trim', u1 - 0.06, u1, v0, v1, trim, -0.07, 0.07);
-    piece(w, 'trim', u0, u1, v1 - 0.06, v1, trim, -0.07, 0.07); piece(w, 'trim', u0, u1, v0, v0 + 0.06, trim, -0.07, 0.07);
     piece(w, 'trim', u0, u1, (v0 + v1) / 2 - 0.03, (v0 + v1) / 2 + 0.03, trim, -0.09, 0.05);
     const drop = v1 - (v1 - v0) * (0.35 + rng.next() * 0.35);
-    for (let y = v1 - 0.06; y > drop; y -= 0.07) piece(w, 'trim', u0 + 0.02, u1 - 0.02, y - 0.03, y, 0xd8d0bc, -T + 0.06, 0.04);
+    // The drawn-down part of the blind as one panel (one box per slat cost too much on phones).
+    piece(w, 'trim', u0 + 0.02, u1 - 0.02, drop, v1 - 0.04, 0xd8d0bc, -T + 0.06, 0.03);
     piece(w, 'trim', u0 - 0.02, u1 + 0.02, drop - 0.05, drop, 0xc8c0ac, -T + 0.07, 0.06);
     piece(w, 'trim', u0 - 0.1, u1 + 0.1, v0 - 0.06, v0, trim, 0.07, 0.12);
-    if (floor === 0 && h.bars) for (let b = u0 + 0.12; b < u1 - 0.05; b += 0.13) piece(w, 'metalPaint', b - 0.012, b + 0.012, v0, v1, 0x2a2a2c, 0.06, 0.03);
+    if (floor === 0 && h.bars) for (let b = u0 + 0.14; b < u1 - 0.08; b += 0.2) piece(w, 'metalPaint', b - 0.014, b + 0.014, v0, v1, 0x2a2a2c, 0.06, 0.03);
     piece(w, 'trim', u0 - 0.09, u0, v0, v1, trim, 0.025, 0.05); piece(w, 'trim', u1, u1 + 0.09, v0, v1, trim, 0.025, 0.05);
     piece(w, 'trim', u0 - 0.13, u1 + 0.13, v1, v1 + 0.13, trim, 0.04, 0.07);
     // Inside: an interior sill and casing.
@@ -451,14 +490,12 @@ function opening(w, o, y0, piece, trim, h, rng, floor) {
     return;
   } else {
     piece(w, 'window', u0, u1, v0, v1, 0xffffff, -0.13, 0.03);
-    // Sash frame inside the reveal: sides, head, sill rail and the meeting rail of a double-hung window.
-    piece(w, 'trim', u0, u0 + 0.06, v0, v1, trim, -0.07, 0.07); piece(w, 'trim', u1 - 0.06, u1, v0, v1, trim, -0.07, 0.07);
-    piece(w, 'trim', u0, u1, v1 - 0.06, v1, trim, -0.07, 0.07); piece(w, 'trim', u0, u1, v0, v0 + 0.06, trim, -0.07, 0.07);
+    // The meeting rail of a double-hung window (the casing outside reads as the frame).
     piece(w, 'trim', u0, u1, (v0 + v1) / 2 - 0.03, (v0 + v1) / 2 + 0.03, trim, -0.09, 0.05);
     // Sill, proud of the wall.
     piece(w, 'trim', u0 - 0.1, u1 + 0.1, v0 - 0.06, v0, trim, 0.07, 0.12);
     // Lived-in details: security bars on some ground floors, the odd window AC unit.
-    if (floor === 0 && h.bars) for (let b = u0 + 0.12; b < u1 - 0.05; b += 0.13) piece(w, 'metalPaint', b - 0.012, b + 0.012, v0, v1, 0x2a2a2c, 0.06, 0.03);
+    if (floor === 0 && h.bars) for (let b = u0 + 0.14; b < u1 - 0.08; b += 0.2) piece(w, 'metalPaint', b - 0.014, b + 0.014, v0, v1, 0x2a2a2c, 0.06, 0.03);
     if (floor === 0 && h.bars) for (const yy of [v0 + 0.3, v1 - 0.3]) piece(w, 'metalPaint', u0, u1, yy - 0.015, yy + 0.015, 0x2a2a2c, 0.06, 0.03);
     else if (rng.chance(0.14)) { piece(w, 'metal', u0 + 0.15, u1 - 0.15, v0 + 0.02, v0 + 0.42, 0xc8c6c0, 0.42, 0.5); piece(w, 'trim', u0 + 0.12, u1 - 0.12, v0 - 0.08, v0 - 0.02, 0x6a6a68, 0.3, 0.32); }
   }

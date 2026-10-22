@@ -54,7 +54,8 @@ export function signMesh(text, w, h, bg, fg, opts = {}) {
 // kind: 'market' (glazed storefront, awning, sign board), 'taco' (a small stand with barred windows, a stone-look
 // base and a ring of lettered boards around its roof), 'discount' (a plain stucco box with its name, prices and
 // products painted straight onto the street wall).
-export function store(B, s, rng, extras) {
+// opts.interior === false leaves a walk-in market's room out (storeInterior draws it: near the camera only).
+export function store(B, s, rng, extras, opts = {}) {
   const kind = s.kind || 'market', W = s.w, D = s.d, z0 = D / 2;
   const M = mat(s.x, s.y ?? CURB, s.z, houseYaw(s));
   const box = local(s, B), hex = (c) => '#' + (c >>> 0).toString(16).padStart(6, '0');
@@ -117,6 +118,15 @@ export function store(B, s, rng, extras) {
     box('metalPaint', -W / 2 + 0.8, 3.15, z0 + 0.02, W / 2 - 0.8, 4.15, z0 + 0.1, 0x3a3a3c);
     sign(s.name || 'MARKET', W - 2, 0.9, 0, 3.65, z0 + 0.13, 0, '#e8e2d0', hex(s.awning));
   }
+  if (opts.interior !== false) bodegaInterior(box, sign, s, rng);
+}
+
+// A walk-in market's room on its own (the near-camera interior layer).
+export function storeInterior(B, s, rng, extras) {
+  if ((s.kind || 'market') !== 'market') return;
+  const M = mat(s.x, s.y ?? CURB, s.z, houseYaw(s));
+  const box = local(s, B);
+  const sign = (text, w, h, x, y, z, ry, bg, fg, o) => { if (!extras || typeof document === 'undefined') return; const m = signMesh(text, w, h, bg, fg, o); m.position.set(x, y, z); m.rotation.y = ry; m.updateMatrix(); m.applyMatrix4(M); extras.push(m); };
   bodegaInterior(box, sign, s, rng);
 }
 

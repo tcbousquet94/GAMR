@@ -5,8 +5,8 @@
 import * as THREE from 'three';
 import { Batch } from './batch.js';
 import { kitMaterials } from './materials.js';
-import { buildHouse } from './houses.js';
-import { apartment, store, warehouse, shed, tower, blockExtras } from './buildings.js';
+import { buildHouse, buildHomeInterior } from './houses.js';
+import { apartment, store, storeInterior, warehouse, shed, tower, blockExtras } from './buildings.js';
 import { fence, prop, truck, manhole } from './props.js';
 import { pad, ribbonMesh, kerb, paint, tuftSpots } from './ground.js';
 import { palm, tree, shrub, tufts } from './vegetation.js';
@@ -23,6 +23,10 @@ export function buildKitWorld(D, { chunk = 0, seed = 'kit', kit = null } = {}) {
   const jobs = new Map(); // chunk key -> [(batch, rng, extras) => void]
   const keyOf = (x, z) => (chunk && x != null ? `${Math.floor(x / chunk)},${Math.floor(z / chunk)}` : 'g');
   const at = (x, z, fn) => { const k = keyOf(x, z); if (!jobs.has(k)) jobs.set(k, []); jobs.get(k).push(fn); };
+  // Interiors (furnished rooms seen through windows and doors) live in their own small cells, built only close to
+  // the camera: most of a city's small boxes are furnishings, and you only see them from near by.
+  const CI = 48, inner = new Map();
+  const atIn = (x, z, fn) => { if (!chunk) return at(x, z, fn); const k = `i${Math.floor(x / CI)},${Math.floor(z / CI)}`; if (!inner.has(k)) inner.set(k, []); inner.get(k).push(fn); };
   const skyline = new Batch(); // towers: never distance-culled, they are the skyline
   const extras = [], lamps = [];
   for (const p of D.pads) {
@@ -35,9 +39,9 @@ export function buildKitWorld(D, { chunk = 0, seed = 'kit', kit = null } = {}) {
   for (const k of D.kerbs) at(k.pts[0].x, k.pts[0].z, (b) => kerb(b, k));
   for (const p of D.paint) at(p.x, p.z, (b) => paint(b, p));
   for (const m of D.manholes) at(m.x, m.z, (b) => manhole(b, m));
-  for (const h of D.houses) at(h.x, h.z, (b, r) => buildHouse(b, h, r));
+  for (const h of D.houses) { at(h.x, h.z, (b, r) => buildHouse(b, h, r, { interior: !chunk })); if (chunk) atIn(h.x, h.z, (b, r) => buildHomeInterior(b, h, r)); }
   for (const a of D.apartments) at(a.x, a.z, (b, r) => apartment(b, a, r));
-  for (const s of D.stores) at(s.x, s.z, (b, r, ex) => store(b, s, r, ex));
+  for (const s of D.stores) { at(s.x, s.z, (b, r, ex) => store(b, s, r, ex, { interior: !chunk })); if (chunk) atIn(s.x, s.z, (b, r, ex) => storeInterior(b, s, r, ex)); }
   for (const w of D.warehouses) at(w.x, w.z, (b, r) => warehouse(b, w, r));
   for (const s of D.sheds) at(s.x, s.z, (b, r) => shed(b, s, r));
   for (const t of D.towers || []) tower(skyline, t, rng, extras);
@@ -59,7 +63,14 @@ export function buildKitWorld(D, { chunk = 0, seed = 'kit', kit = null } = {}) {
     const parts = new Map(); // the generator's boxes and window quads, split by chunk the same way
     const part = (x, z) => { const k = keyOf(x, z); if (!parts.has(k)) { parts.set(k, { quads: [], boxes: [] }); at(x, z, (b) => addKitBoxes(parts.get(k), () => b)); } return parts.get(k); };
     for (const q of kit.quads) part(q.cx, q.cz).quads.push(q);
-    for (const b of kit.boxes) part(b.cx, b.cz).boxes.push(b);
+    const innerParts = new Map();
+    for (const b of kit.boxes) {
+      if (b.interior && chunk) {
+        const k = `i${Math.floor(b.cx / CI)},${Math.floor(b.cz / CI)}`;
+        if (!innerParts.has(k)) { const P = { quads: [], boxes: [] }; innerParts.set(k, P); atIn(b.cx, b.cz, (bb) => addKitBoxes(P, () => bb)); }
+        innerParts.get(k).boxes.push(b);
+      } else part(b.cx, b.cz).boxes.push(b);
+    }
   }
   for (const s of tuftSpots(D, rng)) at(s[0], s[1], (b, r) => tufts(b, [s], r));
 
@@ -71,7 +82,7 @@ export function buildKitWorld(D, { chunk = 0, seed = 'kit', kit = null } = {}) {
   const foliage = []; // live list of leaf-card meshes (hidden from the AO pass)
   const build = (k) => {
     const b = new Batch(), ex = [];
-    for (const fn of jobs.get(k)) fn(b, new Rng(`kitworld:${seed}:${k}`), ex);
+    for (const fn of (jobs.get(k) || inner.get(k))) fn(b, new Rng(`kitworld:${seed}:${k}`), ex);
     const g = b.build(M, { noCast });
     for (const e of ex) g.add(e);
     g.traverse((m) => { if (m.isMesh && FOLIAGE.includes(m.name)) foliage.push(m); });
@@ -104,5 +115,16 @@ export function buildKitWorld(D, { chunk = 0, seed = 'kit', kit = null } = {}) {
     for (let i = 0; i < want.length && i < budget; i++) want[i][1].g = build(want[i][1].k);
   };
   if (!chunk) for (const c of chunks) c.g = build(c.k);
-  return { group, lamps, cull, foliage };
+  // The interior cells: same streaming, a much shorter reach (cullInterior(cam, far, budget)).
+  const innerCells = [...inner.keys()].map((k) => { const [i, j] = k.slice(1).split(',').map(Number); return { k, cx: (i + 0.5) * CI, cz: (j + 0.5) * CI, g: null }; });
+  const cullInterior = (cam, far = 70, budget = 2) => {
+    const R2 = (far + CI * 0.71) ** 2, D2 = (far + CI * 2) ** 2, want = [];
+    for (const c of innerCells) {
+      const d = (c.cx - cam.x) ** 2 + (c.cz - cam.z) ** 2;
+      if (d < R2) { if (c.g) c.g.visible = true; else want.push([d, c]); } else if (c.g && d > D2) { drop(c.g); c.g = null; } else if (c.g) c.g.visible = false;
+    }
+    want.sort((a, b) => a[0] - b[0]);
+    for (let i = 0; i < want.length && i < budget; i++) want[i][1].g = build(want[i][1].k);
+  };
+  return { group, lamps, cull, cullInterior, foliage };
 }

@@ -38,10 +38,9 @@ const HERO = params.get('scene') === 'hero' || (params.get('scene') == null && s
 const CLASSIC = params.get('mode') === 'classic'; // the retired roguelike keeps its old renderer
 // Modes: the turf war on a generated seed (default; ?mode=turf also works), ?mode=town (the superhero town game on
 // the handcrafted map; ?map=<name>), ?mode=classic (the roguelike), ?scene=hero ("h", the look test).
-// The mayor game (town) can also be picked on the title screen, remembered for the session (the URL can't always be
-// edited where the game is played).
-const modeFlag = () => { try { return sessionStorage.getItem('broke.mode'); } catch { return null; } };
-let TOWN = !HERO && !CLASSIC && (params.get('mode') === 'town' || params.has('map') || (params.get('mode') == null && modeFlag() === 'town'));
+// The mayor game (town) can also be picked on the title screen, in place. Not remembered: a reload always opens on the
+// lighter turf war, so a phone that can't hold the big town is never stuck reopening it.
+let TOWN = !HERO && !CLASSIC && (params.get('mode') === 'town' || params.has('map'));
 let TURF = !HERO && !CLASSIC && !TOWN;
 // The playable character for this mode. The turf war is played as your own character (the creator on the title
 // screen; remembered in this browser).
@@ -287,7 +286,6 @@ function showTitle() {
 }
 
 async function switchMode(m) {
-  try { sessionStorage.setItem('broke.mode', m); } catch { /* storage blocked: this page load only */ }
   TOWN = m === 'town'; TURF = !TOWN;
   screens.show('loading', { text: TOWN ? 'Opening City Hall\u2026' : 'Back to the streets\u2026' });
   await new Promise((r) => setTimeout(r, 30)); // let the loading card paint before the city builds

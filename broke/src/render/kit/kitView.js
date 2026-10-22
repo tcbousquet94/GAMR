@@ -55,13 +55,14 @@ export class KitView extends View {
     this.pmrem = new THREE.PMREMGenerator(this.renderer);
     // World: the city's kit data (streets, modules) as batched meshes, chunked for big maps.
     const city = game.city;
-    const built = buildKitWorld(city.kitData, { chunk: city.hero ? 0 : 160, seed: city.seed, kit: city.hero ? null : city.kit });
+    const built = buildKitWorld(city.kitData, { chunk: city.hero ? 0 : 80, seed: city.seed, kit: city.hero ? null : city.kit });
     // The generated city also has emissive pieces, window quads, signs, props and light pools in the old city mesh.
     if (!city.hero) { this.cityMesh = buildCity(city, scene, { kitBoxes: true }); this.edgeMesh = city.edges ? buildEdges(city, scene) : null; }
     scene.add(built.group);
     this.world = built.group;
     this.lamps = built.lamps;
     this.cull = built.cull;
+    this.cullInterior = built.cullInterior;
     this.lastCull = null;
     this.foliage = built.foliage;
     this.points = [];
@@ -130,7 +131,7 @@ export class KitView extends View {
     const L = (a, b) => new THREE.Color(a).lerp(new THREE.Color(b), k);
     this.sun.color.copy(L(DAY.sun, NIGHT.sun)); this.sun.intensity = DAY.sunI + (NIGHT.sunI - DAY.sunI) * k;
     this.hemi.color.copy(L(DAY.sky, NIGHT.sky)); this.hemi.groundColor.copy(L(DAY.ground, NIGHT.ground)); this.hemi.intensity = DAY.hemiI + (NIGHT.hemiI - DAY.hemiI) * k;
-    this.scene.fog.color.copy(L(DAY.fog, NIGHT.fog)); this.scene.fog.density = DAY.fogD + (NIGHT.fogD - DAY.fogD) * k;
+    this.scene.fog.color.copy(L(DAY.fog, NIGHT.fog)); this.scene.fog.density = Math.max(DAY.fogD + (NIGHT.fogD - DAY.fogD) * k, LITE ? 0.0058 : 0); // phones stream a shorter radius: thicker haze hides its edge
     this.renderer.toneMappingExposure = DAY.exposure + (NIGHT.exposure - DAY.exposure) * k;
     this.sky.uniforms.uNight.value = k;
     const M = heroMaterials();
@@ -186,7 +187,7 @@ export class KitView extends View {
     // Stream town chunks in around the camera: a couple per few frames while walking, all at once after a jump.
     const cp = this.camera.position, lc = this.lastCull;
     const jump = !lc || (cp.x - lc.x) ** 2 + (cp.z - lc.z) ** 2 > 80 * 80;
-    if (jump || this.frame % 8 === 0) { this.cull?.(cp, LITE ? 280 : 420, jump ? Infinity : 2); this.lastCull = { x: cp.x, z: cp.z }; }
+    if (jump || this.frame % 8 === 0) { this.cull?.(cp, LITE ? 180 : 360, jump ? Infinity : 2); this.cullInterior?.(cp, LITE ? 45 : 80, jump ? Infinity : 2); this.lastCull = { x: cp.x, z: cp.z }; }
     if (this.cityMesh && this.frame % 30 === 0) this.cityMesh.updateLod(this.camera.position);
     this.cityMesh?.tick(g.time); this.edgeMesh?.update(g.time);
     this.actors.update(dt);

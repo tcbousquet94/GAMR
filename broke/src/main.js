@@ -148,7 +148,7 @@ export function startRun(seed, opts = {}) {
       app.closed?.sync(g.mayor);
       const shut = r.events.filter((e) => e.kind === 'closed').length, back = r.events.filter((e) => e.kind === 'opened').length;
       const net = r.money.net, m = `${net < 0 ? '-' : '+'}$${Math.abs(net).toLocaleString('en-US')}`;
-      hud.flashPrompt(`Week ${r.week} settled · ${m}`, `Approval ${Math.round(r.approval)}%${shut ? ` · ${shut} shop${shut > 1 ? 's' : ''} closed` : ''}${back ? ` · ${back} reopened` : ''} · C for City Hall`);
+      hud.flashPrompt(`Week ${r.week} settled · ${m}`, `Approval ${Math.round(r.approval)}%${shut ? ` · ${shut} shop${shut > 1 ? 's' : ''} closed` : ''}${back ? ` · ${back} reopened` : ''} · C for the Oval Office`);
     });
   }
   hud.bind(g, PC, touch);
@@ -288,7 +288,7 @@ function showTitle() {
 
 async function switchMode(m) {
   TOWN = m === 'town'; TURF = !TOWN;
-  screens.show('loading', { text: TOWN ? 'Opening City Hall\u2026' : 'Back to the streets\u2026' });
+  screens.show('loading', { text: TOWN ? 'Opening the White House\u2026' : 'Back to the streets\u2026' });
   await new Promise((r) => setTimeout(r, 30)); // let the loading card paint before the city builds
   if (TOWN && !townMap) await loadTownMap();
   showTitle();

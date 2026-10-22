@@ -1064,6 +1064,60 @@ the 3D look comes from the Arkenfall screenshots.
 DONT COPY
 ```
 
+
+## 2.4 The President game, farming and the war (verbatim, in order)
+
+```
+Make this a White House. This game you are now the president.
+```
+```
+These huds are awful this is suppose to be an  immersive sim. Maybe you can only see the treasury money when going to the treasury and vise versa. The map and ui is terrible
+And idk what's going on or what I'm playing
+```
+```
+I also want to add the ability to farm in a section of the map. This should be the food for the population. I also want to add a military place for future updates. I think it would be goal if there was a war going on vs a friend. Not one that you personally fought in but a simulated one and the things you go in ur town and how you plan matter
+```
+```
+What's if it was a turn based battle. Would that be very hard
+```
+```
+What if we made it like worms 3d that way we don't have to change anything.
+```
+```
+We should make the troops like xcom. Every week you send 4 people for war. If they die they die
+```
+```
+We don't need enemy AI right now because I am only going to be versing another player
+```
+```
+I would like to know that it when my friend picks up the phone or get the link will he see the last turn?
+```
+```
+Just note it will be a 4 v 4 and be similar to worms 3d
+```
+```
+Actually 3 v 3. How much should towns cap at with unique people? 10?
+```
+
+### Plan agreed so far (not yet built)
+
+- **You are the President**; the White House stands on the first civic block (built). The stone hall on any other
+  civic block is the police headquarters.
+- **Immersive UI** (proposed, awaiting go-ahead): almost nothing on screen; numbers live in places (the Treasury
+  shows the money, the police HQ the crime map, the Oval Office desk the briefing and polls, newspaper boxes the
+  mood); a paper map; an opening where the chief of staff meets you and hands you your first tasks.
+- **Farmland**: a farm zone at one edge of the map; fields grow crops that feed the population each week;
+  shortages hurt approval, shops and crime.
+- **Military base**: a fenced base at another edge (barracks, depot, briefing room); recruits are named citizens
+  taken from the workforce.
+- **The war, against another player (no enemy AI)**: every week each side sends **3 soldiers** into a **3 v 3
+  battle played like Worms 3D** (changed from 4 v 4): teams alternate turns, on your turn you control one soldier directly in 3D (move,
+  then fire one weapon) on a stretch of the city. Soldiers are **XCOM-style**: named, classed, ranked, wounded or
+  **killed for good**. What you do in town (food, money, recruiting, approval) decides what you field.
+- **Playing a friend**: same device first, then through the shared game link: turns are stored with the link, and
+  opening it replays the other side's last turn before your own (the command log makes replays exact). Needs the
+  friend signed in to claude.ai and invited with permission to play; no push notification.
+
 ---
 
 # PART 3 — REFERENCE NOTES

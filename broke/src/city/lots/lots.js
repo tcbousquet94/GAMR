@@ -41,32 +41,45 @@ function serviceAlley(c, r, open, free, rng, raster, KP, city) {
   return { axis, mid };
 }
 
+// The block's own zone key: core (commercial in the downtown core), commercial, inner (residential close in: denser,
+// more walk-ups), residential (the outer suburbs), industrial, civic.
 export function zoneKeyOf(city, b) {
   const mc = { x: city.layout.sizeX / 2, z: city.layout.sizeZ / 2 };
-  const core = Math.hypot(b.center.x - mc.x, b.center.z - mc.z) < city.layout.size * 0.24;
-  return core && b.zone === 'commercial' ? 'core' : b.zone;
+  const d = Math.hypot(b.center.x - mc.x, b.center.z - mc.z);
+  if (b.zone === 'commercial') return d < city.layout.size * 0.24 ? 'core' : 'commercial';
+  if (b.zone === 'residential') return d < city.layout.size * 0.36 ? 'inner' : 'residential';
+  return b.zone;
+}
+// What a frontage is used for depends on its street too: anything on an avenue is main street (shops, walk-ups and
+// mid-rises; the core stays core), and a commercial block's narrow residential streets get houses and walk-ups.
+export function frontageKey(blockKey, streetKind) {
+  if (streetKind === 'avenue') return blockKey === 'core' || blockKey === 'industrial' ? blockKey : 'mainstreet';
+  if (streetKind === 'local' && blockKey === 'commercial') return 'inner';
+  return blockKey;
 }
 
 export function lotBuildings(kit, city, b, raster) {
   const { rng } = kit;
-  const key = zoneKeyOf(city, b);
+  const bkey = zoneKeyOf(city, b);
   const towerH = city.district.buildings.core.towerHeight;
   const KP = city.kitPending;
   for (const [i, j] of b.cells) {
     const c = city.layout.cellAt(i, j), r = c.rect;
     const len = (s) => (s === 'n' || s === 's' ? r.x1 - r.x0 : r.z1 - r.z0);
     const open = (s) => city.sideOpen(c, s);
+    const kindOf = (s) => city.sideKind?.(c, s) ?? 'street';
+    const keyOf = (s) => frontageKey(bkey, kindOf(s));
     const opp = { n: 's', s: 'n', e: 'w', w: 'e' };
     const used = new Map();
     const free = (q) => raster.test(q, R.BLOCK, AVOID);
     // A rear service alley through the middle of commercial and downtown cells, between the two opposite street sides
     // whose lots back onto it, open at both ends: deliveries, dumpsters, and a shortcut through the block.
-    const alley = key === 'commercial' || key === 'core' || key === 'civic' ? serviceAlley(c, r, open, free, rng, raster, KP, city) : null;
+    const alley = bkey === 'commercial' || bkey === 'core' || bkey === 'civic' ? serviceAlley(c, r, open, free, rng, raster, KP, city) : null;
     // Deepest a lot on side s may go: to the middle of the cell when the far side has lots too (to the alley's edge
     // when an alley runs between them).
     const backsOnAlley = (s) => alley && (alley.axis === 'x' ? s === 'n' || s === 's' : s === 'e' || s === 'w');
     const maxDepth = (s) => Math.floor(backsOnAlley(s) ? (len(NEXT[s]) - ALLEY_W) / 2 : open(opp[s]) ? len(NEXT[s]) / 2 : len(NEXT[s]) - 1.5);
-    const pick = (maxFront, maxD, corner) => {
+    const pick = (key, maxFront, maxD, corner) => {
       const opts = CATALOGUE.filter((a) => (a.zones[key] || 0) > 0 && a.front[0] <= maxFront + 0.01 && a.depth[0] <= maxD + 0.01
         && (corner ? a.corner !== 0 : !a.cornerOnly) && (!a.perCell || (used.get(a.id) || 0) < a.perCell));
       if (!opts.length) return null;
@@ -76,13 +89,13 @@ export function lotBuildings(kit, city, b, raster) {
       return opts[opts.length - 1];
     };
     const place = (a, q, front, corner) => {
-      const mb = a.build(q, front, rng, { corner, zone: key, towerH });
+      const mb = a.build(q, front, rng, { corner, zone: keyOf(front), towerH });
       mergeKitData(KP, mb.D);
       city.kitCuts.push(...mb.cuts.map((x) => ({ ...x, cell: c })));
       raster.mark(q, R.BUILT);
       used.set(a.id, (used.get(a.id) || 0) + 1);
       (city.buildings ||= []).push({ rect: q, h: a.h, block: b.id, side: front, asset: a.id });
-      (city.lots ||= []).push({ rect: q, asset: a.id, front, block: b.id, corner: corner || null });
+      (city.lots ||= []).push({ rect: q, asset: a.id, front, block: b.id, corner: corner || null, street: kindOf(front), use: keyOf(front) });
     };
 
     // ---- corners ----
@@ -90,8 +103,10 @@ export function lotBuildings(kit, city, b, raster) {
       const t = NEXT[s];
       if (!open(s) || !open(t)) continue;
       for (let tries = 0; tries < 4; tries++) {
-        const front = rng.chance(len(s) >= len(t) ? 0.6 : 0.4) ? s : t, other = front === s ? t : s;
-        const a = pick(Math.min(maxDepth(other), len(front) / 2), maxDepth(front), true);
+        // A corner faces its avenue if it has one (a main-street corner), else usually the longer street.
+        const av = kindOf(s) === 'avenue' ? s : kindOf(t) === 'avenue' ? t : null;
+        const front = av && rng.chance(0.85) ? av : rng.chance(len(s) >= len(t) ? 0.6 : 0.4) ? s : t, other = front === s ? t : s;
+        const a = pick(keyOf(front), Math.min(maxDepth(other), len(front) / 2), maxDepth(front), true);
         if (!a) break;
         const f = Math.min(Math.round(rng.range(a.front[0], a.front[1])), maxDepth(other)), d = Math.min(Math.round(rng.range(a.depth[0], a.depth[1])), maxDepth(front));
         // The corner sits at the end of side s (frame left) or the start of side t (frame right).
@@ -113,7 +128,7 @@ export function lotBuildings(kit, city, b, raster) {
         let e = 1;
         while (u + e < L && e < 46 && free(sideRect(r, s, u + e, u + e + 1, 0, 3))) e++;
         if (e < 9) { u += e; continue; }
-        const a = pick(e, md, false);
+        const a = pick(keyOf(s), e, md, false);
         if (!a) { u += e; continue; }
         let f = Math.min(Math.round(rng.range(a.front[0], a.front[1])), e);
         if (e - f < a.front[0] * 0.7 && e - f > 0 && e <= a.front[1] + 5) f = e; // absorb a leftover too small for another lot

@@ -31,7 +31,8 @@ export const DOWNTOWN = {
   edgeDepth: 34,
   neighbors: { n: 'The Yards', s: 'Southside', w: 'Old Neighborhood', e: 'Waterfront' },
   // Zoning: a dense commercial core thinning toward the edges.
-  zoning: { parks: [1, 2], civic: [1, 1] },
+  // edgeIndustry: chance an outer block against the river or the rail yard is industrial (workshops, warehouse yards).
+  zoning: { parks: [1, 2], civic: [1, 1], edgeIndustry: 0.3 },
   // Bases are warehouses (the castles); each controls 1-3 nearby businesses (the villages). Warehouse count is
   // capped at half the block count so every warehouse has at least one business block.
   warehouses: [6, 8],

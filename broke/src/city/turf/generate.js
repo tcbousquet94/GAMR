@@ -43,6 +43,7 @@ export function generateTurf(cfg, seed, opts = {}) {
   };
   city.blocks = L.blocks.map((b) => ({ ...b, district: cfg.id, zone: null, owner: 'neutral', territory: null, warehouse: null, businesses: [] }));
   city.sideOpen = (cell, side) => sideOpen(L, cell, side);
+  city.sideKind = (cell, side) => segOf(L, cell, side).seg.kind ?? 'street';
   const raster = new Raster(L.sizeX, L.sizeZ);
   // Landmark block, warehouses, HQs, territories and zones are all settled before any geometry.
   zoning(city, rng);
@@ -62,7 +63,9 @@ export function generateTurf(cfg, seed, opts = {}) {
   const KD = city.kitLook ? emptyKitData() : null;
   let cuts = [];
   if (KD) {
-    const free = L.cells.filter((c) => raster.test({ x0: c.rect.x0 + 0.5, z0: c.rect.z0 + 0.5, x1: c.rect.x1 - 0.5, z1: c.rect.z1 - 0.5 }, R.BLOCK, R.DIAG | R.RESERVED | R.BUILT | R.STREET | R.MEWS));
+    // (Not on an avenue: avenue frontage is main street, built lot by lot.)
+    const onAvenue = (c) => ['n', 's', 'e', 'w'].some((q) => { const sg = segOf(L, c, q).seg; return sg.open && sg.kind === 'avenue'; });
+    const free = L.cells.filter((c) => !onAvenue(c) && raster.test({ x0: c.rect.x0 + 0.5, z0: c.rect.z0 + 0.5, x1: c.rect.x1 - 0.5, z1: c.rect.z1 - 0.5 }, R.BLOCK, R.DIAG | R.RESERVED | R.BUILT | R.STREET | R.MEWS));
     const cells = free.map((c) => ({ rect: c.rect, zone: city.blocks[c.block].zone, sides: sidesOf(city, c), src: c }));
     cuts = placeModules(KD, cells, rng);
     for (const c of cells) if (c.placed) { raster.mark(c.rect, R.BUILT); c.src.module = c.placed; }
@@ -238,14 +241,20 @@ function zoning(city, rng) {
   }
   for (const w of city.whPlan) { city.blocks[w.block].territory = w.id; city.blocks[w.block].warehouse = w.id; if (!w.businesses.length) throw new Error(`warehouse ${w.id} has no business (seed ${city.seed})`); }
   // Zones: warehouse blocks are industrial; parks on the ring, civic near the core, the rest commercial/residential.
-  for (const id of whBlocks) city.blocks[id].zone = 'industrial';
+  // A gang's warehouse block is industrial when it sits against the river or the rail yard, or out on the edge of
+  // town; otherwise the compound stands in an ordinary mixed block (houses and shops around it).
+  const industrialEdge = (b) => b.cells.some(([i, j]) => (cfg.edges.e === 'river' && i === L.cols - 1) || (cfg.edges.n === 'railyard' && j === 0) || (cfg.edges.w === 'river' && i === 0) || (cfg.edges.s === 'railyard' && j === L.rows - 1));
+  for (const id of whBlocks) { const b = city.blocks[id]; if (industrialEdge(b) || d01(b) > 0.8) b.zone = 'industrial'; }
   const taken = new Set([...whBlocks, ...city.whPlan.map((w) => w.dinerBlock)]);
   const nParks = rng.int(cfg.zoning.parks[0], cfg.zoning.parks[1]);
   const ring = rng.shuffle(city.blocks.filter((b) => !b.zone && !taken.has(b.id) && d01(b) > 0.45)).sort((p, q) => p.cells.length - q.cells.length);
   for (const b of ring.slice(0, nParks)) b.zone = 'park';
   const nCivic = rng.int(cfg.zoning.civic[0], cfg.zoning.civic[1]);
   for (const b of city.blocks.filter((q) => !q.zone && !taken.has(q.id)).sort((p, q) => d01(p) - d01(q)).slice(0, nCivic)) b.zone = 'civic';
+  // Industry gathers against the river and the rail yard: outer blocks touching those edges.
+  for (const b of city.blocks) if (!b.zone && !taken.has(b.id) && d01(b) > 0.6 && industrialEdge(b) && rng.chance(cfg.zoning.edgeIndustry ?? 0)) b.zone = 'industrial';
   for (const b of city.blocks) if (!b.zone) b.zone = d01(b) < 0.55 ? 'commercial' : 'residential';
+  for (const b of city.blocks) b.d01 = d01(b);
   // Owners: each gang holds its HQ territory; everything else starts neutral.
   for (const w of city.whPlan) w.owner = w.hq != null ? `gang${w.hq}` : 'neutral';
   for (const b of city.blocks) if (b.territory != null) b.owner = city.whPlan[b.territory].owner;

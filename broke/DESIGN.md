@@ -253,7 +253,16 @@ cells between two opposite street sides: lots back onto them, dumpsters and bins
 both ends, poles kept out of their mouths; `city.alleys`. Curves and dead ends come from the whole-cell
 neighbourhood modules (crescent, cul-de-sac) in the suburbs.
 
-Next steps (planned): zoning by distance and road type, the remaining plain
+Zoning by distance and street: block zones as before (landmark, parks, civic, commercial inside 0.55 of the radius,
+residential outside), but a gang warehouse's block is industrial only against the river or rail yard or far out
+(otherwise its compound stands in a mixed block), and some outer blocks against those edges turn industrial
+(`zoning.edgeIndustry`). Lots read a per-frontage use (`frontageKey`): avenue frontage is main street (shops,
+walk-ups, mid-rises, corner markets) wherever it is; a commercial block's narrow residential streets get houses and
+walk-ups; residential blocks close in are 'inner' (walk-ups and porch houses), the outer ones mostly houses. Corner
+lots face their avenue. Whole-cell neighbourhood modules stay off avenue cells, so main streets are a continuous
+shopfront. Lots record `street` and `use`; a test checks avenue frontage and the suburbs.
+
+Next steps (planned): the remaining plain
 boxes (City Hall, the turf business shells) replaced by handcrafted assets, and per-city checks (every door
 reachable, a phone frame budget).
 

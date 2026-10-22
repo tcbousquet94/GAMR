@@ -48,3 +48,17 @@ test('street hierarchy: avenues, streets and narrow residential streets; bus sto
   }
   assert.ok(alleys >= 1, 'service alleys');
 });
+
+test('zoning by street: avenue frontage is main street, outer suburbs are houses', () => {
+  const MAIN = new Set(['shop', 'walkup', 'midrise', 'tower', 'cornerMarket', 'parking', 'workshop', 'yard']);
+  let onAvenue = 0, suburb = 0, houses = 0;
+  for (const seed of [11, 942824, 454473]) {
+    const c = generateTurf(DOWNTOWN, seed);
+    for (const l of c.lots) {
+      if (l.street === 'avenue') { onAvenue++; assert.ok(MAIN.has(l.asset), `${l.asset} on an avenue`); }
+      if (l.use === 'residential') { suburb++; if (l.asset === 'house' || l.asset === 'porchHouse') houses++; }
+    }
+  }
+  assert.ok(onAvenue >= 10, `${onAvenue} avenue lots`);
+  assert.ok(suburb > 0 && houses / suburb > 0.6, `suburbs mostly houses (${houses}/${suburb})`);
+});

@@ -6,7 +6,8 @@
 // the street, the front street toward -v) and return the MB. opts: { corner: 'left' | 'right' | null (the side of
 // the lot that also faces a street), zone, core }.
 //
-// Zone keys: residential, commercial, industrial, civic, and core (any non-industrial block in the downtown core).
+// Zone keys: core (commercial blocks in the downtown core), mainstreet (any frontage on an avenue outside the core),
+// commercial, inner (residential close in), residential (outer suburbs), industrial, civic.
 
 import { CURB, FRONT_YAW } from '../kitdata/data.js';
 import { MB, WALL_COLORS, TRIMS } from '../kitdata/modules.js';
@@ -174,15 +175,15 @@ function towerLot(rect, side, rng, opts) {
 // front / depth: metres [min, max]. zones: weight per zone key. corner: weight multiplier on a corner lot (0 = never
 // on a corner); cornerOnly: corners only. perCell: at most this many per cell. h: height recorded for the map / AI.
 export const CATALOGUE = [
-  { id: 'house', front: [12, 15], depth: [22, 32], zones: { residential: 6, commercial: 0.5, civic: 0.4 }, corner: 0.8, h: 5, build: houseLot },
-  { id: 'porchHouse', front: [15, 18], depth: [24, 32], zones: { residential: 2 }, corner: 1.2, h: 8, build: porchHouseLot },
-  { id: 'walkup', front: [18, 25], depth: [18, 28], zones: { residential: 1.2, commercial: 3, civic: 1.5 }, corner: 1, h: 9, build: walkupLot },
-  { id: 'shop', front: [12, 18], depth: [15, 22], zones: { residential: 0.35, commercial: 3.5, civic: 1.2, core: 0.6 }, corner: 3, h: 5, build: shopLot },
-  { id: 'cornerMarket', front: [24, 28], depth: [24, 28], zones: { residential: 1.2, commercial: 2 }, cornerOnly: true, perCell: 1, h: 5, build: cornerMarketLot },
-  { id: 'parking', front: [16, 24], depth: [16, 26], zones: { commercial: 0.6, industrial: 0.8, civic: 0.6, core: 0.4 }, corner: 0.6, perCell: 1, h: 0, build: parkingLot },
-  { id: 'pocketPark', front: [10, 14], depth: [12, 18], zones: { residential: 0.25, commercial: 0.2, civic: 0.3 }, corner: 0.5, perCell: 1, h: 0, build: pocketParkLot },
+  { id: 'house', front: [12, 15], depth: [22, 32], zones: { residential: 6, inner: 3, commercial: 0.5, civic: 0.4 }, corner: 0.8, h: 5, build: houseLot },
+  { id: 'porchHouse', front: [15, 18], depth: [24, 32], zones: { residential: 2, inner: 2.2 }, corner: 1.2, h: 8, build: porchHouseLot },
+  { id: 'walkup', front: [18, 25], depth: [18, 28], zones: { residential: 0.6, inner: 2.6, commercial: 3, mainstreet: 3, civic: 1.5 }, corner: 1, h: 9, build: walkupLot },
+  { id: 'shop', front: [12, 18], depth: [15, 22], zones: { residential: 0.25, inner: 0.4, commercial: 3.5, mainstreet: 4.5, civic: 1.2, core: 0.6 }, corner: 3, h: 5, build: shopLot },
+  { id: 'cornerMarket', front: [24, 28], depth: [24, 28], zones: { residential: 1.2, inner: 1, commercial: 2, mainstreet: 1.5 }, cornerOnly: true, perCell: 1, h: 5, build: cornerMarketLot },
+  { id: 'parking', front: [16, 24], depth: [16, 26], zones: { commercial: 0.6, mainstreet: 0.4, industrial: 0.8, civic: 0.6, core: 0.4 }, corner: 0.6, perCell: 1, h: 0, build: parkingLot },
+  { id: 'pocketPark', front: [10, 14], depth: [12, 18], zones: { residential: 0.25, inner: 0.3, commercial: 0.2, civic: 0.3 }, corner: 0.5, perCell: 1, h: 0, build: pocketParkLot },
   { id: 'workshop', front: [18, 28], depth: [20, 28], zones: { industrial: 4, commercial: 0.25 }, corner: 1, h: 7, build: workshopLot },
   { id: 'yard', front: [30, 44], depth: [28, 36], zones: { industrial: 2 }, corner: 1, perCell: 1, h: 9, build: yardLot },
-  { id: 'midrise', front: [14, 26], depth: [14, 22], zones: { core: 4 }, corner: 1.3, h: 14, build: midriseLot },
+  { id: 'midrise', front: [14, 26], depth: [14, 22], zones: { core: 4, mainstreet: 1.6 }, corner: 1.3, h: 14, build: midriseLot },
   { id: 'tower', front: [18, 30], depth: [18, 26], zones: { core: 3 }, corner: 1.2, h: 60, build: towerLot },
 ];

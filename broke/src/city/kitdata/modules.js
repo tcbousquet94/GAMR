@@ -45,6 +45,8 @@ export class MB {
   prop(type, u, v, yaw = 0, color) { const p = this.P(u, v); this.D.props.push({ type, ...p, y: CURB, yaw: this.Y(yaw), color }); }
   light(u, v, yaw) { const p = this.P(u, v); this.D.lights.push({ ...p, y: CURB, yaw: this.Y(yaw) }); }
   poles(pts) { this.D.poleLines.push(pts.map(([u, v]) => this.P(u, v))); }
+  // True when no house of this module stands within `dist` of (u, v) (centres): later rows skip taken spots.
+  clear(u, v, dist = 11.5) { const p = this.P(u, v); return this.D.houses.every((h) => Math.hypot(h.x - p.x, h.z - p.z) > dist); }
   person(u, v, yaw) { const p = this.P(u, v); this.D.people.push({ ...p, y: CURB, yaw: this.Y(yaw), seed: this.rng.int(1, 1e6) }); }
   // A kerb cut where a lane / alley / driveway meets the street: the street kerb is dropped over [a, b] (local u or v
   // along that side) and an apron is paved across the sidewalk.
@@ -108,8 +110,8 @@ export function crescent(rect, front, rng, sides) {
   const ts = [3, 6, 9, 12, 15];
   ts.forEach((ti, i) => {
     const [u, v] = outer[ti], [lu, lv] = pts[ti];
-    if (u < 7 || u > W - 7 || v > D - 6 || v < 8) return;
     const apex = i === 2;
+    if (u < 7 || u > W - 7 || v > D - 6 || v < 8 || !mb.clear(u, v, apex ? 14 : 11.5)) return; // houses bunch up round the bend
     const yaw = mb.face(lu - u, lv - v);
     mb.house(u, v, apex ? 17 : 11.5, apex ? 11.5 : 10, yaw, apex ? { floors: 2, wall: 'siding', wallColor: 0x6a5242, wall2: 'brick', wall2Color: 0xa08474, roof: 'hip', roofColor: 0x5e5854, trim: 0xd2cabc, porch: { depth: 2.5, steps: 'left', railing: true }, chimney: true } : {});
     // Front walk to the lane and a lot fence on the far side.
@@ -120,8 +122,8 @@ export function crescent(rect, front, rng, sides) {
   // Inside the bend: two houses facing the front street, one facing the exit street, and a pocket green with a big
   // tree and a bench where the lane turns.
   const inU = (t) => (exitSide === 'right' ? u0 + 7 + t : u0 - 7 - t);
-  for (const t of [1.5, 18]) { const u = inU(t); if (u > 6 && u < W - 6) { mb.house(u, 9.5, 10.5, 9.5, 0); mb.yard(u - 5.5, u + 5.5, 0, 4.5, u + (rng.chance(0.5) ? 2 : -2)); } }
-  mb.house(exitSide === 'right' ? W - 8.5 : 8.5, D * 0.36, 9.5, 11, mb.face(dir, 0));
+  for (const t of [1.5, 18]) { const u = inU(t); if (u > 6 && u < W - 6 && mb.clear(u, 9.5, 12)) { mb.house(u, 9.5, 10.5, 9.5, 0); mb.yard(u - 5.5, u + 5.5, 0, 4.5, u + (rng.chance(0.5) ? 2 : -2)); } }
+  if (mb.clear(exitSide === 'right' ? W - 8.5 : 8.5, D * 0.36, 12)) mb.house(exitSide === 'right' ? W - 8.5 : 8.5, D * 0.36, 9.5, 11, mb.face(dir, 0));
   const gu = exitSide === 'right' ? u0 + 14 : u0 - 14;
   mb.tree(gu, D * 0.42, 6, 10); mb.prop('bench', gu - 3, D * 0.42 + 2.5, mb.face(-dir, 0)); mb.shrub(gu + 3, D * 0.36, 1.1);
   // Lane furniture: palms along the outer verge, poles with wires, two streetlights, cars at the kerb, people.
@@ -131,7 +133,8 @@ export function crescent(rect, front, rng, sides) {
   { const [u, v] = offset(pts, -dir * 2.0)[10], [u2, v2] = pts[11]; mb.car(u, v, mb.face(u2 - pts[10][0], v2 - pts[10][1])); }
   { const [u, v] = offset(pts, -dir * 5.2)[8]; mb.person(u, v, rng.range(-3, 3)); mb.person(u + 1.2, v + 0.5, rng.range(-3, 3)); }
   // Back strip (beyond the lane): houses facing the back street if it is open, backyard fences otherwise.
-  if (sides.back) for (let u = 10; u < W - 8; u += 15) { mb.house(u, D - 9, 11, 9.5, Math.PI); mb.yard(u - 6, u + 6, D - 4.5, D, u); }
+  // (These face the back street: yard() lays out a yard toward -v, so its street fence would land on the house front.)
+  if (sides.back) for (let u = 10; u < W - 8; u += 15) if (mb.clear(u, D - 9, 12)) { mb.house(u, D - 9, 11, 9.5, Math.PI); mb.yard(u - 6, u + 6, D - 4.5, D, u, { fence: false }); }
   return mb;
 }
 
@@ -170,9 +173,11 @@ export function culdesac(rect, front, rng, sides) {
     mb.ribbon('concrete', [[u - s * 5, 13], [cu - s * 4.6, 13]], 1.1);
     if (rng.chance(0.6)) mb.palm(cu + s * 5.6, 8 + rng.range(0, 6));
   }
-  if (sides.left) for (let v = 9; v < D - 8; v += 14) { mb.house(8, v, 9.5, 10.5, mb.face(-1, 0)); }
-  if (sides.right) for (let v = 9; v < D - 8; v += 14) { mb.house(W - 8, v, 9.5, 10.5, mb.face(1, 0)); }
-  if (sides.back) for (let u = 22; u < W - 20; u += 14) mb.house(u, D - 8, 11, 9.5, Math.PI);
+  // Perimeter houses facing the outer streets, where the bulb's fan of houses hasn't already taken the spot.
+  const clear = (u, v) => mb.clear(u, v);
+  if (sides.left) for (let v = 9; v < D - 8; v += 14) if (clear(8, v)) mb.house(8, v, 9.5, 10.5, mb.face(-1, 0));
+  if (sides.right) for (let v = 9; v < D - 8; v += 14) if (clear(W - 8, v)) mb.house(W - 8, v, 9.5, 10.5, mb.face(1, 0));
+  if (sides.back) for (let u = 22; u < W - 20; u += 14) if (clear(u, D - 8)) mb.house(u, D - 8, 11, 9.5, Math.PI);
   mb.light(cu + 4.3, end - R - 3, mb.face(-1, 0));
   mb.light(cu - R - 1.6, end, mb.face(1, 0));
   mb.poles([[cu + 4.6, 2], [cu + 4.6, end - R - 1], [cu + R + 1.5, end + 4]]);

@@ -12,8 +12,10 @@ import { placeProp } from '../modules/streets.js';
 import { TAGS } from './worn.js';
 import { Rng } from '../../core/rng.js';
 
-// Business types with a full walk-in interior (seen through clear front windows).
+// Business types with a full walk-in interior of their own (they place their own counter and register).
 const FURNISHED = new Set(['diner', 'bodega']);
+// Every business has clear front windows you can see the room through (no opaque glow panel).
+const GLAZED = { has: () => true };
 
 export const TEMPLATE = { F: 13, D: 16, H: 7.4, A: 4.2, L: 9, ground: 3.4, wall: 0.3 };
 
@@ -71,7 +73,7 @@ export function buildBusiness(kit, fr, biz, opts = {}) {
   solid(0, 0, winU0, t, G, GH, wallC);
   solid(winU0, 0, winU1, t, G, 0.85, wallC); // knee wall
   solid(winU0, 0, winU1, t, 0.85, 2.85, glass, MAT.GLASS); // big front window
-  if (FURNISHED.has(biz.type)) kit.boxes[kit.boxes.length - 1].surf = 'shopGlass';
+  if (GLAZED.has(biz.type)) kit.boxes[kit.boxes.length - 1].surf = 'shopGlass';
   solid(winU0, 0, winU1, t, 2.85, GH, wallC);
   solid(winU1, 0, doorU0, t, G, GH, wallC);
   solid(doorU0, 0, doorU1, t, 2.55, GH, wallC); // over the door
@@ -92,7 +94,7 @@ export function buildBusiness(kit, fr, biz, opts = {}) {
     solid(0, t, t, 1.4, G, GH, wallC);
     solid(0, 1.4, t, 7.6, G, 0.85, wallC);
     solid(0, 1.4, t, 7.6, 0.85, 2.85, glass, MAT.GLASS);
-    if (FURNISHED.has(biz.type)) kit.boxes[kit.boxes.length - 1].surf = 'shopGlass';
+    if (GLAZED.has(biz.type)) kit.boxes[kit.boxes.length - 1].surf = 'shopGlass';
     solid(0, 1.4, t, 7.6, 2.85, GH, wallC);
     solid(0, 7.6, t, D, G, GH, wallC);
   } else solid(0, t, t, D, G, GH, wallC);
@@ -147,7 +149,7 @@ export function buildBusiness(kit, fr, biz, opts = {}) {
   const dsp = fr.at((winU0 + winU1) / 2, 0.36);
   kit.sign(rng.pick(S.display), 'neon', dsp.x, 2.2, dsp.z, Math.min(4, winU1 - winU0 - 1), 0.6, out.x, out.z, S.signColor);
   // Interior glow panel behind the window (the kit look draws it as an opaque window, so a furnished room skips it).
-  if (!FURNISHED.has(biz.type)) kit.quad(fr.at((winU0 + winU1) / 2, 0.4).x, 1.85, fr.at((winU0 + winU1) / 2, 0.4).z, winU1 - winU0 - 0.4, 1.9, out.x, out.z, 0x4a5670, 0xffd9a0);
+  if (!GLAZED.has(biz.type)) kit.quad(fr.at((winU0 + winU1) / 2, 0.4).x, 1.85, fr.at((winU0 + winU1) / 2, 0.4).z, winU1 - winU0 - 0.4, 1.9, out.x, out.z, 0x4a5670, 0xffd9a0);
   kit.light(fr.at(F / 2, D / 2).x, 3.0, fr.at(F / 2, D / 2).z, 0xfff0d8, 9, 'shop');
   if (S.sign === 'neon') kit.light(sp.x + out.x * 0.6, 4.3, sp.z + out.z * 0.6, S.signColor, 6, 'neon');
   // Interior ceiling trim so the room reads from the windows.

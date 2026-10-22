@@ -11,7 +11,7 @@ import { FL, FH, houseYaw, CURB } from './data.js';
 
 export const HOME = {
   wall: 0.24, // wall thickness (matches the house builder)
-  doorHalf: 0.6, // front door opening half-width
+  doorHalf: 0.75, // front door opening half-width (1.5 m: a comfortable way in past the open door leaf)
   doorH: 2.2,
   kitchen: 3.9, // depth of the kitchen-diner across the back, wall to partition centre
   part: 0.12, // partition half-thickness
@@ -19,7 +19,9 @@ export const HOME = {
 };
 
 // Ordinary pitched-roof houses big enough for rooms (not shops, garages, walk-ups or sheds).
-export const isHome = (h) => !h.garage && !h.storefront && !h.units && !h.industrial && !h.walkIn && h.roof && h.roof !== 'flat' && h.w >= 8.5 && h.d >= 9;
+// Square-on only: an angled house's colliders are a fill of small boxes, too coarse for walls and a doorway.
+const squareOn = (h) => { const y = houseYaw(h), c = Math.abs(Math.cos(y)), s = Math.abs(Math.sin(y)); return Math.min(c, s) < 1e-3; };
+export const isHome = (h) => !h.garage && !h.storefront && !h.units && !h.industrial && !h.walkIn && h.roof && h.roof !== 'flat' && h.w >= 8.5 && h.d >= 9 && squareOn(h);
 
 // Front door centre (x), as the house builder places it.
 export const homeDoorX = (h) => -h.w / 2 + (h.porch?.steps === 'left' ? 2.2 : h.w / 2 + (h.w > 14 ? -1.6 : 0.4));

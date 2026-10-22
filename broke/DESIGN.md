@@ -262,9 +262,20 @@ walk-ups; residential blocks close in are 'inner' (walk-ups and porch houses), t
 lots face their avenue. Whole-cell neighbourhood modules stay off avenue cells, so main streets are a continuous
 shopfront. Lots record `street` and `use`; a test checks avenue frontage and the suburbs.
 
-Next steps (planned): the remaining plain
-boxes (City Hall, the turf business shells) replaced by handcrafted assets, and per-city checks (every door
-reachable, a phone frame budget).
+Handcrafted civic and storefront pieces: City Hall (`cityHall` in turf/fill.js) is a limestone block on a rusticated
+base with windows on every face, a portico of eight columns under a pediment (CITY HALL and the town's name), a
+balustrade, a domed copper cupola with a clock and the town flag, bronze doors, lamps and two flagpoles; no random
+draws. Every turf business has clear front windows (no opaque glow panel), so the pawn shop's cases, the laundromat's
+machines, the boxing ring, the auto lift and the clinic's waiting room show from the street.
+
+City checks (`src/city/check.js`, tests/unit/citycheck.test.js): a flood fill of the walkable ground from the spawn on
+a 0.25 m grid with a body just inside the player's (same step-up as walking, no jumping or climbing) must reach every
+door: businesses, homes and walk-in markets; no two buildings may overlap (square-on ones as rectangles, angled ones
+by their inscribed circle); and the city must stay within a size budget (generator boxes, kit buildings, props,
+people, lights; ~25% over today's largest; raise it only with a phone frame-rate check). Run on four Downtown seeds and
+Palmetto Bay. What it found and fixed: crescent back-row yard fences standing against the house fronts, cul-de-sac and
+crescent houses generated on top of one another (module rows now skip taken spots, `MB.clear`), front doors too tight
+past the open leaf (now 1.5 m), and angled houses are no longer walk-in (their colliders are too coarse for a doorway).
 
 # STREETS, NOT MEWS (Downtown)
 

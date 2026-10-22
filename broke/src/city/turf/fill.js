@@ -218,6 +218,87 @@ export function park(kit, city, b, raster) {
   }
 }
 
+// City Hall, handcrafted: a limestone block on a rusticated base, tall windows on every face, a portico of columns
+// under a pediment with CITY HALL across it, wide steps, a domed cupola with a flag, flagpoles and lamps out front.
+// The front faces -z (the plaza). No random draws: it is the same building every time.
+function cityHall(kit, r, cx, town) {
+  const STONE = 0xe2dacb, BASE = 0xc4bcae, TRIM = 0xd2cab8, DARK = 0x3a3634, BRONZE = 0x4a5a4c;
+  const W = r.x1 - r.x0, Dp = r.z1 - r.z0, H = 15, cz = (r.z0 + r.z1) / 2;
+  const box = (x0, y0, z0, x1, y1, z1, c, surf, mat = MAT.STD) => kit.box(x0, y0, z0, x1, y1, z1, c, mat, surf ? { surf } : {});
+  // Body and base.
+  kit.solid(r.x0, G, r.z0, r.x1, H, r.z1, null, MAT.STD, TAG.BUILDING);
+  box(r.x0, G, r.z0, r.x1, H, r.z1, STONE, 'stucco');
+  box(r.x0 - 0.2, G, r.z0 - 0.2, r.x1 + 0.2, 4.6, r.z1 + 0.2, BASE, 'concrete');
+  for (let y = 1.2; y < 4.6; y += 0.85) box(r.x0 - 0.22, y, r.z0 - 0.22, r.x1 + 0.22, y + 0.06, r.z1 + 0.22, 0xa8a094, 'trim'); // rustication joints
+  box(r.x0 - 0.3, 4.6, r.z0 - 0.3, r.x1 + 0.3, 4.95, r.z1 + 0.3, TRIM, 'trim'); // string course
+  box(r.x0 - 0.6, H - 0.2, r.z0 - 0.6, r.x1 + 0.6, H + 0.5, r.z1 + 0.6, TRIM, 'trim'); // cornice
+  for (let x = r.x0; x <= r.x1 + 0.01; x += 1.2) for (const z of [r.z0 - 0.35, r.z1 + 0.35]) box(x - 0.12, H + 0.5, z - 0.12, x + 0.12, H + 1.3, z + 0.12, TRIM, 'trim'); // balustrade
+  for (const z of [r.z0 - 0.35, r.z1 + 0.35]) box(r.x0, H + 1.3, z - 0.18, r.x1, H + 1.45, z + 0.18, TRIM, 'trim');
+  box(r.x0 + 0.3, H + 0.45, r.z0 + 0.3, r.x1 - 0.3, H + 0.5, r.z1 - 0.3, 0x6a6660, 'tarGravel');
+  // Windows on every face: tall ones on the main floors, squat ones in the base.
+  const faces = [[0, -1, r.z0, W], [0, 1, r.z1, W], [-1, 0, r.x0, Dp], [1, 0, r.x1, Dp]];
+  for (const [nx, nz, at, L] of faces) {
+    const n = Math.floor(L / 3.4), sp = L / n;
+    for (let i = 0; i < n; i++) {
+      const t = -L / 2 + sp * (i + 0.5);
+      if (nz === -1 && Math.abs(t) < 6) continue; // the portico's doors
+      const x = nz ? cx + t : at + nx * 0.02, z = nz ? at + nz * 0.02 : cz + t;
+      kit.quad(x, 2.8, z, 1.2, 1.4, nx, nz, 0x4a5670, 0xffd9a0);
+      for (const y of [7.4, 11.6]) {
+        kit.quad(x, y, z, 1.4, 2.6, nx, nz, 0x4a5670, 0xffd9a0);
+        if (nz) box(x - 0.95, y + 1.4, z - 0.08, x + 0.95, y + 1.62, z + 0.08 + nz * 0.15, TRIM, 'trim'); else box(x - 0.08 + nx * 0.15, y + 1.4, z - 0.95, x + 0.08, y + 1.62, z + 0.95, TRIM, 'trim'); // window heads
+      }
+    }
+  }
+  // Portico: eight columns on a stepped podium, entablature with the name, a pediment.
+  const px0 = cx - 9, px1 = cx + 9, pz0 = r.z0 - 4.2, top = 12.4;
+  kit.solid(px0 - 1, G, pz0 - 0.2, px1 + 1, G + 0.9, r.z0, BASE, MAT.STD, TAG.GROUND);
+  kit.ramp(px0, r.z0 - 8, px1, pz0 - 0.2, 'z+', G, G + 0.9, BASE, { solidBelow: true, stepRise: 0.3 });
+  for (let k = 0; k < 8; k++) {
+    const x = px0 + 0.6 + k * ((px1 - px0 - 1.2) / 7);
+    kit.solid(x - 0.45, G + 0.9, pz0 + 0.3, x + 0.45, top, pz0 + 1.2, null, MAT.STD, TAG.PROP);
+    kit.boxC(x, (G + 0.9 + top) / 2, pz0 + 0.75, 0.8, top - G - 0.9, 0.8, STONE, MAT.STD, { surf: 'stucco' });
+    kit.boxC(x, (G + 0.9 + top) / 2, pz0 + 0.75, 0.8, top - G - 0.9, 0.8, STONE, MAT.STD, { ry: Math.PI / 4, surf: 'stucco' }); // octagonal shaft
+    box(x - 0.6, G + 0.9, pz0 + 0.15, x + 0.6, G + 1.3, pz0 + 1.35, TRIM, 'trim'); box(x - 0.6, top - 0.4, pz0 + 0.15, x + 0.6, top, pz0 + 1.35, TRIM, 'trim');
+  }
+  box(px0 - 0.6, top, pz0 - 0.2, px1 + 0.6, top + 1.6, r.z0, STONE, 'stucco'); // entablature
+  box(px0 - 0.8, top + 1.6, pz0 - 0.4, px1 + 0.8, top + 1.9, r.z0, TRIM, 'trim');
+  kit.sign('CITY HALL', 'paint', cx, top + 0.85, pz0 - 0.22, 12, 1.0, 0, -1, DARK);
+  const ph = 3.2, half = (px1 - px0) / 2 + 0.8, slope = Math.atan2(ph, half), len = Math.hypot(ph, half);
+  for (let k = 0; k < 8; k++) { const f = k / 8, w = (1 - f) * half * 2; box(cx - w / 2, top + 1.9 + f * ph, pz0 - 0.1, cx + w / 2, top + 1.9 + (k + 1) / 8 * ph, pz0 + 0.3, STONE, 'stucco'); } // tympanum
+  for (const sgn of [-1, 1]) kit.boxC(cx + sgn * half / 2, top + 1.9 + ph / 2, (pz0 + r.z0) / 2 - 0.2, len + 0.4, 0.35, r.z0 - pz0 + 0.6, TRIM, MAT.STD, { rz: -sgn * slope, surf: 'trim' });
+  kit.sign(town.toUpperCase(), 'paint', cx, top + 2.7, pz0 - 0.12, 6, 0.5, 0, -1, DARK);
+  // Bronze doors under the portico, lamps either side of the steps.
+  for (const dx of [-3, 0, 3]) { box(cx + dx - 0.8, G + 0.9, r.z0 - 0.05, cx + dx + 0.8, G + 4.2, r.z0, BRONZE, 'metalPaint', MAT.METAL); box(cx + dx - 1.0, G + 4.2, r.z0 - 0.1, cx + dx + 1.0, G + 4.5, r.z0, TRIM, 'trim'); }
+  for (const x of [px0 - 0.6, px1 + 0.6]) {
+    kit.solid(x - 0.3, G, r.z0 - 8.4, x + 0.3, G + 1.2, r.z0 - 7.8, BASE, MAT.STD, TAG.PROP);
+    box(x - 0.06, G + 1.2, r.z0 - 8.16, x + 0.06, G + 4.0, r.z0 - 8.04, 0x2a2c2e, 'metalPaint', MAT.METAL);
+    box(x - 0.25, G + 4.0, r.z0 - 8.35, x + 0.25, G + 4.6, r.z0 - 7.85, 0xffe2a8, null, MAT.GLOW);
+    kit.light(x, G + 4.3, r.z0 - 8.1, 0xffd9a0, 10, 'plaza');
+  }
+  // Domed cupola: an octagonal drum with a clock, a stepped dome, a lantern and a flag.
+  const dz = cz + 1, R0 = 5;
+  const oct = (y0, y1, rad, c, surf) => { for (const ry of [0, Math.PI / 4]) kit.boxC(cx, (y0 + y1) / 2, dz, rad * 1.66, y1 - y0, rad * 1.66, c, MAT.STD, { ry, surf }); };
+  const DR = H + 8.5; // drum top: high enough to read over the pediment
+  oct(H + 0.5, DR, R0, STONE, 'stucco');
+  oct(DR - 0.2, DR + 0.3, R0 + 0.3, TRIM, 'trim');
+  for (let k = 0; k < 7; k++) { const f = k / 7, rad = R0 * Math.cos(f * Math.PI / 2 * 0.95); oct(DR + 0.3 + k * 0.8, DR + 1.1 + k * 0.8, rad, 0x7a8a7e, 'metalPaint'); } // patinated copper dome
+  oct(DR + 5.9, DR + 7.7, 0.9, STONE, 'stucco'); oct(DR + 7.7, DR + 8.1, 1.1, TRIM, 'trim');
+  box(cx - 0.04, DR + 8.1, dz - 0.04, cx + 0.04, DR + 12, dz + 0.04, 0x2a2c2e, 'metalPaint', MAT.METAL);
+  box(cx + 0.04, DR + 10.8, dz - 0.02, cx + 1.9, DR + 11.9, dz + 0.02, 0x2a6a8a, 'trim'); box(cx + 0.04, DR + 11.2, dz - 0.025, cx + 1.9, DR + 11.5, dz + 0.025, 0xe0b030, 'trim'); // town flag
+  const fz = dz - R0 * 0.83, cy = DR - 2.4; // clock face on the drum
+  box(cx - 1.1, cy - 1.1, fz - 0.08, cx + 1.1, cy + 1.1, fz, 0xf0ece0, 'trim');
+  box(cx - 0.05, cy, fz - 0.12, cx + 0.05, cy + 0.8, fz - 0.08, DARK, 'trim'); box(cx - 0.05, cy - 0.05, fz - 0.12, cx + 0.55, cy + 0.05, fz - 0.08, DARK, 'trim');
+  // Two flagpoles on the plaza in front.
+  for (const sgn of [-1, 1]) {
+    const x = cx + sgn * 13, z = r.z0 - 12;
+    kit.solid(x - 0.5, G, z - 0.5, x + 0.5, G + 0.5, z + 0.5, BASE, MAT.STD, TAG.PROP);
+    box(x - 0.06, G + 0.5, z - 0.06, x + 0.06, G + 11, z + 0.06, 0xc8c8c4, 'chrome', MAT.METAL);
+    box(x + 0.06, G + 9, z - 0.02, x + 2.6, G + 10.6, z + 0.02, sgn < 0 ? 0x2a6a8a : 0x8a2a2a, 'trim');
+    box(x + 0.06, G + 9.5, z - 0.025, x + 2.6, G + 10.1, z + 0.025, 0xe8e4dc, 'trim');
+  }
+}
+
 export function civic(kit, city, b, raster) {
   // City hall: a stone block with a colonnade and wide steps, set back behind a plaza.
   const { rng } = kit;
@@ -225,14 +306,9 @@ export function civic(kit, city, b, raster) {
   for (const [w, d] of [[40, 26], [32, 22], [26, 18]]) {
     const cx = (cell.x0 + cell.x1) / 2, cz = (cell.z0 + cell.z1) / 2 + 4;
     const r = { x0: cx - w / 2, z0: cz - d / 2, x1: cx + w / 2, z1: cz + d / 2 };
-    if (!raster.test({ x0: r.x0 - 2, z0: r.z0 - 8, x1: r.x1 + 2, z1: r.z1 + 2 }, R.BLOCK, BUILD_AVOID)) continue;
-    building(kit, r, 18, { style: 'concrete', color: 0x9a96a0, storefront: [], faces: ['n', 's', 'w', 'e'] });
-    for (let x = r.x0 + 2; x < r.x1 - 1; x += 3.2) kit.solid(x - 0.45, G, r.z0 - 4, x + 0.45, 12, r.z0 - 3.1, 0xd8d4cc, MAT.STD, TAG.PROP);
-    kit.box(r.x0 - 0.5, 12, r.z0 - 4.6, r.x1 + 0.5, 13.4, r.z0, 0xc8c4bc); // entablature
-    kit.ramp(r.x0 + 4, r.z0 - 8, r.x1 - 4, r.z0 - 4, 'z+', G, G + 0.9, 0xc8c4bc, { solidBelow: true, stepRise: 0.3 });
-    kit.solid(r.x0, G, r.z0 - 4, r.x1, G + 0.9, r.z0, 0xc8c4bc, MAT.STD, TAG.GROUND);
-    kit.sign('CITY HALL', 'paint', cx, 12.7, r.z0 - 4.65, 12, 1.1, 0, -1, 0x2a2830);
-    raster.mark({ x0: r.x0 - 1, z0: r.z0 - 9, x1: r.x1 + 1, z1: r.z1 + 1 }, R.BUILT);
+    if (!raster.test({ x0: r.x0 - 2, z0: r.z0 - 13, x1: r.x1 + 2, z1: r.z1 + 2 }, R.BLOCK, BUILD_AVOID)) continue;
+    cityHall(kit, r, cx, city.district.name);
+    raster.mark({ x0: r.x0 - 1, z0: r.z0 - 13, x1: r.x1 + 1, z1: r.z1 + 1 }, R.BUILT);
     city.civic = { block: b.id, x: cx, z: cz, name: 'City Hall' };
     break;
   }

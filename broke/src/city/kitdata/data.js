@@ -68,7 +68,7 @@ export function kitColliders(D, add, TAG) {
   for (const s of D.stores) {
     if (!isWalkIn(s)) { rotRect(add, s.x, s.z, s.w, s.d, houseYaw(s), s.y ?? CURB, (s.y ?? CURB) + 4.6, TAG.BUILDING); continue; }
     // A walk-in market: floor slab, four walls with the doorway in the front, the roof, and its fixtures.
-    const y = s.y ?? CURB, yaw = houseYaw(s), W = s.w, Dp = s.d, t = BODEGA.wall, fl = y + BODEGA.floor, top = y + 4.6;
+    const y = s.y ?? CURB, yaw = houseYaw(s), W = s.w, Dp = s.d, t = BODEGA.wall, fl = y + BODEGA.floor, top = y + (s.floors > 1 ? 7.6 : 4.6) + (s.parapet === 'stepped' ? 1.4 : 0);
     const R = (x0, z0, x1, z1, y0, y1, tag) => { const c = storeToWorld(s, (x0 + x1) / 2, (z0 + z1) / 2); rotRect(add, c.x, c.z, x1 - x0, z1 - z0, yaw, y0, y1, tag); };
     R(-W / 2, -Dp / 2, W / 2, Dp / 2, y, fl, TAG.GROUND);
     R(-W / 2, -Dp / 2, -W / 2 + t, Dp / 2, y, top, TAG.BUILDING); R(W / 2 - t, -Dp / 2, W / 2, Dp / 2, y, top, TAG.BUILDING);

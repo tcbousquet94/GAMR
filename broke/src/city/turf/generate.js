@@ -19,7 +19,7 @@ import { Raster, R } from './raster.js';
 import { ground, furniture } from './ground.js';
 import { edges } from './edges.js';
 import { landmark, landmarkPlaza, park, civic, garage, perimeterBuildings, diagonalFrontage, interiors, kitTower } from './fill.js';
-import { lotBuildings } from '../lots/lots.js';
+import { lotBuildings, dedupeShopNames } from '../lots/lots.js';
 import { buildBusiness, frame, footprint, businessName, TEMPLATE, TYPES } from './business.js';
 import { buildWarehouse, warehouseFootprint, WH, WAREHOUSE_NAMES, HQ_WAREHOUSE_NAMES } from './warehouse.js';
 import { wornCity } from './worn.js';
@@ -73,6 +73,7 @@ export function generateTurf(cfg, seed, opts = {}) {
   }
   // Street frontage: in the kit look, lots cut from the asset catalogue (city/lots); otherwise the old stepped boxes.
   for (const b of city.blocks) if (b.zone !== 'park' && b.zone !== 'landmark') (city.kitPending ? lotBuildings : perimeterBuildings)(kit, city, b, raster);
+  if (city.kitPending) dedupeShopNames(city.kitPending.stores, new Rng(`names:${seed}`));
   diagonalFrontage(kit, city, raster);
   interiors(kit, city, raster);
   if (KD) {

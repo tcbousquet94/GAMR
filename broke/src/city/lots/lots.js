@@ -9,7 +9,7 @@
 import { R } from '../turf/raster.js';
 import { sideRect } from '../turf/fill.js';
 import { mergeKitData } from '../kitdata/data.js';
-import { CATALOGUE } from './catalogue.js';
+import { CATALOGUE, SHOP_NAMES } from './catalogue.js';
 
 const AVOID = R.DIAG | R.RESERVED | R.BUILT | R.STREET;
 const NEXT = { n: 'e', e: 's', s: 'w', w: 'n' }; // clockwise: the corner at the end of a side starts the next side
@@ -79,21 +79,27 @@ export function lotBuildings(kit, city, b, raster) {
     // when an alley runs between them).
     const backsOnAlley = (s) => alley && (alley.axis === 'x' ? s === 'n' || s === 's' : s === 'e' || s === 'w');
     const maxDepth = (s) => Math.floor(backsOnAlley(s) ? (len(NEXT[s]) - ALLEY_W) / 2 : open(opp[s]) ? len(NEXT[s]) / 2 : len(NEXT[s]) - 1.5);
-    const pick = (key, maxFront, maxD, corner) => {
+    // Variety: never an asset within its spacing of another of its kind, and the same asset as the lot just placed on
+    // this side is much less likely (a street of identical neighbours reads as copy-paste).
+    const spaced = (a, near) => !a.spacing || !near || (city.lots || []).every((l) => l.asset !== a.id || Math.hypot((l.rect.x0 + l.rect.x1) / 2 - near.x, (l.rect.z0 + l.rect.z1) / 2 - near.z) > a.spacing);
+    let last = null, lastKind = null;
+    const pick = (key, maxFront, maxD, corner, near) => {
       const opts = CATALOGUE.filter((a) => (a.zones[key] || 0) > 0 && a.front[0] <= maxFront + 0.01 && a.depth[0] <= maxD + 0.01
-        && (corner ? a.corner !== 0 : !a.cornerOnly) && (!a.perCell || (used.get(a.id) || 0) < a.perCell));
+        && (corner ? a.corner !== 0 : !a.cornerOnly) && (!a.perCell || (used.get(a.id) || 0) < a.perCell) && spaced(a, near));
       if (!opts.length) return null;
-      const w = opts.map((a) => a.zones[key] * (corner ? (a.cornerOnly ? 1 : a.corner ?? 1) : 1));
+      const w = opts.map((a) => a.zones[key] * (corner ? (a.cornerOnly ? 1 : a.corner ?? 1) : 1) * (a.id === last ? 0.3 : 1));
       let x = rng.range(0, w.reduce((p, q) => p + q, 0));
       for (let k = 0; k < opts.length; k++) { x -= w[k]; if (x <= 0) return opts[k]; }
       return opts[opts.length - 1];
     };
     const place = (a, q, front, corner) => {
-      const mb = a.build(q, front, rng, { corner, zone: keyOf(front), towerH });
+      const mb = a.build(q, front, rng, { corner, zone: keyOf(front), towerH, names: (city.shopNames ||= new Set()), lastKind });
+      lastKind = mb.D.stores.length ? mb.D.stores[mb.D.stores.length - 1].kind : lastKind;
       mergeKitData(KP, mb.D);
       city.kitCuts.push(...mb.cuts.map((x) => ({ ...x, cell: c })));
       raster.mark(q, R.BUILT);
       used.set(a.id, (used.get(a.id) || 0) + 1);
+      last = a.id;
       (city.buildings ||= []).push({ rect: q, h: a.h, block: b.id, side: front, asset: a.id });
       (city.lots ||= []).push({ rect: q, asset: a.id, front, block: b.id, corner: corner || null, street: kindOf(front), use: keyOf(front) });
     };
@@ -106,7 +112,8 @@ export function lotBuildings(kit, city, b, raster) {
         // A corner faces its avenue if it has one (a main-street corner), else usually the longer street.
         const av = kindOf(s) === 'avenue' ? s : kindOf(t) === 'avenue' ? t : null;
         const front = av && rng.chance(0.85) ? av : rng.chance(len(s) >= len(t) ? 0.6 : 0.4) ? s : t, other = front === s ? t : s;
-        const a = pick(keyOf(front), Math.min(maxDepth(other), len(front) / 2), maxDepth(front), true);
+        const cq = front === s ? sideRect(r, s, len(s) - 12, len(s), 0, 12) : sideRect(r, t, 0, 12, 0, 12);
+        const a = pick(keyOf(front), Math.min(maxDepth(other), len(front) / 2), maxDepth(front), true, { x: (cq.x0 + cq.x1) / 2, z: (cq.z0 + cq.z1) / 2 });
         if (!a) break;
         const f = Math.min(Math.round(rng.range(a.front[0], a.front[1])), maxDepth(other)), d = Math.min(Math.round(rng.range(a.depth[0], a.depth[1])), maxDepth(front));
         // The corner sits at the end of side s (frame left) or the start of side t (frame right).
@@ -122,13 +129,15 @@ export function lotBuildings(kit, city, b, raster) {
       if (!open(s)) continue;
       const L = len(s), md = maxDepth(s);
       let u = 0;
+      last = null; lastKind = null;
       while (u < L - 9) {
         // Skip ground that is taken (corner lots, businesses, compounds).
         if (!free(sideRect(r, s, u, u + 1, 0, 3))) { u += 1; continue; }
         let e = 1;
         while (u + e < L && e < 46 && free(sideRect(r, s, u + e, u + e + 1, 0, 3))) e++;
         if (e < 9) { u += e; continue; }
-        const a = pick(keyOf(s), e, md, false);
+        const nq = sideRect(r, s, u, u + Math.min(e, 14), 0, 10);
+        const a = pick(keyOf(s), e, md, false, { x: (nq.x0 + nq.x1) / 2, z: (nq.z0 + nq.z1) / 2 });
         if (!a) { u += e; continue; }
         let f = Math.min(Math.round(rng.range(a.front[0], a.front[1])), e);
         if (e - f < a.front[0] * 0.7 && e - f > 0 && e <= a.front[1] + 5) f = e; // absorb a leftover too small for another lot
@@ -140,5 +149,20 @@ export function lotBuildings(kit, city, b, raster) {
         u += f;
       }
     }
+  }
+}
+
+// Last pass over every shop in the city (lots and neighbourhood modules alike): a shop sharing its name with another
+// within 120 m takes a name not used anywhere yet (of its kind; numbered if the list runs out).
+export function dedupeShopNames(stores, rng) {
+  const used = new Set(stores.map((s) => s.name).filter(Boolean));
+  for (let i = 0; i < stores.length; i++) {
+    const a = stores[i];
+    if (!a.name) continue;
+    const clash = stores.slice(0, i).some((b) => b.name === a.name && Math.hypot(a.x - b.x, a.z - b.z) <= 120);
+    if (!clash) continue;
+    const free = (SHOP_NAMES[a.kind || 'market'] || SHOP_NAMES.market).filter((n) => !used.has(n));
+    a.name = free.length ? rng.pick(free) : `${a.name} ${i}`;
+    used.add(a.name);
   }
 }

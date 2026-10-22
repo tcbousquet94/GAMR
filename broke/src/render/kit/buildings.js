@@ -74,18 +74,49 @@ export function store(B, s, rng, extras) {
   if (kind === 'discount') {
     const H = 4.6;
     buildHouse(B, { ...s, roof: 'flat', height: H, floors: 1, wall: 'stucco', wallColor: s.wallColor ?? 0xdccaa4, trim: 0xc8bca4, door: 0x2a2a2a, fl: 0.12, bars: true }, rng);
-    sign(s.name, W * 0.8, 1.9, 0, H - 1.35, z0 + 0.03, 0, null, '#a8281e', { painted: true, sub: '99¢ & UP', subColor: '#b8261e', icons: true });
+    const ink = s.awning ? hex(s.awning) : '#a8281e'; // painted lettering in the shop's own colour
+    sign(s.name, W * 0.8, 1.9, 0, H - 1.35, z0 + 0.03, 0, null, ink, { painted: true, sub: rng.pick(['99¢ & UP', 'EVERYTHING 99¢', 'BIG SAVINGS', 'TODO BARATO']), subColor: ink, icons: true });
     return;
   }
-  const H = 4.4;
-  buildHouse(B, { ...s, roof: 'flat', height: H, floors: 1, wall: 'stucco', trim: 0xd0c8b8, storefront: true, door: 0x2a2a2a, fl: 0.15, walkIn: true }, rng);
-  // Awning: a sloped fabric band with a valance, over the storefront.
-  B.boxM('trim', W - 0.6, 0.06, 1.7, M.clone().multiply(mat(0, 3.15, z0 + 0.8, 0, 0.32)), s.awning);
-  box('trim', -W / 2 + 0.3, 2.62, z0 + 1.55, W / 2 - 0.3, 2.95, z0 + 1.62, s.awning);
-  // A few posters high in the windows (the room shows through below them), a sign board above the awning.
-  for (let i = 0; i < 3; i++) { const x = -W / 2 + 1.2 + rng.range(0, W - 2.4); if (Math.abs(x) < 1.4) continue; box('trim', x - 0.3, 2.05, z0 - 0.12, x + 0.3, 2.65, z0 - 0.1, rng.pick([0xd8b030, 0xc83a2a, 0x2a6ac8, 0xe8e4dc])); }
-  box('metalPaint', -W / 2 + 0.8, 3.15, z0 + 0.02, W / 2 - 0.8, 4.15, z0 + 0.1, 0x3a3a3c);
-  sign(s.name || 'MARKET', W - 2, 0.9, 0, 3.65, z0 + 0.13, 0, '#e8e2d0', hex(s.awning));
+  // The walk-in market's look varies (catalogue shopStyle): wall, storeys, parapet, and the facade treatment.
+  const floors = s.floors || 1, H = floors > 1 ? 7.4 : 4.4, facade = s.facade || 'awning', parapet = s.parapet || 'flat';
+  const wall = s.wallKey === 'brick' ? 'brick' : 'stucco', wallColor = s.wallKey === 'block' ? (s.wallColor ?? 0xd0c8b8) : s.wallColor;
+  buildHouse(B, { ...s, roof: 'flat', height: H, floors, wall, wallColor, trim: 0xd0c8b8, storefront: true, door: 0x2a2a2a, fl: 0.15, walkIn: true }, rng);
+  if (s.wallKey === 'block') for (let y = 0.6; y < H; y += 0.4) box('trim', -W / 2 - 0.01, y, z0 - 0.02, W / 2 + 0.01, y + 0.02, z0 + 0.012, 0xb8b0a0); // block coursing on the street face
+  if (parapet === 'stepped') { // a raised false front over the middle of the facade
+    box(wall, -W * 0.28, H, z0 - 0.24, W * 0.28, H + 1.4, z0, wallColor ?? 0xe0d6c0);
+    box(wall, -W * 0.4, H, z0 - 0.24, W * 0.4, H + 0.8, z0, wallColor ?? 0xe0d6c0);
+    box('trim', -W * 0.29, H + 1.4, z0 - 0.3, W * 0.29, H + 1.52, z0 + 0.06, 0xd8d0c0); box('trim', -W * 0.41, H + 0.8, z0 - 0.3, W * 0.41, H + 0.92, z0 + 0.06, 0xd8d0c0);
+  } else if (parapet === 'cornice') box('trim', -W / 2 - 0.15, H + 0.45, z0 - 0.3, W / 2 + 0.15, H + 0.7, z0 + 0.18, 0xc8c0b0);
+  const posters = () => { for (let i = 0; i < 3; i++) { const x = -W / 2 + 1.2 + rng.range(0, W - 2.4); if (Math.abs(x) < 1.4) continue; box('trim', x - 0.3, 2.05, z0 - 0.12, x + 0.3, 2.65, z0 - 0.1, rng.pick([0xd8b030, 0xc83a2a, 0x2a6ac8, 0xe8e4dc])); } };
+  if (facade === 'canopy') {
+    // A flat steel canopy on two posts, the name on its fascia, a smaller board over the door.
+    box('metalPaint', -W / 2 + 0.2, 3.0, z0, W / 2 - 0.2, 3.22, z0 + 2.3, 0x3a3e44);
+    for (const x of [-W / 2 + 0.5, W / 2 - 0.5]) box('metalPaint', x - 0.06, 0, z0 + 2.1, x + 0.06, 3.0, z0 + 2.22, 0x3a3e44);
+    box('metalPaint', -W / 2 + 0.2, 2.85, z0 + 2.3, W / 2 - 0.2, 3.5, z0 + 2.36, s.awning);
+    sign(s.name || 'MARKET', W - 1.4, 0.55, 0, 3.17, z0 + 2.38, 0, hex(s.awning), '#f2ede2');
+    posters();
+  } else if (facade === 'painted') {
+    // No awning: coloured stripes and the name painted straight onto the wall above the windows.
+    for (const [y, c] of [[2.88, s.awning], [3.02, 0xe8e2d0]]) box('trim', -W / 2, y, z0, W / 2, y + 0.1, z0 + 0.012, c);
+    sign(s.name || 'MARKET', W * 0.86, 1.0, 0, 3.75, z0 + 0.02, 0, null, hex(s.awning), { painted: true });
+    posters();
+  } else if (facade === 'boxsign') {
+    // A lit box sign up on the roof on two legs, a short awning strip over the door.
+    const sw = Math.min(W - 2, 9), y0 = H + (parapet === 'stepped' ? 1.5 : 0.6);
+    for (const x of [-sw / 2 + 0.6, sw / 2 - 0.6]) box('metalPaint', x - 0.06, H, z0 - 1.2, x + 0.06, y0 + 0.1, z0 - 1.08, 0x4a4a4c);
+    box('metalPaint', -sw / 2, y0 + 0.1, z0 - 1.3, sw / 2, y0 + 1.6, z0 - 0.98, 0x2a2a2c);
+    sign(s.name || 'MARKET', sw - 0.2, 1.3, 0, y0 + 0.85, z0 - 0.97, 0, '#f2ede2', hex(s.awning));
+    B.boxM('trim', 3.4, 0.06, 1.2, M.clone().multiply(mat(0, 2.85, z0 + 0.55, 0, 0.32)), s.awning);
+    posters();
+  } else {
+    // Awning: a sloped fabric band with a valance, over the storefront; a sign board above it.
+    B.boxM('trim', W - 0.6, 0.06, 1.7, M.clone().multiply(mat(0, 3.15, z0 + 0.8, 0, 0.32)), s.awning);
+    box('trim', -W / 2 + 0.3, 2.62, z0 + 1.55, W / 2 - 0.3, 2.95, z0 + 1.62, s.awning);
+    posters();
+    box('metalPaint', -W / 2 + 0.8, 3.15, z0 + 0.02, W / 2 - 0.8, 4.15, z0 + 0.1, 0x3a3a3c);
+    sign(s.name || 'MARKET', W - 2, 0.9, 0, 3.65, z0 + 0.13, 0, '#e8e2d0', hex(s.awning));
+  }
   bodegaInterior(box, sign, s, rng);
 }
 

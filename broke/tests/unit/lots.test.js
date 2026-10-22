@@ -62,3 +62,16 @@ test('zoning by street: avenue frontage is main street, outer suburbs are houses
   assert.ok(onAvenue >= 10, `${onAvenue} avenue lots`);
   assert.ok(suburb > 0 && houses / suburb > 0.6, `suburbs mostly houses (${houses}/${suburb})`);
 });
+
+test('variety: no two shops with the same name within 120 m, no corner markets within 90 m, styles vary', () => {
+  for (const seed of [680054, 11, 942824]) {
+    const c = generateTurf(DOWNTOWN, seed), S = c.kitData.stores;
+    for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) {
+      if (S[i].name && S[i].name === S[j].name) assert.ok(Math.hypot(S[i].x - S[j].x, S[i].z - S[j].z) > 120, `${S[i].name} twice close together (seed ${seed})`);
+    }
+    const cm = c.lots.filter((l) => l.asset === 'cornerMarket').map((l) => ({ x: (l.rect.x0 + l.rect.x1) / 2, z: (l.rect.z0 + l.rect.z1) / 2 }));
+    for (let i = 0; i < cm.length; i++) for (let j = i + 1; j < cm.length; j++) assert.ok(Math.hypot(cm[i].x - cm[j].x, cm[i].z - cm[j].z) > 85, `corner markets too close (seed ${seed})`);
+    const looks = new Set(S.filter((s) => s.facade).map((s) => `${s.facade}/${s.wallKey}/${s.parapet}`));
+    assert.ok(looks.size >= Math.min(4, S.filter((s) => s.facade).length), `storefront looks vary (seed ${seed}: ${looks.size})`);
+  }
+});

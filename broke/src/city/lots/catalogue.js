@@ -13,13 +13,31 @@ import { CURB, FRONT_YAW } from '../kitdata/data.js';
 import { MB, WALL_COLORS, TRIMS } from '../kitdata/modules.js';
 import { kitTower, kitBlock } from '../turf/fill.js';
 
-const SHOP_NAMES = {
-  market: ['EZ STOP', 'CORNER KING', 'LUCKY 7 MARKET', 'PALMETTO MART', 'SUNRISE LIQUOR', 'QUICK PICK', 'STAR FOOD MART'],
-  taco: ['TACOS LA PALMA', 'EL GALLO TACOS', 'TAQUERIA SOL', 'BURRITO HUT', 'TACOS EL REY'],
-  discount: ['MORALES DISCOUNT', "VEGA'S DISCOUNT", 'BIG SAVE', 'RUIZ DISCOUNT', 'DOLLAR DAYS'],
+export const SHOP_NAMES = {
+  market: ['EZ STOP', 'CORNER KING', 'LUCKY 7 MARKET', 'PALMETTO MART', 'SUNRISE LIQUOR', 'QUICK PICK', 'STAR FOOD MART', 'LA ESQUINA MARKET', 'GOLDEN STATE LIQUOR', 'BAYSIDE MINI MART', 'NUMBER 1 MARKET'],
+  taco: ['TACOS LA PALMA', 'EL GALLO TACOS', 'TAQUERIA SOL', 'BURRITO HUT', 'TACOS EL REY', 'LA CASITA', 'TACOS MI TIERRA', 'EL TORITO GRILL'],
+  discount: ['MORALES DISCOUNT', "VEGA'S DISCOUNT", 'BIG SAVE', 'RUIZ DISCOUNT', 'DOLLAR DAYS', 'BARGAIN TOWN', 'TODO A 99', 'PRICE KING'],
 };
 const AWNINGS = [0x2a5a3a, 0x8a2a24, 0x2a3a6a, 0xc83a2a, 0xb8902a];
-const SHOP_WALLS = [0xe0d6c0, 0xd8c8a8, 0xcfc8bc, 0xe6dcc6];
+const SHOP_WALLS = [0xe0d6c0, 0xd8c8a8, 0xcfc8bc, 0xe6dcc6, 0xc8dcc8, 0xe8c8b0, 0xe8dca0, 0xb8cce0, 0xd8b8c0, 0xf0e8d8, 0xc0b8a8];
+// The look of a storefront: facade (awning, canopy, painted, boxsign), wall (stucco, brick, block), storeys, a raised
+// front parapet. Picked per shop so a street of shops never reads as copies.
+// Names don't repeat in a city until a kind's list runs out (opts.names: the city's taken names).
+function shopName(rng, kind, taken) {
+  const free = SHOP_NAMES[kind].filter((n) => !taken?.has(n));
+  const n = rng.pick(free.length ? free : SHOP_NAMES[kind]);
+  taken?.add(n);
+  return n;
+}
+function shopStyle(rng, kind, taken) {
+  const wallKey = rng.pick(['stucco', 'stucco', 'stucco', 'brick', 'block']);
+  return {
+    kind, name: shopName(rng, kind, taken), awning: rng.pick(AWNINGS),
+    wallKey, wallColor: wallKey === 'brick' ? rng.pick([0xffffff, 0xe8d0c0, 0xd8b8a0]) : rng.pick(SHOP_WALLS),
+    facade: rng.pick(['awning', 'awning', 'canopy', 'painted', 'boxsign']),
+    floors: kind === 'market' && rng.chance(0.3) ? 2 : 1, parapet: rng.pick(['flat', 'flat', 'stepped', 'cornice']),
+  };
+}
 
 // ---- builders ---------------------------------------------------------------------------------------------------------
 
@@ -77,9 +95,11 @@ function walkupLot(rect, side, rng) {
 // A storefront: taco stand, discount store or a walk-in corner market, a paved apron, the back lot fenced off.
 function shopLot(rect, side, rng, opts) {
   const mb = new MB(rect, side, rng, { front: true }), W = mb.W, D = mb.Dp;
-  const kind = opts.corner ? rng.pick(['market', 'market', 'taco', 'discount']) : rng.pick(['market', 'taco', 'discount', 'discount']);
+  // Not the same kind of shop as the one just before it on the street.
+  const kinds = (opts.corner ? ['market', 'market', 'taco', 'discount'] : ['market', 'taco', 'discount', 'discount']).filter((k) => k !== opts.lastKind);
+  const kind = rng.pick(kinds);
   const w = kind === 'taco' ? Math.min(W - 2, 11) : Math.min(W - 1.2, 18), d = Math.min(D - 6, kind === 'taco' ? 8 : 12);
-  mb.store(W / 2, 4 + d / 2, w, d, 0, { kind, name: rng.pick(SHOP_NAMES[kind]), wallColor: rng.pick(SHOP_WALLS), awning: rng.pick(AWNINGS) });
+  mb.store(W / 2, 4 + d / 2, w, d, 0, shopStyle(rng, kind, opts.names));
   mb.rect('concrete', 0.3, 0, W - 0.3, 4, CURB - 0.02, CURB + 0.03, 0xd6d2ca);
   if (rng.chance(0.5)) mb.prop('newsbox', 1.4, 1.6, 0);
   if (rng.chance(0.4)) mb.prop('ice', W - 1.6, 2.4, 0);
@@ -89,7 +109,7 @@ function shopLot(rect, side, rng, opts) {
 }
 
 // The corner market: parking in front with striped stalls and wheel stops, the store behind, ice and a phone.
-function cornerMarketLot(rect, side, rng) {
+function cornerMarketLot(rect, side, rng, opts) {
   const mb = new MB(rect, side, rng, { front: true }), W = mb.W, D = mb.Dp;
   const pd = 9.5;
   mb.rect('asphalt', 0.5, 0, W - 0.5, pd, CURB - 0.02, CURB + 0.01, 0xb8b6b2);
@@ -97,7 +117,7 @@ function cornerMarketLot(rect, side, rng) {
   mb.cut('front', 3, W - 3);
   const w = Math.min(W - 2, 19), d = Math.min(D - pd - 2, 12);
   const kind = rng.pick(['market', 'market', 'discount']);
-  mb.store(W / 2, pd + 0.5 + d / 2, w, d, 0, { kind, name: rng.pick(SHOP_NAMES[kind]), wallColor: rng.pick(SHOP_WALLS), awning: rng.pick(AWNINGS) });
+  mb.store(W / 2, pd + 0.5 + d / 2, w, d, 0, shopStyle(rng, kind, opts.names));
   for (const [type, u, v] of [['ice', W / 2 + 6.5, pd - 0.6], ['phone', W / 2 - 7.5, pd - 0.5], ['newsbox', W / 2 + 3.2, pd - 0.5]]) mb.prop(type, u, v, 0);
   for (let k = 0; k < 3; k++) if (rng.chance(0.55)) mb.car(3.4 + k * 5.6, 4.4, Math.PI);
   mb.person(W / 2 - 1, pd - 0.3, 0.4); if (rng.chance(0.5)) mb.person(W / 2 + 4, pd - 0.2, -2.2);
@@ -173,13 +193,14 @@ function towerLot(rect, side, rng, opts) {
 
 // ---- the catalogue ----------------------------------------------------------------------------------------------------
 // front / depth: metres [min, max]. zones: weight per zone key. corner: weight multiplier on a corner lot (0 = never
-// on a corner); cornerOnly: corners only. perCell: at most this many per cell. h: height recorded for the map / AI.
+// on a corner); cornerOnly: corners only. perCell: at most this many per cell. spacing: no two of it closer than this
+// (metres, centre to centre). h: height recorded for the map / AI.
 export const CATALOGUE = [
   { id: 'house', front: [12, 15], depth: [22, 32], zones: { residential: 6, inner: 3, commercial: 0.5, civic: 0.4 }, corner: 0.8, h: 5, build: houseLot },
   { id: 'porchHouse', front: [15, 18], depth: [24, 32], zones: { residential: 2, inner: 2.2 }, corner: 1.2, h: 8, build: porchHouseLot },
   { id: 'walkup', front: [18, 25], depth: [18, 28], zones: { residential: 0.6, inner: 2.6, commercial: 3, mainstreet: 3, civic: 1.5 }, corner: 1, h: 9, build: walkupLot },
   { id: 'shop', front: [12, 18], depth: [15, 22], zones: { residential: 0.25, inner: 0.4, commercial: 3.5, mainstreet: 4.5, civic: 1.2, core: 0.6 }, corner: 3, h: 5, build: shopLot },
-  { id: 'cornerMarket', front: [24, 28], depth: [24, 28], zones: { residential: 1.2, inner: 1, commercial: 2, mainstreet: 1.5 }, cornerOnly: true, perCell: 1, h: 5, build: cornerMarketLot },
+  { id: 'cornerMarket', front: [24, 28], depth: [24, 28], zones: { residential: 1.2, inner: 1, commercial: 2, mainstreet: 1.5 }, cornerOnly: true, perCell: 1, spacing: 90, h: 5, build: cornerMarketLot },
   { id: 'parking', front: [16, 24], depth: [16, 26], zones: { commercial: 0.6, mainstreet: 0.4, industrial: 0.8, civic: 0.6, core: 0.4 }, corner: 0.6, perCell: 1, h: 0, build: parkingLot },
   { id: 'pocketPark', front: [10, 14], depth: [12, 18], zones: { residential: 0.25, inner: 0.3, commercial: 0.2, civic: 0.3 }, corner: 0.5, perCell: 1, h: 0, build: pocketParkLot },
   { id: 'workshop', front: [18, 28], depth: [20, 28], zones: { industrial: 4, commercial: 0.25 }, corner: 1, h: 7, build: workshopLot },

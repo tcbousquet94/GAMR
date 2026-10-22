@@ -198,7 +198,8 @@ export function cornerstore(rect, front, rng, sides) {
   const kind = rng.pick(['market', 'market', 'taco', 'discount']);
   const NAMES = { market: ['PALMETTO MART', 'LUCKY 7 MARKET', 'SUNRISE LIQUOR', 'EZ STOP', 'CORNER KING'], taco: ['TACOS LA PALMA', 'EL GALLO TACOS', 'TAQUERIA SOL', 'BURRITO HUT'], discount: ["MORALES DISCOUNT", "VEGA'S DISCOUNT", 'BIG SAVE', "RUIZ DISCOUNT"] };
   const sw0 = kind === 'taco' ? 11 : 19, sd0 = kind === 'taco' ? 8 : 12;
-  mb.store(su, 15, sw0, sd0, 0, { kind, name: rng.pick(NAMES[kind]), wallColor: rng.pick([0xe0d6c0, 0xd8c8a8, 0xcfc8bc, 0xe6dcc6]), awning: rng.pick([0x2a5a3a, 0x8a2a24, 0x2a3a6a, 0xb8902a, 0xc83a2a]) });
+  mb.store(su, 15, sw0, sd0, 0, { kind, name: rng.pick(NAMES[kind]), wallColor: rng.pick([0xe0d6c0, 0xd8c8a8, 0xcfc8bc, 0xe6dcc6, 0xc8dcc8, 0xe8c8b0, 0xe8dca0, 0xb8cce0]), awning: rng.pick([0x2a5a3a, 0x8a2a24, 0x2a3a6a, 0xb8902a, 0xc83a2a]),
+    facade: rng.pick(['awning', 'canopy', 'painted', 'boxsign']), parapet: rng.pick(['flat', 'stepped', 'cornice']), wallKey: rng.pick(['stucco', 'stucco', 'brick', 'block']) });
   for (const [type, du, dv, yaw] of [['ice', 7.5, 8.4, 0], ['phone', -8.6, 8.5, 0], ['newsbox', 3.4, 8.6, 0], ['newsbox', 4.1, 8.6, 0], ['bench', -4, 8.7, 0], ['bollard', -2, 8.9, 0], ['bollard', 0, 8.9, 0], ['bollard', 2, 8.9, 0]]) mb.prop(type, su + du * (left ? 1 : -1), dv, yaw);
   mb.prop('dumpster', su + 6 * (left ? 1 : -1), 23.5, Math.PI);
   mb.car(su - 3 * sideDir, 4.5, Math.PI); mb.car(su + 5 * sideDir, 4.5, Math.PI);

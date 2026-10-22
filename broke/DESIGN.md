@@ -226,6 +226,18 @@ COFFEE / BETTER DAYS" sign, a wood-fronted counter with a stone top, register an
 chalk menu board, a rust banquette with tables, wood tables and chairs by the window, black pendant lights, a sunset
 print, a barista and two customers (`kit.interiorPeople`, added to the kit-data people).
 
+# DELI & GROCERY (bodega-type businesses)
+
+Every turf business of type `bodega` (Rivera Deli & Grocery, El Sol Grocery, Big Mike Deli...) is furnished like
+Sal's Diner (`FURNISHED` in `turf/business.js`, `buildDeli`, its own random stream so the city never moves), after the
+user's reference image (style only): black-and-cream checker floor, wood wainscot under cream walls, fluorescent tubes
+in a drop ceiling. Corner side: the counter (wood front, speckled stone top) with the register (the capture point),
+the clerk, a cigarette rack and the shop's name on a cream banner ("LOTTO - COLD BEER - SANDWICHES - BEVERAGES").
+Two gondola aisles down the middle, a wall of glass-door coolers across the back under COLD BEER, a stock-room door,
+a lotto poster and a clock. Alley side: the deli (glass case of meats and cheese, back counter with microwaves and a
+slicer, salamis, the DELI price board) and the deli man; produce crates by the door, a chip rack, an ice-cream chest,
+an ATM and an ATM INSIDE sign, a customer at the case.
+
 # WALK-IN HOMES
 
 Every ordinary pitched-roof kit house at least 8.5 m wide and 9 m deep (`isHome` in `kitdata/home.js`) is a walk-in

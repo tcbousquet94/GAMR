@@ -124,6 +124,18 @@ test('ordinary houses are walk-in homes: through the front door, through the ope
   assert.ok(g.city.kit.lights.filter((l) => l.kind === 'shop' && l.tint).length >= homes.length, 'a room light per home');
 });
 
+test('deli & grocery businesses are furnished walk-ins: in the door, down the aisle, register on the counter, staffed', () => {
+  const g = new TurfGame({ seed: 454473, survivor: DEE });
+  const delis = g.city.businesses.filter((b) => b.type === 'bodega');
+  assert.ok(delis.length >= 2);
+  for (const b of delis) {
+    const w = g.city.world, ux = b.doorInside.x - b.door.x, uz = b.doorInside.z - b.door.z, L = Math.hypot(ux, uz);
+    for (const d of [0, 1.5, 3.0]) assert.ok(w.fits(b.doorInside.x + ux / L * d, 0.2, b.doorInside.z + uz / L * d, 0.4, 1.8), `${b.name}: clear ${d} m inside the door`);
+    assert.ok(b.capture && b.capture.y > 1 && b.counterBehind, `${b.name}: register on the counter`);
+    assert.ok(b.patrons.length === 3 && b.patrons.some((p) => p.pose === 'counter'), `${b.name}: clerk, deli man, customer`);
+  }
+});
+
 test('cafe storefronts are walk-in rooms: open inside, glazed, staffed and lit', () => {
   const g = new TurfGame({ seed: 454473, survivor: DEE });
   const s = g.city.kit.signs.find((q) => q.text === 'LUMO CAFE');

@@ -1095,6 +1095,9 @@ I would like to know that it when my friend picks up the phone or get the link w
 ```
 Just note it will be a 4 v 4 and be similar to worms 3d
 ```
+```
+Actually 3 v 3. How much should towns cap at with unique people? 10?
+```
 
 ### Plan agreed so far (not yet built)
 
@@ -1107,8 +1110,8 @@ Just note it will be a 4 v 4 and be similar to worms 3d
   shortages hurt approval, shops and crime.
 - **Military base**: a fenced base at another edge (barracks, depot, briefing room); recruits are named citizens
   taken from the workforce.
-- **The war, against another player (no enemy AI)**: every week each side sends **4 soldiers** into a **4 v 4
-  battle played like Worms 3D**: teams alternate turns, on your turn you control one soldier directly in 3D (move,
+- **The war, against another player (no enemy AI)**: every week each side sends **3 soldiers** into a **3 v 3
+  battle played like Worms 3D** (changed from 4 v 4): teams alternate turns, on your turn you control one soldier directly in 3D (move,
   then fire one weapon) on a stretch of the city. Soldiers are **XCOM-style**: named, classed, ranked, wounded or
   **killed for good**. What you do in town (food, money, recruiting, approval) decides what you field.
 - **Playing a friend**: same device first, then through the shared game link: turns are stored with the link, and

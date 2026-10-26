@@ -4,6 +4,7 @@
 import { Enemy, finiteDir } from './base.js';
 import { clamp } from '../../core/math.js';
 import { moveBody } from '../physics.js';
+import { GANG_DEFS, GANG_CLASSES } from './gang.js';
 
 export const ENEMY_DEFS = {
   speakerphone: {
@@ -361,4 +362,5 @@ export class HOA extends Enemy {
   endAttack() { this.state = 'chase'; this.stateT = 0; this.telegraph = 0; this.attackCd = this.def.attackCd * (this.hp < this.maxHp * 0.5 ? 0.7 : 1); }
 }
 
-export const ENEMY_CLASSES = { speakerphone: Speakerphone, scooter: Scooter, canvasser: Canvasser, hoa: HOA, drone: Drone, notice: Notice };
+Object.assign(ENEMY_DEFS, GANG_DEFS); // the rival crew for the turf war's street fights (./gang.js)
+export const ENEMY_CLASSES = { speakerphone: Speakerphone, scooter: Scooter, canvasser: Canvasser, hoa: HOA, drone: Drone, notice: Notice, ...GANG_CLASSES };

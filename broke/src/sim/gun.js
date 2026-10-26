@@ -66,8 +66,9 @@ export class Gun {
 
   fire(p, g) {
     const D = this.def;
-    this.ammo--;
-    this.cockT = D.cock;
+    const rapid = g.arcade?.active('rapid'); // power-up: a fast hammer and a cylinder that never empties
+    if (!rapid) this.ammo--;
+    this.cockT = D.cock * (rapid ? 0.45 : 1);
     const spread = this.spread(p);
     const { origin: O, dir: d0 } = p.aim();
     const dir = coneSample(d0, spread, g.rng);

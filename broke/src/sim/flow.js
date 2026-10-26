@@ -1,5 +1,7 @@
 // Coarse street-level flow field toward the player for ground enemies. 2 m cells; each cell stores ground height
-// and whether a body fits. Rebuilt from the player's cell a few times per second (BFS, ~100k cells).
+// and whether a body fits, and each pair of neighbouring cells whether a wall stands between them (a fence or a
+// wall between two open cells would otherwise read as a way through). Rebuilt from the player's cell a few times per
+// second (BFS, ~100k cells).
 
 const CELL = 2;
 
@@ -19,7 +21,28 @@ export class FlowField {
       this.ground[i] = Number.isFinite(gy) ? gy : -99;
       this.free[i] = Number.isFinite(gy) && world.fits(x, gy + 0.05, z, 0.45, 1.8) ? 1 : 0;
     }
+    // Walls between neighbours: bit 1 = blocked to the east (ix + 1), bit 2 = blocked to the south (iz + 1). Tested
+    // at hip and head height above the higher of the two cells, so kerbs and low steps stay open.
+    this.wall = new Uint8Array(N);
+    const n = this.n;
+    const cut = (x0, z0, x1, z1, y) => !world.segmentClear({ x: x0, y: y + 0.9, z: z0 }, { x: x1, y: y + 0.9, z: z1 }) || !world.segmentClear({ x: x0, y: y + 1.5, z: z0 }, { x: x1, y: y + 1.5, z: z1 });
+    for (let iz = 0; iz < n; iz++) for (let ix = 0; ix < n; ix++) {
+      const i = iz * n + ix;
+      if (!this.free[i]) continue;
+      const x = (ix + 0.5) * CELL, z = (iz + 0.5) * CELL;
+      if (ix + 1 < n && this.free[i + 1] && cut(x, z, x + CELL, z, Math.max(this.ground[i], this.ground[i + 1]))) this.wall[i] |= 1;
+      if (iz + 1 < n && this.free[i + n] && cut(x, z, x, z + CELL, Math.max(this.ground[i], this.ground[i + n]))) this.wall[i] |= 2;
+    }
     this.origin = -1;
+  }
+
+  // Is the step between orthogonal neighbours a and b walled off?
+  walled(a, b) {
+    const d = b - a;
+    if (d === 1) return (this.wall[a] & 1) !== 0;
+    if (d === -1) return (this.wall[b] & 1) !== 0;
+    if (d === this.n) return (this.wall[a] & 2) !== 0;
+    return (this.wall[b] & 2) !== 0;
   }
 
   idx(x, z) {
@@ -56,6 +79,7 @@ export class FlowField {
         const a = az * n + ax;
         if (!free[a] || dist[a] <= nd) continue;
         if (ground[b] - ground[a] > 1.6) continue; // a -> b would be too big a step up
+        if (this.walled(a, b)) continue;
         dist[a] = nd;
         queue[tail++] = a;
       }
@@ -76,6 +100,7 @@ export class FlowField {
       const j = jz * n + jx;
       // Diagonals only if both orthogonal neighbours are open (no corner cutting).
       if (dx && dz && (dist[iz * n + jx] === 65535 || dist[jz * n + ix] === 65535)) continue;
+      if (dx && dz ? this.walled(i, iz * n + jx) || this.walled(i, jz * n + ix) || this.walled(iz * n + jx, j) || this.walled(jz * n + ix, j) : this.walled(i, j)) continue;
       if (dist[j] < best) { best = dist[j]; bi = j; }
     }
     if (bi < 0) return null;

@@ -144,6 +144,16 @@ export function customOverlay(p, st) {
   p.torso[1] -= 0.18 * k;
 }
 
+// The rival crew (street fights): gunmen and heavies hold their gun out like the player does while they have a line
+// on you; the bruiser keeps his fists up, draws back on the wind-up and throws the punch.
+export function gangOverlay(p, st) {
+  if (!st.melee) { customOverlay(p, st); return; }
+  p.armL = [0.95, 0, -0.35]; p.foreL = [1.7, 0, 0];
+  p.armR = [0.95, 0, 0.35]; p.foreR = [1.7, 0, 0];
+  if (st.windup > 0) { p.armR = [0.6 - st.windup * 0.5, 0, 0.6]; p.foreR = [1.9, 0, 0]; p.torso[1] += 0.35 * st.windup; }
+  if (st.punch) { p.armR = [1.55, 0, 0.1]; p.foreR = [0.1, 0, 0]; p.torso[1] -= 0.3; }
+}
+
 // ---- SPEAKERPHONE GUY (muted: olive puffer vest, dusty maroon-brown shirt, phone held up to his mouth) ---------
 export function speakerphoneModel() {
   const VEST = 0x2f3340, VEST_D = 0x262a35, SHIRT = 0xb04a3c, SKIN = 0xb98a6a, HAIR = 0x3b2c24;
@@ -327,4 +337,4 @@ export function clothSpring(state, dt, vel, yaw, t, names) {
 
 export const CLOTH = { beacon: ['cape'], dee: ['hem'], scooter: ['stringL', 'stringR'], canvasser: ['flapL', 'flapR'], hoa: ['tailL', 'tailR'], speakerphone: [] };
 
-export const OVERLAY = { custom: customOverlay, beacon: beaconOverlay, dee: deeOverlay, speakerphone: speakerphoneOverlay, scooter: scooterOverlay, canvasser: canvasserOverlay, hoa: hoaOverlay };
+export const OVERLAY = { gunman: gangOverlay, bruiser: gangOverlay, heavy: gangOverlay, custom: customOverlay, beacon: beaconOverlay, dee: deeOverlay, speakerphone: speakerphoneOverlay, scooter: scooterOverlay, canvasser: canvasserOverlay, hoa: hoaOverlay };

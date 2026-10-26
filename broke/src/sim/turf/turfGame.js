@@ -11,11 +11,12 @@ import { generateTurf } from '../../city/turf/generate.js';
 import { DOWNTOWN } from '../../city/turf/districts/downtown.js';
 import { CommandQueue } from '../commands.js';
 import { TYPES } from '../../city/turf/business.js';
+import { Arcade } from './arcade.js';
 
 export const LEADER = 'gang0:leader';
 
 export class TurfGame extends Game {
-  constructor({ seed = 1, district = DOWNTOWN, survivor, city = null, startMinutes = 0 }) {
+  constructor({ seed = 1, district = DOWNTOWN, survivor, city = null, startMinutes = 0, arcade = false }) {
     const c = city || generateTurf(district, seed);
     super({ seed, district, survivor, city: c, startMinutes });
     this.mode = 'turf';
@@ -25,6 +26,8 @@ export class TurfGame extends Game {
     this.commands = new CommandQueue();
     this.controls = {};
     this.actors = { [LEADER]: this.player };
+    // Street fights (./arcade.js): waves of the rival crew, power-ups and a score. Off for the title backdrop.
+    this.arcade = arcade ? new Arcade(this) : null;
   }
 
   submit(cmd) { return this.commands.submit(this, cmd); }
@@ -39,10 +42,17 @@ export class TurfGame extends Game {
       if (this.slowmo <= 0) { this.timeScale = 1; this.slowmo = 0; }
     }
     if (this.state === 'playing') this.player.update(dt, this.controls[LEADER] || EMPTY_INPUT);
+    if (this.enemies.length) {
+      // The street flow field the crew paths along, rebuilt around the player as they move.
+      this.flowT -= dt;
+      if (this.flowT <= 0) { this.flowT = 0.4; this.flow.build(this.player.pos.x, this.player.pos.z); }
+    }
     for (const e of this.enemies) if (e.alive) e.update(dt);
     this.separate();
     this.projectiles.update(dt);
     this.pickups.update(dt);
+    if (this.arcade && this.state === 'playing') this.arcade.update(dt);
+    if (this.enemies.length > 40 || (this.tick % 60 === 0 && this.enemies.some((e) => !e.alive))) this.enemies = this.enemies.filter((e) => e.alive);
   }
 
   // ---- queries for the HUD / map ------------------------------------------------------------------------------------

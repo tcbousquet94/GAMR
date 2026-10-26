@@ -10,6 +10,19 @@ import { Animator } from './anim/animator.js';
 import { Ragdoll } from './anim/ragdoll.js';
 import { blob } from './details.js';
 import { loModel } from './people/lo.js';
+import { makePerson } from './people/person.js';
+import { POWERS } from '../sim/turf/arcade.js';
+
+// The rival crew's looks (one per role: they are drawn instanced), from the shared person generator.
+function crewLook(role) {
+  const p = makePerson(`viper:${role}`, 'rival', 1);
+  p.sex = 'm'; p.facial = p.facial?.style === 'none' ? { style: 'stubble', color: p.hair.color, grey: 0 } : p.facial;
+  const o = p.outfit;
+  if (role === 'gunman') { o.top.type = 'hoodie'; o.top.color = 0x2f5a34; o.bottom.type = 'jeans'; o.bottom.color = 0x22283a; o.shoes.type = 'sneakers'; o.shoes.color = 0xe6e4de; }
+  if (role === 'bruiser') { o.top.type = 'tank'; o.top.color = 0xe6e4de; o.bottom.type = 'jeans'; o.bottom.color = 0x2a2a2e; p.build = 1.22; p.hair.style = 'buzz'; p.height = 1.88; }
+  if (role === 'heavy') { o.top.type = 'jacket'; o.top.color = 0x24382a; o.under = { type: 'tee', color: 0x1e1e20 }; o.bottom.type = 'slacks'; o.bottom.color = 0x22283a; o.shoes.type = 'boots'; p.build = 1.2; p.belly = 0.6; p.height = 1.93; p.facial = { style: 'beard', color: p.hair.color, grey: 0.1 }; }
+  return p;
+}
 
 const ANIM_OPTS = {
   custom: { fidgets: ['watch'] },
@@ -19,6 +32,7 @@ const ANIM_OPTS = {
   canvasser: { fidgets: ['fan'], freq: 1.08 },
   scooter: { gait: false },
   hoa: { scale: 3.05, freq: 0.9, armSwing: 0.6 },
+  gunman: { fidgets: [] }, bruiser: { fidgets: [], freq: 1.05 }, heavy: { fidgets: [], freq: 0.9, armSwing: 0.6 },
 };
 
 // Big frame steps (recording, hitches) are split so the springs and gait integrate accurately.
@@ -47,6 +61,9 @@ export class Actors {
       canvasser: new RigType(M.canvasserModel(), 64, scene),
       hoa: new RigType(M.hoaModel(), 1, scene),
       drone: new RigType(M.droneModel(), 16, scene),
+      gunman: new RigType(loModel(crewLook('gunman')), 24, scene),
+      bruiser: new RigType(loModel(crewLook('bruiser')), 16, scene),
+      heavy: new RigType(loModel(crewLook('heavy')), 8, scene),
     };
     this.m4 = new THREE.Matrix4();
     this.deeYaw = game.player.yaw;
@@ -144,6 +161,10 @@ export class Actors {
     this.itemDrop = new THREE.Mesh(merge([fbox(0.6, 0.6, 0.6, 0xffd34a, at(0, 0, 0))]), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffd34a).multiplyScalar(2) }));
     this.itemBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.6, 30, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xffd34a, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false }));
     this.scene.add(this.itemDrop, this.itemBeam);
+    // Street-fight power-ups: a glowing gem in the power's colour over a soft light column, so they read from afar.
+    this.powers = new THREE.InstancedMesh(new THREE.OctahedronGeometry(0.32, 0), new THREE.MeshBasicMaterial({ color: 0xffffff, fog: true }), 32);
+    this.powerBeams = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.16, 0.45, 6, 8, 1, true).translate(0, 3, 0), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, fog: true }), 32);
+    for (const m of [this.powers, this.powerBeams]) { m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; m.count = 0; this.scene.add(m); }
   }
 
   buildInteractables() {
@@ -231,17 +252,24 @@ export class Actors {
       }
       const A = (e._anim = e._anim || new Animator(ANIM_OPTS[e.type] || {}));
       const sp = Math.hypot(e.body.vel.x, e.body.vel.z);
-      const facePlayer = sp < 1.2 || e.telegraph > 0 || e.state === 'latched' || e.boss;
+      const crew = e.type === 'gunman' || e.type === 'bruiser' || e.type === 'heavy';
+      // The crew's gun kick decays here (the sim sets it on each shot).
+      if (crew) { e._kick = Math.max(e._kick || 0, e.kick || 0); e.kick = 0; e._kick = Math.max(0, e._kick - dt * 5); }
+      const facePlayer = sp < 1.2 || e.telegraph > 0 || e.state === 'latched' || e.boss || (crew && e.aimK > 0);
       const pose = animate(A, dt, {
         pos: p, vel: e.body.vel, onGround: e.body.onGround || e.type === 'scooter', climbing: e.climbing, world: g.world,
         aimYaw: e.yaw, face: facePlayer ? 'aim' : 'move', telegraph: e.telegraph, stunned: e.stunned > 0 && e.state !== 'crashed',
         lookAt: P.alive ? playerHead : null,
         overlay: M.OVERLAY[e.type],
-        extra: { crashed: e.state === 'crashed', latched: e.state === 'latched', attack: e.state === 'notices' || e.state === 'drones' || e.state === 'gavel' ? e.state : null },
+        aimPitch: crew ? Math.atan2(playerHead.y - (p.y + 1.45), Math.hypot(playerHead.x - p.x, playerHead.z - p.z)) : 0,
+        extra: crew
+          ? { aimK: e.aimK || (e.state === 'windup' || e.state === 'fire' ? 1 : 0), kick: Math.min(1, e._kick), firing: e.state === 'fire', melee: e.type === 'bruiser', punch: e.type === 'bruiser' && e.state === 'recover' && e.stateT < 0.25 }
+          : { crashed: e.state === 'crashed', latched: e.state === 'latched', attack: e.state === 'notices' || e.state === 'drones' || e.state === 'gavel' ? e.state : null },
         cloth: M.CLOTH[e.type]?.length ? M.clothSpring(e, dt, e.body.vel, A.yaw ?? e.yaw, this.t + e.id, M.CLOTH[e.type]) : null,
       });
       const scale = (A.o.scale || 1) * (0.3 + 0.7 * grow);
       rootMatrix(p.x, p.y, p.z, A.yaw, scale, m4, A.rootRoll || 0, A.rootPitch || 0);
+      if (crew) pose.gun = { r: [0, 0, 0], s: e.type === 'bruiser' ? 0.001 : e.type === 'heavy' ? 1.5 : 1 };
       rig.add(m4, pose, this.flashOf(e));
       e._lastRoot = m4.clone(); e._lastPose = pose;
     }
@@ -377,8 +405,8 @@ export class Actors {
   }
 
   updatePickups() {
-    let nc = 0, ns = 0;
-    const m4 = this.m4, q = new THREE.Quaternion(), v = new THREE.Vector3(), s = new THREE.Vector3(1, 1, 1), axis = new THREE.Vector3(0, 1, 0);
+    let nc = 0, ns = 0, np = 0;
+    const m4 = this.m4, q = new THREE.Quaternion(), v = new THREE.Vector3(), s = new THREE.Vector3(1, 1, 1), axis = new THREE.Vector3(0, 1, 0), col = new THREE.Color();
     let item = null;
     for (const k of this.game.pickups.list) {
       q.setFromAxisAngle(axis, this.t * 6 + k.id);
@@ -386,7 +414,18 @@ export class Actors {
       if (k.kind === 'coin' && nc < 512) this.coins.setMatrixAt(nc++, m4);
       else if (k.kind === 'snack' && ns < 64) this.snacks.setMatrixAt(ns++, m4);
       else if (k.kind === 'item') item = k;
+      else if (k.kind === 'power' && np < 32) {
+        // Blinks in its last three seconds.
+        const fade = k.life - k.age < 3 && Math.sin(this.t * 18) > 0;
+        col.set(POWERS[k.power]?.color ?? 0xffffff).multiplyScalar(fade ? 0.6 : 1.8);
+        m4.compose(v.set(k.pos.x, k.pos.y + 0.35 + Math.sin(this.t * 3 + k.id) * 0.12, k.pos.z), q, s);
+        this.powers.setMatrixAt(np, m4); this.powers.setColorAt(np, col);
+        m4.makeTranslation(k.pos.x, k.pos.y - 0.6, k.pos.z);
+        this.powerBeams.setMatrixAt(np, m4); this.powerBeams.setColorAt(np, col);
+        np++;
+      }
     }
+    for (const m of [this.powers, this.powerBeams]) { m.count = np; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
     this.coins.count = nc; this.coins.instanceMatrix.needsUpdate = true;
     this.snacks.count = ns; this.snacks.instanceMatrix.needsUpdate = true;
     this.itemDrop.visible = this.itemBeam.visible = !!item;

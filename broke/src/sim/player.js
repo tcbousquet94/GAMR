@@ -61,6 +61,7 @@ export class Player {
     const prevMax = this.stats?.maxHp ?? this.base.maxHp;
     this.stats = computeStats(this.base, this.inv, {
       tier: g.clock.tier, timeSinceHit: this.timeSinceHit, slowMul, overtimeStacks: this.overtime.stacks,
+      damageBoost: g.arcade?.active('double') ? 2 : 1, moveBoost: g.arcade?.active('speed') ? 1.35 : 1,
     });
     // Max hp increases heal by the same amount (like picking up a gym membership).
     if (this.stats.maxHp > prevMax) this.hp += this.stats.maxHp - prevMax;

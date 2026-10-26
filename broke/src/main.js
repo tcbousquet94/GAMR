@@ -29,6 +29,7 @@ import { icon } from './ui/icons.js';
 import { FlyCam } from './debug/flycam.js';
 import { buildDebugOverlay } from './render/debugOverlay.js';
 import { buildClosedShops } from './render/kit/closedShops.js';
+import { localBest, saveLocal } from './net/leaderboard.js';
 
 const params = new URLSearchParams(location.search);
 const canvas = document.getElementById('game');
@@ -89,6 +90,7 @@ const screens = new Screens(document.getElementById('screens'), {
   cityhallBack: () => (app.hallFromPlay ? resume() : pause()),
   map: () => showMap(),
   mapBack: () => (app.mapFromPlay ? resume() : pause()),
+  title: () => showTitle(),
 });
 app.fly = new FlyCam(input);
 
@@ -136,7 +138,7 @@ export function startRun(seed, opts = {}) {
   const startMinutes = opts.startMinutes ?? +(params.get('t') || 0);
   const g = (app.game = HERO ? new HeroGame({ survivor: DEE }) : TOWN ? newTown() : CLASSIC
     ? new Game({ seed: app.seed, district: downtown, survivor: DEE, startMinutes })
-    : new TurfGame({ seed: app.seed, survivor: PC, startMinutes }));
+    : new TurfGame({ seed: app.seed, survivor: PC, startMinutes, arcade: true }));
   if (CLASSIC) g.player.camBase = CAM.classic;
   if (params.get('god') === '1' || opts.god) g.godMode = true;
   if (app.fly?.active) app.fly.toggle(view);
@@ -155,7 +157,13 @@ export function startRun(seed, opts = {}) {
   audio.bind(g);
   input.yaw = g.player.yaw;
   input.pitch = 0;
-  g.events.on('playerDeath', (d) => setTimeout(() => { if (app.game === g) { app.state = 'dead'; input.enabled = false; input.unlock(); touch.setVisible(false); screens.show('dead', d); } }, 1600));
+  g.events.on('playerDeath', (d) => setTimeout(() => {
+    if (app.game !== g) return;
+    app.state = 'dead'; input.enabled = false; input.unlock(); touch.setVisible(false);
+    // Street fights end on the score and the leaderboard; the other modes keep their own screen.
+    if (g.arcade) { const r = g.arcade.result(), best = localBest(), newBest = saveLocal(r); screens.show('streetOver', { r, newBest, best, name: look?.name }); }
+    else screens.show('dead', d);
+  }, 1600));
   g.events.on('win', (r) => setTimeout(() => { if (app.game === g) { app.state = 'won'; input.enabled = false; input.unlock(); touch.setVisible(false); screens.show('won', r); } }, 900));
   app.state = 'playing';
   app.paused = false;

@@ -54,6 +54,10 @@ export class Projectiles {
   wave(owner, from, dir, damage, knock) {
     return this.add({ kind: 'wave', team: 'enemy', owner, pos: { ...from }, vel: mul(dir, 19), speed: 19, damage, knock, life: 0.85, r: 0.8, grow: 3.6, ghost: true });
   }
+  // An enemy gun's round: a visible tracer you can sometimes step out of, stopped by walls.
+  enemyShot(owner, from, dir, damage, speed = 70) {
+    return this.add({ kind: 'bullet', team: 'enemy', owner, pos: { ...from }, vel: mul(dir, speed), speed, damage, life: 1.4, r: 0.1 });
+  }
   ticket(owner, from, dir, damage) {
     return this.add({ kind: 'ticket', team: 'enemy', owner, pos: { ...from }, vel: mul(dir, 30), speed: 30, damage, life: 2.5, r: 0.35 });
   }

@@ -8,6 +8,11 @@ import { icon } from './icons.js';
 import { TIERS } from '../core/config.js';
 import { MAYOR } from '../sim/mayor/mayor.js';
 import { statColor } from './townmap.js';
+import { POWERS } from '../sim/turf/arcade.js';
+const hex = (c) => '#' + c.toString(16).padStart(6, '0');
+// A power-up's toast icon: a gem in its colour.
+const gem = (c) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M20 3 35 20 20 37 5 20Z" fill="${hex(c)}" stroke="#fff" stroke-width="2"/></svg>`)}`;
+
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
@@ -29,7 +34,8 @@ export class Hud {
         <div class="vital"><div class="emblem">✚</div><div class="hp"><div class="hp-fill" id="h-hpfill"></div><div class="hp-barrier" id="h-barrier"></div></div><span class="hp-text" id="h-hptext"></span></div>
         <div class="money" id="h-money">$3.40</div><div class="money-pop" id="h-pop"></div>
       </div>
-      <div class="hud-tr"><div class="tier" id="h-tier">Light Traffic</div><div class="clock" id="h-clock">0:00</div><div class="tierbar"><div id="h-tierfill"></div></div></div>
+      <div class="hud-tr"><div class="tier" id="h-tier">Light Traffic</div><div class="clock" id="h-clock">0:00</div><div class="tierbar"><div id="h-tierfill"></div></div><div class="combo" id="h-combo"></div><div class="powers" id="h-pow"></div></div>
+      <div class="score-pops" id="h-pops"></div>
       <div class="compass" id="h-compass"><div class="c-strip" id="h-strip">${ticks.join('')}</div><div class="c-mark" id="h-mark"><span class="c-pin"></span><em id="h-dist"></em></div><div class="c-center"></div></div>
       <div class="objective" id="h-obj"></div>
       <div class="hud-top" id="h-top"></div>
@@ -48,7 +54,7 @@ export class Hud {
       money: $('#h-money', root), pop: $('#h-pop', root), tier: $('#h-tier', root), clock: $('#h-clock', root), tierfill: $('#h-tierfill', root),
       top: $('#h-top', root), obj: $('#h-obj', root), strip: $('#h-strip', root), mark: $('#h-mark', root), compass: $('#h-compass', root), dist: $('#h-dist', root), cross: $('#h-cross', root),
       prompt: $('#h-prompt', root), latch: $('#h-latch', root), hpfill: $('#h-hpfill', root), barrier: $('#h-barrier', root), hptext: $('#h-hptext', root),
-      abil: $('#h-abil', root), ret: $('#h-ret', root), hm: $('#h-hm', root), ammo: $('#h-ammo', root), cyl: $('#h-cyl', root), ammotext: $('#h-ammotext', root), items: $('#h-items', root), intro: $('#h-intro', root), banner: $('#h-banner', root), toasts: $('#h-toasts', root), vig: $('#h-vig', root),
+      abil: $('#h-abil', root), ret: $('#h-ret', root), hm: $('#h-hm', root), ammo: $('#h-ammo', root), cyl: $('#h-cyl', root), ammotext: $('#h-ammotext', root), combo: $('#h-combo', root), pow: $('#h-pow', root), pops: $('#h-pops', root), items: $('#h-items', root), intro: $('#h-intro', root), banner: $('#h-banner', root), toasts: $('#h-toasts', root), vig: $('#h-vig', root),
     };
     this.itemsKey = '';
     this.popT = 0; this.popAmt = 0;
@@ -105,7 +111,13 @@ export class Hud {
       E.on('hit', (d) => { this.hitT = 0.12; if (d.source === 'revolver') this.hitmark(d.part === 'head' ? 'head' : 'body'); }),
       E.on('kill', (d) => { if (game.enemies.find((e) => e.id === d.id)?.lastHitBy === 'revolver') this.hitmark('kill'); }),
       E.on('recover', () => this.flashPrompt('Back on your feet', 'You fell. It cost you a little health.')),
+      // Street fights.
+      E.on('waveStart', (d) => this.banner(`Wave ${d.wave}`, `${d.count} Vipers coming for you.`)),
+      E.on('waveClear', (d) => this.banner('Street cleared', `+${d.bonus.toLocaleString('en-US')} · +25 health`)),
+      E.on('power', (d) => this.toast(d.name, d.desc, hex(d.color), gem(d.color))),
+      E.on('score', (d) => this.scorePop(d)),
     ];
+    this.el.combo.textContent = ''; this.el.pow.innerHTML = ''; this.el.pops.innerHTML = '';
   }
 
   // Hit marker on the reticle: white for a body hit, gold for a headshot, red for a kill.
@@ -148,6 +160,14 @@ export class Hud {
     this._bcT = setTimeout(() => this.bossNameEl?.classList.remove('call'), 1600);
   }
 
+  // A kill's points float up from the top-right score for a moment.
+  scorePop(d) {
+    const t = h('div', `pop${d.head ? ' head' : ''}`, `+${d.points}${d.head ? ' HEADSHOT' : ''}`);
+    this.el.pops.appendChild(t);
+    setTimeout(() => t.remove(), 1100);
+    while (this.el.pops.children.length > 4) this.el.pops.firstChild.remove();
+  }
+
   // Informational banner: no key pill, since there is nothing to press.
   flashPrompt(title, sub) { this.forcePrompt = { title, sub, t: 1.8, info: true }; }
 
@@ -160,7 +180,20 @@ export class Hud {
     el.money.textContent = formatMoney(g.economy.cents);
     if (this.popT > 0) { this.popT -= dt; el.pop.textContent = `+${formatMoney(this.popAmt)}`; el.pop.style.opacity = Math.min(1, this.popT * 2); if (this.popT <= 0) this.popAmt = 0; }
     else el.pop.style.opacity = 0;
-    if (turf) {
+    if (turf && g.arcade) {
+      // Street fights: the score, the wave, the streak and the power-ups running.
+      const A = g.arcade;
+      el.tier.textContent = A.score.toLocaleString('en-US');
+      el.tier.dataset.tier = 0;
+      el.clock.textContent = A.phase === 'break' ? (A.wave ? `Wave ${A.wave + 1} in ${Math.ceil(A.timer)}` : 'Get ready') : `Wave ${A.wave} · ${A.enemiesLeft()} left`;
+      el.tierfill.parentElement.style.display = 'none';
+      el.combo.textContent = A.combo.n >= 2 ? `${A.combo.n} streak · x${A.mult.toFixed(1)}` : '';
+      const pk = Object.entries(A.powers).map(([id, t]) => `${id}:${Math.ceil(t)}`).join(',');
+      if (pk !== this._powKey) {
+        this._powKey = pk;
+        el.pow.innerHTML = Object.entries(A.powers).map(([id, t]) => `<span style="--c:${hex(POWERS[id].color)}">${POWERS[id].name} <b>${Math.ceil(t)}</b></span>`).join('');
+      }
+    } else if (turf) {
       el.tier.textContent = g.city.district.name;
       el.tier.dataset.tier = 0;
       el.clock.textContent = `Seed ${g.seed}`;

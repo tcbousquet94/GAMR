@@ -76,6 +76,8 @@ export class Audio {
     switch (name) {
       // Revolver: a sharp crack, a low body thump and a short tail that rings off the street.
       case 'revolver': this.noiseHit(t, 0.05, 0.9, 'highpass', 900); this.noiseHit(t, 0.32, 0.55, 'lowpass', 2600, 0.8, undefined, 250); this.osc('sine', 120, t, 0.16, 0.6, undefined, 45); this.noiseHit(t + 0.06, 0.5, 0.08, 'bandpass', 700, 0.6, undefined, 300); break;
+      // Someone else's gun down the street: the same crack, quieter and duller.
+      case 'gunshot': this.noiseHit(t, 0.05, 0.35, 'highpass', 700); this.noiseHit(t, 0.3, 0.3, 'lowpass', 1600, 0.8, undefined, 220); this.osc('sine', 110, t, 0.14, 0.25, undefined, 45); break;
       case 'dryFire': this.noiseHit(t, 0.025, 0.25, 'highpass', 5000); break;
       case 'reloadRound': this.noiseHit(t, 0.03, 0.2, 'bandpass', r(2800, 3400), 4); this.osc('triangle', r(1900, 2200), t, 0.03, 0.04); break;
       case 'reloadStart': this.noiseHit(t, 0.06, 0.18, 'bandpass', 1500, 3); break;
@@ -288,7 +290,9 @@ export class Audio {
       E.on('dodged', () => this.play('blocked')),
       E.on('bell', (d) => { if (near(d.pos)) this.play('bell'); }),
       E.on('crash', (d) => { if (near(d.pos)) this.play('crash'); }),
-      E.on('enemyAttack', (d) => { if (d.kind === 'soundwave' && near(d.pos)) this.play('wave'); }),
+      E.on('enemyAttack', (d) => { if (d.kind === 'soundwave' && near(d.pos)) this.play('wave'); else if (d.kind === 'gunshot' && near(d.pos, 90)) this.play('gunshot'); else if (d.kind === 'punch' && near(d.pos)) this.play('hit'); }),
+      E.on('power', () => this.play('item')),
+      E.on('waveStart', () => this.play('tier')),
       E.on('bark', (d) => { const e = game.enemies.find((x) => x.id === d.id); if (e && near(e.pos, 40)) this.bark(d.text, d.type); }),
       E.on('latch', () => this.play('chirp')),
       E.on('bossSlam', () => this.play('gavel')),

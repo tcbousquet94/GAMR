@@ -1289,3 +1289,27 @@ Visual/readability audit:
   - Lean from the feet: 65% of the turn bank and 40% of the acceleration lean tilt the whole body about the
     feet (root roll/pitch in `rootMatrix`), the spine adds the rest — no more side-bending at the waist.
   - Frame strip `lookaround` added (standing while the camera sweeps 115° and back).
+
+## STREET FIGHTS (turf war arcade loop, high scores, online board)
+
+User direction: "Let's add ai and some power ups and keep a high score for the player. The leaderboard shud be online."
+
+- **The Vipers** (`src/sim/enemies/gang.js`), the rival crew, have three roles. Every attack has a visible wind-up.
+  - The **gunman** closes to pistol range, circles at 9–17 m and fires 2–3 round bursts after a draw. It backs off to reload and opens the distance when hurt.
+  - The **bruiser** rushes in and punches.
+  - The **heavy** is slow and tough, with a sawn-off spread.
+  - Only 2 guns fire at once on the first waves, plus one every third wave (`Arcade.mayShoot`). Only one crew member shouts at a time.
+- **Waves** (`src/sim/turf/arcade.js`): 3 + 2n enemies per wave. Bruisers join from wave 2 and heavies from wave 3. Toughness and damage scale per wave. At most 7 are alive at once, spawned off-screen at the city's spawn points. There's a 6 s break between waves, and clearing a wave pays a bonus and heals 25.
+- **Score**:
+  - gunman 100, bruiser 80, heavy 250, +50 for a headshot;
+  - a kill streak (4 s window) multiplies points up to x3;
+  - wave bonus 300 × wave;
+  - +2 per second survived.
+- **Power-ups**: medkit (+60), armor (60 barrier), double damage, rapid fire (fast hammer, no reloads), adrenaline (+35% speed) and score x2. Timed ones last 10–15 s. They drop from kills (18%, heavies 60%) and turn up on the street about every 28 s. They glow in their colour with a light column, and blink before they vanish.
+- **Pathfinding fix**: the flow field now records walls between neighbouring cells. Fences and walls used to read as a way through, and enemies stood behind them.
+- **High scores** (`src/net/leaderboard.js`):
+  - The local best is kept in localStorage.
+  - The online board is the published page's shared store: `scores/<player id>` = { tag, score, wave, kills, headshots, at }, best run only.
+  - Rules: `scores` is readable by everyone and written by the owner; `scores/{self}` is written by that player at Contributor level and up.
+  - Public-link visitors can read the board but can't post (a platform rule: outside viewers never write). The game-over screen says so.
+- The game-over screen shows the score, the run stats, a personal-best flag, a name field with Post score, and the top 10 (your row highlighted). The title screen shows your best and the online top five.

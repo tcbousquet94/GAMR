@@ -21,6 +21,10 @@ export class Pickups {
   spawnSnack(pos, heal) {
     this.list.push({ id: this.nextId++, kind: 'snack', value: heal, pos: { ...pos }, vel: { x: 0, y: 5, z: 0 }, age: 0, life: 12 });
   }
+  // A street-fight power-up (../turf/arcade.js POWERS); it waits on the ground for 20 s.
+  spawnPower(pos, power) {
+    this.list.push({ id: this.nextId++, kind: 'power', power, pos: { ...pos }, vel: { x: 0, y: 6, z: 0 }, age: 0, life: 20 });
+  }
   spawnItem(pos, item) {
     this.list.push({ id: this.nextId++, kind: 'item', item, pos: { ...pos }, vel: { x: 0, y: 8, z: 0 }, age: 0, life: 9999 });
   }
@@ -55,7 +59,8 @@ export class Pickups {
     if (k.kind === 'coin') g.economy.addCents(k.value);
     else if (k.kind === 'snack') g.player.heal(k.value);
     else if (k.kind === 'item') { g.giveItem(k.item); g.events.emit('bossItem', { item: k.item }); }
-    g.events.emit('pickup', { kind: k.kind, value: k.value, item: k.item });
+    else if (k.kind === 'power') g.arcade?.grant(k.power);
+    g.events.emit('pickup', { kind: k.kind, value: k.value, item: k.item, power: k.power });
   }
 
   clear() { this.list.length = 0; }

@@ -13,7 +13,7 @@ export function computeStats(base, inv, ctx = {}) {
   let moveMul = 1 + 0.14 * n('latte') + (base.nightShift ? 0.03 * tier : 0);
   if ((ctx.timeSinceHit ?? 0) >= 5) moveMul += 0.3 * n('insoles');
   moveMul *= ctx.slowMul ?? 1;
-  moveMul = clamp(moveMul, 0.2, MOVE.maxMoveMul);
+  moveMul = clamp(moveMul, 0.2, MOVE.maxMoveMul) * (ctx.moveBoost ?? 1); // street-fight power-ups ride on top of the cap
   const attackSpeed = clamp(1 + 0.15 * n('espresso'), 1, COMBAT.maxAttackSpeedMul);
   // Hyperbolic-ish block chance with a hard cap so nobody becomes invulnerable.
   const block = clamp(1 - Math.pow(0.85, n('headphones')), 0, COMBAT.maxBlockChance);
@@ -21,6 +21,7 @@ export function computeStats(base, inv, ctx = {}) {
   const overtimeStacks = clamp(finite(ctx.overtimeStacks || 0), 0, 30);
   let damageMul = 1 + 0.04 * overtimeStacks;
   if (base.nightShift) damageMul *= 1 + 0.1 * tier;
+  damageMul *= ctx.damageBoost ?? 1;
   return {
     moveMul, attackSpeed, block, maxHp,
     damage: base.damage * damageMul,

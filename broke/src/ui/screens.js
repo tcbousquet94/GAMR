@@ -6,6 +6,7 @@ import { drawTownMap, statColor } from './townmap.js';
 import { MAYOR, STATS } from '../sim/mayor/mayor.js';
 import { CHOICES, setChoice, getChoice, randomLook } from './look.js';
 import { CreatorPreview } from './creatorPreview.js';
+import { topScores, submitScore, localBest, lastTag } from '../net/leaderboard.js';
 
 const hex = (c) => '#' + (c >>> 0).toString(16).padStart(6, '0');
 const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -67,12 +68,13 @@ export class Screens {
           <div class="lore-head"><span class="swatch" style="background:${sw}"></span><div><b>${esc(survivor.name)}</b><span>${esc(survivor.role)}</span></div></div>
           <p>${esc(survivor.lore)}</p>
           <ul>
-            <li><b>Right mouse · Aim</b> Hold to raise the revolver. The shot tightens and you walk.</li>
-            <li><b>Left click · Fire</b> One click, one shot. Aim for the head.</li>
-            <li><b>R · Reload</b> Six in the cylinder, loaded a round at a time. Firing stops the reload.</li>
-            <li><b>G · Practice</b> Spawns a few hostiles out in front of you.</li>
+            <li><b>The Vipers want your streets</b> They come in waves: gunmen, bruisers, then heavies. Last as long as you can.</li>
+            <li><b>Right mouse · Aim</b> Hold to raise the revolver. Left click fires: one click, one shot.</li>
+            <li><b>Score</b> Headshots pay more, a kill streak multiplies it, and every cleared wave pays a bonus.</li>
+            <li><b>Power-ups</b> The fallen drop them: medkit, armor, double damage, rapid fire, adrenaline, score x2.</li>
           </ul>
         </div>
+        <div class="board-mini" id="s-board">${localBest() ? `<p>Your best: <b>${localBest().score.toLocaleString('en-US')}</b> · wave ${localBest().wave}</p>` : ''}</div>
         <button class="primary-btn" id="s-start">Start</button>
         ${creator ? '<button id="s-create">Edit character</button>' : ''}
         ${modes ? '<button id="s-mayor">Be the President</button>' : ''}
@@ -80,6 +82,9 @@ export class Screens {
         <p class="controls">WASD move · Mouse look · Shift sprint · Space jump · M town map · Esc pause</p>
       </div>`;
     if (this.root.querySelector('#s-mayor')) this.root.querySelector('#s-mayor').onclick = () => this.h.mode('town');
+    // The online top five, when this page has a board.
+    const board = this.root.querySelector('#s-board'), shown = this.current;
+    topScores(5).then((rows) => { if (rows?.length && this.current === shown && board.isConnected) board.insertAdjacentHTML('beforeend', `<ol>${rows.map((r) => `<li${r.me ? ' class="me"' : ''}><span>${esc(r.tag)}</span><b>${r.score.toLocaleString('en-US')}</b></li>`).join('')}</ol>`); });
     this.root.querySelector('#s-start').onclick = () => this.h.start(this.root.querySelector('#s-seed').value.trim() || String(seed));
     const c = this.root.querySelector('#s-create');
     if (c) c.onclick = () => this.h.creator();
@@ -272,6 +277,50 @@ export class Screens {
 
   loading({ text }) {
     this.root.innerHTML = `<div class="panel"><h2>${esc(text || 'Loading\u2026')}</h2></div>`;
+  }
+
+  // The end of a street fight: the run, a personal best, posting to the online board, and the board itself.
+  streetOver({ r, newBest, best, name }) {
+    const n = (v) => Number(v).toLocaleString('en-US');
+    this.root.innerHTML = `
+      <div class="panel over">
+        <h2>YOU WENT DOWN</h2>
+        <p class="final">${n(r.score)}</p>
+        <p class="sub">${newBest ? 'New personal best' : best ? `Your best: ${n(best.score)}` : ''}</p>
+        <div class="runstats">
+          <div><b>${r.wave}</b><span>wave</span></div><div><b>${r.kills}</b><span>kills</span></div>
+          <div><b>${r.headshots}</b><span>headshots</span></div><div><b>${r.bestCombo}</b><span>best streak</span></div>
+          <div><b>${Math.floor(r.time / 60)}:${String(r.time % 60).padStart(2, '0')}</b><span>survived</span></div>
+        </div>
+        <form class="post" id="o-post"><input id="o-tag" maxlength="16" placeholder="Your name" aria-label="Name for the leaderboard" spellcheck="false"><button type="submit" id="o-send">Post score</button></form>
+        <p class="status" id="o-status"></p>
+        <h3>Leaderboard</h3>
+        <ol class="board" id="o-board"><li class="empty">Loading the board…</li></ol>
+        <button class="primary-btn" id="o-again">Play again</button>
+        <button id="o-title">Title screen</button>
+      </div>`;
+    const $ = (s) => this.root.querySelector(s), shown = this.current;
+    const tag = $('#o-tag'), status = $('#o-status');
+    tag.value = lastTag() || name || '';
+    const render = (rows) => {
+      if (this.current !== shown) return;
+      if (!rows) { $('#o-board').innerHTML = '<li class="empty">The online board shows up in the published game on claude.ai.</li>'; return; }
+      $('#o-board').innerHTML = rows.length ? rows.map((x, i) => `<li${x.me ? ' class="me"' : ''}><i>${i + 1}</i><span>${esc(x.tag)}</span><em>wave ${x.wave}</em><b>${n(x.score)}</b></li>`).join('') : '<li class="empty">No scores yet. Post the first one.</li>';
+    };
+    topScores(10).then(render);
+    $('#o-post').onsubmit = async (e) => {
+      e.preventDefault();
+      $('#o-send').disabled = true;
+      status.textContent = 'Posting…';
+      const res = await submitScore(r, tag.value);
+      if (this.current !== shown) return;
+      $('#o-send').disabled = false;
+      status.textContent = res.ok ? (res.improved ? 'Posted.' : 'Your best on the board is higher, so it stays. Name updated.') : res.reason;
+      status.className = `status ${res.ok ? 'ok' : 'bad'}`;
+      if (res.ok) topScores(10).then(render);
+    };
+    $('#o-again').onclick = () => this.h.restart(true);
+    $('#o-title').onclick = () => this.h.title();
   }
 
   dead({ cents }) {

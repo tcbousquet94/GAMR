@@ -115,8 +115,17 @@ export class Screens {
         ${board ? `<aside class="t-board" id="s-board"><h2>Street legends</h2><ol><li class="empty">Loading…</li></ol>${board}</aside>` : ''}
         <div class="t-how" id="t-how" hidden><div class="t-how-card">${how}<button id="t-how-close">Back</button></div></div>
         <div class="t-fade" id="t-fade"></div>
+        ${this.carded ? '' : '<div class="t-card" id="t-card"><p><span>A</span>Teddy Bousquet<span>Production</span></p></div>'}
       </div>`;
     const $ = (q) => this.root.querySelector(q), shown = this.current;
+    // The production card, once per visit, before the logo: fades up and out over black. A click skips it.
+    const card = $('#t-card');
+    if (card) {
+      this.carded = true;
+      const done = () => card.remove();
+      card.addEventListener('animationend', (e) => { if (e.target === card) done(); });
+      card.addEventListener('click', (e) => { e.stopPropagation(); done(); });
+    }
     const go = (fn) => () => { $('.cine').classList.add('leaving'); setTimeout(fn, 450); };
     $('#s-start').onclick = go(onStart);
     for (const [id, , fn] of extra) $(`#${id}`).onclick = go(fn);
@@ -129,7 +138,7 @@ export class Screens {
       this.h.enter?.();
       removeEventListener('keydown', onKey);
     };
-    const onKey = (e) => { if (!e.repeat && e.code !== 'F12') enter(); };
+    const onKey = (e) => { if (e.repeat || e.code === 'F12') return; const c = this.root.querySelector('#t-card'); if (c) { c.remove(); return; } enter(); };
     if (!this.entered) { $('#t-enter').onclick = enter; $('.t-splash').onclick = enter; addEventListener('keydown', onKey); }
     if (board) {
       topScores(5).then((rows) => {

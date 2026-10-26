@@ -430,3 +430,11 @@ ol.board li.empty { display: block; text-align: center; color: var(--dim); font-
   .cine .bar.bottom { justify-content: center; padding-right: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .t-press { animation: none; opacity: 1; } .m-item, .t-splash, .ti-menu { transition: none; } }
+
+/* The production card before the title: over black, the credit fades up, holds, and the black lifts. */
+.t-card { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; background: #07060a; cursor: pointer; padding: 0 24px; animation: card-out 1s ease-in 4s forwards; }
+.t-card p { margin: 0; display: grid; justify-items: center; gap: 10px; text-align: center; font-size: clamp(30px, 5vw, 54px); font-weight: 500; letter-spacing: 0.08em; color: var(--ink); opacity: 0; animation: card-text 3.8s ease-in-out 0.4s forwards; }
+.t-card span { font-size: clamp(13px, 1.6vw, 17px); letter-spacing: 0.5em; text-transform: uppercase; color: var(--faint); margin-right: -0.5em; }
+@keyframes card-text { 0% { opacity: 0; transform: translateY(6px); } 25% { opacity: 1; transform: none; } 78% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes card-out { to { opacity: 0; visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { .t-card p { animation-duration: 2.8s; transform: none; } }

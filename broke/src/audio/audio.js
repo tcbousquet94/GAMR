@@ -75,13 +75,13 @@ export class Audio {
     if (!this.ctx) return;
     const c = this.ctx, t = c.currentTime, f = c.createBiquadFilter(), g = c.createGain();
     f.type = 'lowpass'; f.Q.value = 2;
-    f.frequency.setValueAtTime(110, t); f.frequency.exponentialRampToValueAtTime(900, t + 6.4); f.frequency.exponentialRampToValueAtTime(160, t + 11);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + 3.5); g.gain.setValueAtTime(0.16, t + 6.4); g.gain.exponentialRampToValueAtTime(0.0001, t + 11);
+    f.frequency.setValueAtTime(110, t); f.frequency.exponentialRampToValueAtTime(900, t + 10.2); f.frequency.exponentialRampToValueAtTime(160, t + 15);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + 4); g.gain.setValueAtTime(0.16, t + 10.2); g.gain.exponentialRampToValueAtTime(0.0001, t + 15);
     f.connect(g).connect(this.sfxBus); g.connect(this.verb);
     for (const [fr, det] of [[55, -6], [55.4, 7], [82.4, 0]]) {
       const o = c.createOscillator();
       o.type = 'sawtooth'; o.frequency.value = fr; o.detune.value = det;
-      o.connect(f); o.start(t); o.stop(t + 11.2);
+      o.connect(f); o.start(t); o.stop(t + 15.2);
     }
   }
   // The title landing: a sub drop, a low thud of noise and a long tail.

@@ -9,7 +9,14 @@ import { CreatorPreview } from './creatorPreview.js';
 import { topScores, submitScore, localBest, lastTag } from '../net/leaderboard.js';
 
 // The title's opening, seconds after "Click to begin" (the CSS timeline in style.css uses the same marks).
-const OPENING = { title: 6.6, menu: 10.6 };
+const OPENING = { title: 10.4, menu: 14.4 };
+
+// The studio's mark (designXR studios): a tipi of two crossed poles over a campfire, drawn as strokes so the opening
+// can draw it on.
+const STUDIO_MARK = `<svg class="mark" viewBox="40 50 420 400" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+  <path pathLength="1" d="M200 74 L378 424"/><path pathLength="1" d="M300 74 L122 424"/><path pathLength="1" d="M68 426 H432"/>
+  <path class="fire" pathLength="1" d="M250 421 C206 421 181 398 182 364 C183 330 222 316 238 296 C246 286 250 277 252 268 C285 290 320 330 320 370 C320 402 294 421 250 421 Z"/>
+  <path class="fire" pathLength="1" d="M250 421 C226 421 210 405 211 382 C212 359 236 348 248 330 C263 350 289 366 289 392 C289 410 273 421 250 421 Z"/></g></svg>`;
 
 const hex = (c) => '#' + (c >>> 0).toString(16).padStart(6, '0');
 const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -116,6 +123,7 @@ export class Screens {
         <div class="t-grain"></div>
         ${this.entered ? '' : `<div class="t-open" id="t-open">
           <div class="t-black"></div>
+          <div class="t-c0">${STUDIO_MARK}<p>designXR <span>studios</span></p></div>
           <div class="t-c1"><span>A</span><b>Teddy Bousquet</b><span>Production</span></div>
           <div class="t-ttl"><h1 class="logo">BROKE</h1><p class="t-tag">${esc(tagline)}</p></div>
           <button class="t-begin" id="t-begin">Click to begin</button>
@@ -129,8 +137,8 @@ export class Screens {
     $('#t-how-close').onclick = () => { $('#t-how').hidden = true; };
     // The opening, once per visit, like the start of a film: "Click to begin" (the click also starts the sound; with
     // no click it begins on its own after 3 s, and the sound starts at the first click or key), a drone under black,
-    // card one (the production credit), the black lifting onto the city, card two (the title, with a boom), then the
-    // menu. A click or key during it skips to the menu.
+    // the studio's card (designXR studios, its mark drawn on), the production credit, the black lifting onto the city,
+    // the title (with a boom), then the menu. A click or key during it skips to the menu.
     const open = $('#t-open');
     if (open) {
       const timers = [];

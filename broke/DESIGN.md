@@ -1324,10 +1324,11 @@ User direction: "I need a more immersive opening screen."
 - **The opening** (user: "It should be like an opening to a movie"), once per visit:
   - "Click to begin" over black. With no click it starts on its own after 3 s (user: "auto changes after 3 second"), silent until the first click or key, which turns the sound on rather than skipping.
   - A low drone swells (`audio.opening`).
-  - Card one, "A Teddy Bousquet Production", fades up and out (0.8–4.6 s).
-  - The black lifts onto the city tour, held on its first shot (5 s).
-  - Card two, the BROKE title, lands with a sub boom (`audio.boom`) at 6.6 s, and the tagline follows.
-  - The menu arrives at 10.6 s.
+  - The studio card (user's mark, "Add this and say designXR studios"): the designXR studios mark, a tipi of crossed poles over a campfire, redrawn as SVG strokes. It draws itself on, the fire glows, and the name fades up (0.6–4.2 s). Everything after it shifts 3.8 s later: the menu now arrives at 14.4 s.
+  - The production credit, "A Teddy Bousquet Production", fades up and out (4.6–8.4 s).
+  - The black lifts onto the city tour, held on its first shot (8.8 s).
+  - The BROKE title lands with a sub boom (`audio.boom`) at 10.4 s, and the tagline follows.
+  - The menu arrives at 14.4 s.
   - Film grain sits over the title throughout; it's off on touch devices, where it costs too much.
   - A second click or any key skips to the menu.
 - **Leaving**: choosing anything cuts to black, and the game fades up from black.

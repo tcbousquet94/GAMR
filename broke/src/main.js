@@ -96,7 +96,7 @@ const screens = new Screens(document.getElementById('screens'), {
   enter: () => audio.start(), // the title's "click to begin": the first gesture, so the city's sound can start
   // The film-style opening: the drone, and the tour starting over on its first shot, held long enough to carry the
   // two cards and the menu's arrival; then the boom as the title lands.
-  opening: () => { audio.opening(); app.titleCam?.restart(16); },
+  opening: () => { audio.opening(); app.titleCam?.restart(20); },
   boom: () => audio.boom(),
 });
 app.fly = new FlyCam(input);

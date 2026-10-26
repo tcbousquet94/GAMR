@@ -68,6 +68,32 @@ export class Audio {
     s.start(t, Math.random()); s.stop(t + dur + 0.05);
   }
 
+  // ---------- the title's opening ----------
+  // A low drone under the black and the first card: two detuned saws through a slowly opening filter, swelling in
+  // over a few seconds and dying away under the title.
+  opening() {
+    if (!this.ctx) return;
+    const c = this.ctx, t = c.currentTime, f = c.createBiquadFilter(), g = c.createGain();
+    f.type = 'lowpass'; f.Q.value = 2;
+    f.frequency.setValueAtTime(110, t); f.frequency.exponentialRampToValueAtTime(900, t + 6.4); f.frequency.exponentialRampToValueAtTime(160, t + 11);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + 3.5); g.gain.setValueAtTime(0.16, t + 6.4); g.gain.exponentialRampToValueAtTime(0.0001, t + 11);
+    f.connect(g).connect(this.sfxBus); g.connect(this.verb);
+    for (const [fr, det] of [[55, -6], [55.4, 7], [82.4, 0]]) {
+      const o = c.createOscillator();
+      o.type = 'sawtooth'; o.frequency.value = fr; o.detune.value = det;
+      o.connect(f); o.start(t); o.stop(t + 11.2);
+    }
+  }
+  // The title landing: a sub drop, a low thud of noise and a long tail.
+  boom() {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.osc('sine', 72, t, 2.6, 0.75, undefined, 28, true);
+    this.osc('triangle', 110, t, 0.9, 0.25, undefined, 45);
+    this.noiseHit(t, 1.6, 0.5, 'lowpass', 700, 0.7, undefined, 90);
+    this.noiseHit(t, 0.08, 0.35, 'highpass', 1200);
+  }
+
   // ---------- sfx ----------
   play(name, p = {}) {
     if (!this.ctx) return;

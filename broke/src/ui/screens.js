@@ -8,6 +8,9 @@ import { CHOICES, setChoice, getChoice, randomLook } from './look.js';
 import { CreatorPreview } from './creatorPreview.js';
 import { topScores, submitScore, localBest, lastTag } from '../net/leaderboard.js';
 
+// The title's opening, seconds after "Click to begin" (the CSS timeline in style.css uses the same marks).
+const OPENING = { title: 6.6, menu: 10.6 };
+
 const hex = (c) => '#' + (c >>> 0).toString(16).padStart(6, '0');
 const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -97,11 +100,6 @@ export class Screens {
         <div class="t-shade"></div>
         <div class="bar top"></div>
         <div class="bar bottom"><span class="t-cap" id="t-cap"></span></div>
-        <div class="t-splash">
-          <h1 class="logo">BROKE</h1>
-          <p class="t-tag">${esc(tagline)}</p>
-          <button class="t-press" id="t-enter">Click to enter</button>
-        </div>
         <div class="ti-menu">
           <h1 class="logo">BROKE</h1>
           <p class="t-tag">${esc(tagline)}</p>
@@ -115,31 +113,47 @@ export class Screens {
         ${board ? `<aside class="t-board" id="s-board"><h2>Street legends</h2><ol><li class="empty">Loading…</li></ol>${board}</aside>` : ''}
         <div class="t-how" id="t-how" hidden><div class="t-how-card">${how}<button id="t-how-close">Back</button></div></div>
         <div class="t-fade" id="t-fade"></div>
-        ${this.carded ? '' : '<div class="t-card" id="t-card"><p><span>A</span>Teddy Bousquet<span>Production</span></p></div>'}
+        <div class="t-grain"></div>
+        ${this.entered ? '' : `<div class="t-open" id="t-open">
+          <div class="t-black"></div>
+          <div class="t-c1"><span>A</span><b>Teddy Bousquet</b><span>Production</span></div>
+          <div class="t-ttl"><h1 class="logo">BROKE</h1><p class="t-tag">${esc(tagline)}</p></div>
+          <button class="t-begin" id="t-begin">Click to begin</button>
+        </div>`}
       </div>`;
     const $ = (q) => this.root.querySelector(q), shown = this.current;
-    // The production card, once per visit, before the logo: fades up and out over black. A click skips it.
-    const card = $('#t-card');
-    if (card) {
-      this.carded = true;
-      const done = () => card.remove();
-      card.addEventListener('animationend', (e) => { if (e.target === card) done(); });
-      card.addEventListener('click', (e) => { e.stopPropagation(); done(); });
-    }
     const go = (fn) => () => { $('.cine').classList.add('leaving'); setTimeout(fn, 450); };
     $('#s-start').onclick = go(onStart);
     for (const [id, , fn] of extra) $(`#${id}`).onclick = go(fn);
     $('#s-how').onclick = () => { $('#t-how').hidden = false; };
     $('#t-how-close').onclick = () => { $('#t-how').hidden = true; };
-    const enter = () => {
-      if (this.entered || this.current !== shown) return;
-      this.entered = true;
-      $('.cine').classList.add('entered');
-      this.h.enter?.();
-      removeEventListener('keydown', onKey);
-    };
-    const onKey = (e) => { if (e.repeat || e.code === 'F12') return; const c = this.root.querySelector('#t-card'); if (c) { c.remove(); return; } enter(); };
-    if (!this.entered) { $('#t-enter').onclick = enter; $('.t-splash').onclick = enter; addEventListener('keydown', onKey); }
+    // The opening, once per visit, like the start of a film: "Click to begin" (the click also starts the sound), a
+    // drone under black, card one (the production credit), the black lifting onto the city, card two (the title,
+    // with a boom), then the menu. A click or key during it skips to the menu.
+    const open = $('#t-open');
+    if (open) {
+      const timers = [];
+      const finish = () => {
+        if (this.entered) return;
+        this.entered = true;
+        timers.forEach(clearTimeout);
+        removeEventListener('keydown', onKey);
+        if (this.current !== shown) return;
+        $('.cine').classList.add('entered');
+        open.classList.add('done');
+        setTimeout(() => open.remove(), 900);
+      };
+      const begin = () => {
+        if (open.classList.contains('run')) { finish(); return; } // a second click skips
+        open.classList.add('run');
+        this.h.enter?.();
+        this.h.opening?.();
+        timers.push(setTimeout(() => this.h.boom?.(), OPENING.title * 1000), setTimeout(finish, OPENING.menu * 1000));
+      };
+      const onKey = (e) => { if (!e.repeat && e.code !== 'F12') begin(); };
+      open.onclick = begin;
+      addEventListener('keydown', onKey);
+    }
     if (board) {
       topScores(5).then((rows) => {
         const ol = this.current === shown && $('#s-board ol');

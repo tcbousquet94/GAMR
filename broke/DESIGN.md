@@ -1321,6 +1321,13 @@ User direction: "I need a more immersive opening screen."
   - a crane up toward the landmark tower.
   Every camera position is checked against the world and has fallbacks. A target inside a solid, like the tower, is tested short of the solid.
 - **Layout**: letterbox bars, a dark falloff from the left, the BROKE logo and the menu bottom-left (Hit the streets / Character / Be the President / How to play), and the street-legends top five and your best in a card top-right. On phones it's centred low, with the board under the top bar.
-- **Production card**: once per visit, before anything else: "A Teddy Bousquet Production" fades up over black, holds and lifts (about 5 s; a click or key skips it).
-- **Splash**: the first time, only the logo and "Click to enter" show. That click starts the city's sound, which browsers only allow after a gesture.
+- **The opening** (user: "It should be like an opening to a movie"), once per visit:
+  - "Click to begin" over black. The click is the gesture that lets the sound start.
+  - A low drone swells (`audio.opening`).
+  - Card one, "A Teddy Bousquet Production", fades up and out (0.8–4.6 s).
+  - The black lifts onto the city tour, held on its first shot (5 s).
+  - Card two, the BROKE title, lands with a sub boom (`audio.boom`) at 6.6 s, and the tagline follows.
+  - The menu arrives at 10.6 s.
+  - Film grain sits over the title throughout; it's off on touch devices, where it costs too much.
+  - A second click or any key skips to the menu.
 - **Leaving**: choosing anything cuts to black, and the game fades up from black.

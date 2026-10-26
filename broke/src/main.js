@@ -93,7 +93,11 @@ const screens = new Screens(document.getElementById('screens'), {
   map: () => showMap(),
   mapBack: () => (app.mapFromPlay ? resume() : pause()),
   title: () => showTitle(),
-  enter: () => audio.start(), // the title's "click to enter": the first gesture, so the city's sound can start
+  enter: () => audio.start(), // the title's "click to begin": the first gesture, so the city's sound can start
+  // The film-style opening: the drone, and the tour starting over on its first shot, held long enough to carry the
+  // two cards and the menu's arrival; then the boom as the title lands.
+  opening: () => { audio.opening(); app.titleCam?.restart(16); },
+  boom: () => audio.boom(),
 });
 app.fly = new FlyCam(input);
 

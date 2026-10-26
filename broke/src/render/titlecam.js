@@ -26,19 +26,23 @@ export class TitleCam {
     this.i = 0;
     this.shots = [this.street(), this.hero(name), crew && this.crew(crew), this.skyline()].filter(Boolean);
     this.fade = 1;
+    this.dur = SHOT; // this shot's length (the opening holds its first shot longer)
   }
+
+  // Start over from the first shot and let it run `len` seconds (the film-style opening plays over it).
+  restart(len = SHOT) { this.i = 0; this.t = 0; this.dur = len; }
 
   get shot() { return this.shots[this.i % this.shots.length]; }
   get caption() { return this.shot?.caption || ''; }
 
   update(dt) {
     this.t += dt;
-    if (this.t >= SHOT) { this.t -= SHOT; this.i++; }
+    if (this.t >= this.dur) { this.t -= this.dur; this.i++; this.dur = SHOT; }
     // Black at each cut, easing in and out.
-    this.fade = Math.max(0, 1 - this.t / FADE, 1 - (SHOT - this.t) / FADE);
+    this.fade = Math.max(0, 1 - this.t / FADE, 1 - (this.dur - this.t) / FADE);
   }
 
-  pose() { return this.shot.at(ease(Math.min(1, this.t / SHOT))); }
+  pose() { return this.shot.at(ease(Math.min(1, this.t / this.dur))); }
 
   // A slow orbit around the character, at chest height, starting in front of them.
   hero(name) {

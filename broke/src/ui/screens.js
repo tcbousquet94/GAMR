@@ -127,9 +127,10 @@ export class Screens {
     for (const [id, , fn] of extra) $(`#${id}`).onclick = go(fn);
     $('#s-how').onclick = () => { $('#t-how').hidden = false; };
     $('#t-how-close').onclick = () => { $('#t-how').hidden = true; };
-    // The opening, once per visit, like the start of a film: "Click to begin" (the click also starts the sound), a
-    // drone under black, card one (the production credit), the black lifting onto the city, card two (the title,
-    // with a boom), then the menu. A click or key during it skips to the menu.
+    // The opening, once per visit, like the start of a film: "Click to begin" (the click also starts the sound; with
+    // no click it begins on its own after 3 s, and the sound starts at the first click or key), a drone under black,
+    // card one (the production credit), the black lifting onto the city, card two (the title, with a boom), then the
+    // menu. A click or key during it skips to the menu.
     const open = $('#t-open');
     if (open) {
       const timers = [];
@@ -143,16 +144,24 @@ export class Screens {
         open.classList.add('done');
         setTimeout(() => open.remove(), 900);
       };
-      const begin = () => {
-        if (open.classList.contains('run')) { finish(); return; } // a second click skips
+      let heard = false; // has a click or key let the sound start yet?
+      const begin = (auto) => {
+        const gesture = auto !== true;
+        if (open.classList.contains('run')) {
+          // Running: the first click of an opening that began on its own turns the sound on; any other click skips.
+          if (gesture && !heard) { heard = true; this.h.enter?.(); return; }
+          if (gesture) finish();
+          return;
+        }
+        if (gesture) { heard = true; this.h.enter?.(); }
         open.classList.add('run');
-        this.h.enter?.();
         this.h.opening?.();
         timers.push(setTimeout(() => this.h.boom?.(), OPENING.title * 1000), setTimeout(finish, OPENING.menu * 1000));
       };
       const onKey = (e) => { if (!e.repeat && e.code !== 'F12') begin(); };
-      open.onclick = begin;
+      open.onclick = () => begin();
       addEventListener('keydown', onKey);
+      timers.push(setTimeout(() => { if (this.current === shown) begin(true); }, 3000));
     }
     if (board) {
       topScores(5).then((rows) => {

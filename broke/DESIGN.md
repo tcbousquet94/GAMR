@@ -1322,7 +1322,7 @@ User direction: "I need a more immersive opening screen."
   Every camera position is checked against the world and has fallbacks. A target inside a solid, like the tower, is tested short of the solid.
 - **Layout**: letterbox bars, a dark falloff from the left, the BROKE logo and the menu bottom-left (Hit the streets / Character / Be the President / How to play), and the street-legends top five and your best in a card top-right. On phones it's centred low, with the board under the top bar.
 - **The opening** (user: "It should be like an opening to a movie"), once per visit:
-  - "Click to begin" over black. The click is the gesture that lets the sound start.
+  - "Click to begin" over black. With no click it starts on its own after 3 s (user: "auto changes after 3 second"), silent until the first click or key, which turns the sound on rather than skipping.
   - A low drone swells (`audio.opening`).
   - Card one, "A Teddy Bousquet Production", fades up and out (0.8–4.6 s).
   - The black lifts onto the city tour, held on its first shot (5 s).

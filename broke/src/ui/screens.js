@@ -70,11 +70,11 @@ export class Screens {
           <ul>
             <li><b>The Vipers want your streets</b> They come in waves: gunmen, bruisers, then heavies. Last as long as you can.</li>
             <li><b>Right mouse · Aim</b> Hold to raise the revolver. Left click fires: one click, one shot.</li>
-            <li><b>Score</b> Headshots pay more, a kill streak multiplies it, and every cleared wave pays a bonus.</li>
-            <li><b>Power-ups</b> The fallen drop them: medkit, armor, double damage, rapid fire, adrenaline, score x2.</li>
+            <li><b>High score</b> How many you drop before you go down. Clearing a wave heals you a little.</li>
+            <li><b>Power-ups</b> The fallen drop them: medkit, armor, double damage, rapid fire, adrenaline.</li>
           </ul>
         </div>
-        <div class="board-mini" id="s-board">${localBest() ? `<p>Your best: <b>${localBest().score.toLocaleString('en-US')}</b> · wave ${localBest().wave}</p>` : ''}</div>
+        <div class="board-mini" id="s-board">${localBest() ? `<p>Your best: <b>${localBest().score}</b> kills · wave ${localBest().wave}</p>` : ''}</div>
         <button class="primary-btn" id="s-start">Start</button>
         ${creator ? '<button id="s-create">Edit character</button>' : ''}
         ${modes ? '<button id="s-mayor">Be the President</button>' : ''}
@@ -84,7 +84,7 @@ export class Screens {
     if (this.root.querySelector('#s-mayor')) this.root.querySelector('#s-mayor').onclick = () => this.h.mode('town');
     // The online top five, when this page has a board.
     const board = this.root.querySelector('#s-board'), shown = this.current;
-    topScores(5).then((rows) => { if (rows?.length && this.current === shown && board.isConnected) board.insertAdjacentHTML('beforeend', `<ol>${rows.map((r) => `<li${r.me ? ' class="me"' : ''}><span>${esc(r.tag)}</span><b>${r.score.toLocaleString('en-US')}</b></li>`).join('')}</ol>`); });
+    topScores(5).then((rows) => { if (rows?.length && this.current === shown && board.isConnected) board.insertAdjacentHTML('beforeend', `<ol>${rows.map((r) => `<li${r.me ? ' class="me"' : ''}><span>${esc(r.tag)}</span><b>${r.score} kills</b></li>`).join('')}</ol>`); });
     this.root.querySelector('#s-start').onclick = () => this.h.start(this.root.querySelector('#s-seed').value.trim() || String(seed));
     const c = this.root.querySelector('#s-create');
     if (c) c.onclick = () => this.h.creator();
@@ -286,9 +286,10 @@ export class Screens {
       <div class="panel over">
         <h2>YOU WENT DOWN</h2>
         <p class="final">${n(r.score)}</p>
-        <p class="sub">${newBest ? 'New personal best' : best ? `Your best: ${n(best.score)}` : ''}</p>
+        <p class="unit">kill${r.score === 1 ? '' : 's'}</p>
+        <p class="sub">${newBest ? 'New personal best' : best ? `Your best: ${n(best.score)} kills` : ''}</p>
         <div class="runstats">
-          <div><b>${r.wave}</b><span>wave</span></div><div><b>${r.kills}</b><span>kills</span></div>
+          <div><b>${r.wave}</b><span>wave</span></div>
           <div><b>${r.headshots}</b><span>headshots</span></div><div><b>${r.bestCombo}</b><span>best streak</span></div>
           <div><b>${Math.floor(r.time / 60)}:${String(r.time % 60).padStart(2, '0')}</b><span>survived</span></div>
         </div>
@@ -305,7 +306,7 @@ export class Screens {
     const render = (rows) => {
       if (this.current !== shown) return;
       if (!rows) { $('#o-board').innerHTML = '<li class="empty">The online board shows up in the published game on claude.ai.</li>'; return; }
-      $('#o-board').innerHTML = rows.length ? rows.map((x, i) => `<li${x.me ? ' class="me"' : ''}><i>${i + 1}</i><span>${esc(x.tag)}</span><em>wave ${x.wave}</em><b>${n(x.score)}</b></li>`).join('') : '<li class="empty">No scores yet. Post the first one.</li>';
+      $('#o-board').innerHTML = rows.length ? rows.map((x, i) => `<li${x.me ? ' class="me"' : ''}><i>${i + 1}</i><span>${esc(x.tag)}</span><em>wave ${x.wave}</em><b>${n(x.score)} kills</b></li>`).join('') : '<li class="empty">No scores yet. Post the first one.</li>';
     };
     topScores(10).then(render);
     $('#o-post').onsubmit = async (e) => {

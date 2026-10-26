@@ -1,4 +1,4 @@
-// Street fights: waves spawn, the crew fights back, kills score with the combo, power-ups work, the run ends.
+// Street fights: waves spawn, the crew fights back, the score is the kill count, power-ups work, the run ends.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateTurf } from '../../src/city/turf/generate.js';
@@ -6,7 +6,7 @@ import { DOWNTOWN } from '../../src/city/turf/districts/downtown.js';
 import { TurfGame } from '../../src/sim/turf/turfGame.js';
 import { makeCustomHero } from '../../src/sim/survivors/custom.js';
 import { defaultLook } from '../../src/ui/look.js';
-import { waveMix, POWERS, ARCADE } from '../../src/sim/turf/arcade.js';
+import { waveMix, POWERS } from '../../src/sim/turf/arcade.js';
 import { EMPTY_INPUT } from '../../src/sim/game.js';
 import { DT } from '../../src/core/config.js';
 
@@ -34,10 +34,11 @@ test('wave 1 spawns, the crew closes in and hurts a player who stands still, and
   for (let i = 0; i < 240 && !g.player.dead; i++) run(g, 1);
   assert.ok(g.player.dead, 'a player who never fights back goes down');
   assert.equal(over.length, 1);
-  assert.ok(over[0].score > 0 && over[0].wave >= 1);
+  assert.equal(over[0].score, over[0].kills, 'the score is the kill count');
+  assert.ok(over[0].wave >= 1);
 });
 
-test('kills score with headshots and the combo; clearing a wave pays a bonus', () => {
+test('every kill counts one, headshots and streaks are tracked, and clearing a wave starts the next', () => {
   const g = newGame();
   g.godMode = true;
   run(g, 4);
@@ -48,8 +49,8 @@ test('kills score with headshots and the combo; clearing a wave pays a bonus', (
   }
   assert.ok(g.arcade.kills >= waveMix(1).count);
   assert.ok(g.arcade.headshots > 0);
-  const min = waveMix(1).count * ARCADE.points.gunman + ARCADE.waveBonus;
-  assert.ok(g.arcade.score >= min, `score ${g.arcade.score} >= ${min}`);
+  assert.equal(g.arcade.score, g.arcade.kills);
+  assert.equal(g.arcade.result().score, g.arcade.kills);
   assert.ok(g.arcade.best.n >= 2, 'a streak built up');
 });
 
@@ -72,7 +73,7 @@ test('power-ups: double damage, rapid fire, adrenaline, armor, medkit', () => {
   P.refreshStats();
   assert.equal(P.stats.damage, dmg, 'double damage wears off');
   // Walking into a dropped power-up grants it.
-  g.pickups.spawnPower({ x: P.pos.x, y: P.pos.y + 0.6, z: P.pos.z }, 'score');
+  g.pickups.spawnPower({ x: P.pos.x, y: P.pos.y + 0.6, z: P.pos.z }, 'speed');
   run(g, 1);
-  assert.ok(g.arcade.active('score'));
+  assert.ok(g.arcade.active('speed'));
 });

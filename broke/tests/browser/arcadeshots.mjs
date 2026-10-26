@@ -20,8 +20,8 @@ await page.evaluate(() => {
   const e = g.enemies.filter((q) => q.alive).sort((a, b) => Math.hypot(a.pos.x - P.x, a.pos.z - P.z) - Math.hypot(b.pos.x - P.x, b.pos.z - P.z))[0];
   if (e) window.__broke.pose({ x: P.x, y: P.y, z: P.z, yaw: Math.atan2(-(e.pos.x - P.x), -(e.pos.z - P.z)), pitch: 0.05 });
   g.arcade.grant('double'); g.arcade.grant('rapid');
-  g.pickups.spawnPower({ x: P.x - Math.sin(g.player.yaw) * 4, y: P.y + 0.6, z: P.z - Math.cos(g.player.yaw) * 4 }, 'score');
-  g.arcade.score = 4280; g.arcade.combo = { n: 4, t: 3 };
+  g.pickups.spawnPower({ x: P.x - Math.sin(g.player.yaw) * 4, y: P.y + 0.6, z: P.z - Math.cos(g.player.yaw) * 4 }, 'armor');
+  g.arcade.kills = 23; g.arcade.combo = { n: 4, t: 3 };
 });
 await page.waitForTimeout(4000);
 await page.screenshot({ path: `${OUT}fight.png` });

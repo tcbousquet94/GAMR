@@ -1299,17 +1299,13 @@ User direction: "Let's add ai and some power ups and keep a high score for the p
   - The **bruiser** rushes in and punches.
   - The **heavy** is slow and tough, with a sawn-off spread.
   - Only 2 guns fire at once on the first waves, plus one every third wave (`Arcade.mayShoot`). Only one crew member shouts at a time.
-- **Waves** (`src/sim/turf/arcade.js`): 3 + 2n enemies per wave. Bruisers join from wave 2 and heavies from wave 3. Toughness and damage scale per wave. At most 7 are alive at once, spawned off-screen at the city's spawn points. There's a 6 s break between waves, and clearing a wave pays a bonus and heals 25.
-- **Score**:
-  - gunman 100, bruiser 80, heavy 250, +50 for a headshot;
-  - a kill streak (4 s window) multiplies points up to x3;
-  - wave bonus 300 × wave;
-  - +2 per second survived.
-- **Power-ups**: medkit (+60), armor (60 barrier), double damage, rapid fire (fast hammer, no reloads), adrenaline (+35% speed) and score x2. Timed ones last 10–15 s. They drop from kills (18%, heavies 60%) and turn up on the street about every 28 s. They glow in their colour with a light column, and blink before they vanish.
+- **Waves** (`src/sim/turf/arcade.js`): 3 + 2n enemies per wave. Bruisers join from wave 2 and heavies from wave 3. Toughness and damage scale per wave. At most 7 are alive at once, spawned off-screen at the city's spawn points. There's a 6 s break between waves, and clearing a wave heals 25.
+- **Score = kills** (user: "The high score is number of kills before player died"). Headshots, best streak, wave and time survived are shown as run stats only.
+- **Power-ups**: medkit (+60), armor (60 barrier), double damage, rapid fire (fast hammer, no reloads), and adrenaline (+35% speed). Timed ones last 10–12 s. They drop from kills (18%, heavies 60%) and turn up on the street about every 28 s. They glow in their colour with a light column, and blink before they vanish.
 - **Pathfinding fix**: the flow field now records walls between neighbouring cells. Fences and walls used to read as a way through, and enemies stood behind them.
 - **High scores** (`src/net/leaderboard.js`):
   - The local best is kept in localStorage.
-  - The online board is the published page's shared store: `scores/<player id>` = { tag, score, wave, kills, headshots, at }, best run only.
+  - The online board is the published page's shared store: `scores/<player id>` = { tag, score (= kills), wave, kills, headshots, at }, best run only.
   - Rules: `scores` is readable by everyone and written by the owner; `scores/{self}` is written by that player at Contributor level and up.
   - Public-link visitors can read the board but can't post (a platform rule: outside viewers never write). The game-over screen says so.
 - The game-over screen shows the score, the run stats, a personal-best flag, a name field with Post score, and the top 10 (your row highlighted). The title screen shows your best and the online top five.

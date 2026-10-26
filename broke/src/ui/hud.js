@@ -113,7 +113,7 @@ export class Hud {
       E.on('recover', () => this.flashPrompt('Back on your feet', 'You fell. It cost you a little health.')),
       // Street fights.
       E.on('waveStart', (d) => this.banner(`Wave ${d.wave}`, `${d.count} Vipers coming for you.`)),
-      E.on('waveClear', (d) => this.banner('Street cleared', `+${d.bonus.toLocaleString('en-US')} · +25 health`)),
+      E.on('waveClear', () => this.banner('Street cleared', '+25 health')),
       E.on('power', (d) => this.toast(d.name, d.desc, hex(d.color), gem(d.color))),
       E.on('score', (d) => this.scorePop(d)),
     ];
@@ -160,9 +160,9 @@ export class Hud {
     this._bcT = setTimeout(() => this.bossNameEl?.classList.remove('call'), 1600);
   }
 
-  // A kill's points float up from the top-right score for a moment.
+  // Each kill floats up from the top-right kill count for a moment.
   scorePop(d) {
-    const t = h('div', `pop${d.head ? ' head' : ''}`, `+${d.points}${d.head ? ' HEADSHOT' : ''}`);
+    const t = h('div', `pop${d.head ? ' head' : ''}`, d.head ? '+1 HEADSHOT' : '+1');
     this.el.pops.appendChild(t);
     setTimeout(() => t.remove(), 1100);
     while (this.el.pops.children.length > 4) this.el.pops.firstChild.remove();
@@ -181,13 +181,13 @@ export class Hud {
     if (this.popT > 0) { this.popT -= dt; el.pop.textContent = `+${formatMoney(this.popAmt)}`; el.pop.style.opacity = Math.min(1, this.popT * 2); if (this.popT <= 0) this.popAmt = 0; }
     else el.pop.style.opacity = 0;
     if (turf && g.arcade) {
-      // Street fights: the score, the wave, the streak and the power-ups running.
+      // Street fights: kills (the score), the wave, the streak and the power-ups running.
       const A = g.arcade;
-      el.tier.textContent = A.score.toLocaleString('en-US');
+      el.tier.textContent = `${A.kills} kill${A.kills === 1 ? '' : 's'}`;
       el.tier.dataset.tier = 0;
       el.clock.textContent = A.phase === 'break' ? (A.wave ? `Wave ${A.wave + 1} in ${Math.ceil(A.timer)}` : 'Get ready') : `Wave ${A.wave} · ${A.enemiesLeft()} left`;
       el.tierfill.parentElement.style.display = 'none';
-      el.combo.textContent = A.combo.n >= 2 ? `${A.combo.n} streak · x${A.mult.toFixed(1)}` : '';
+      el.combo.textContent = A.combo.n >= 2 ? `${A.combo.n} kill streak` : '';
       const pk = Object.entries(A.powers).map(([id, t]) => `${id}:${Math.ceil(t)}`).join(',');
       if (pk !== this._powKey) {
         this._powKey = pk;

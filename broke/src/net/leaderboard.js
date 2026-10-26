@@ -1,12 +1,12 @@
-// High scores. Your best run is kept in this browser; the online board lives in the published page's shared store
-// (the claude.ai `db` capability): one document per player at scores/<their id>, holding only their best run and the
-// tag they typed. Everyone who can open the page reads the board; each player writes only their own row (the rules
+// High scores: a run's score is its kill count. Your best run is kept in this browser; the online board lives in
+// the published page's shared store (the claude.ai `db` capability): one document per player at scores/<their id>,
+// holding only their best run and the tag they typed. Everyone who can open the page reads the board; each player writes only their own row (the rules
 // are declared when the page is published: scores readable by all, scores/{self} writable by its owner).
 //
 // Anywhere else (vite dev, a saved copy of the page, a viewer who can't write) the board degrades: the local best
 // always works, the online list shows when it can be read, and posting says why it can't.
 
-const LOCAL = 'broke.best.v1';
+const LOCAL = 'broke.best.v2'; // v1 held points, from before the score became the kill count
 const TAG = 'broke.tag.v1';
 
 const store = {

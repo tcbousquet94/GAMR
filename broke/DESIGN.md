@@ -1309,3 +1309,17 @@ User direction: "Let's add ai and some power ups and keep a high score for the p
   - Rules: `scores` is readable by everyone and written by the owner; `scores/{self}` is written by that player at Contributor level and up.
   - Public-link visitors can read the board but can't post (a platform rule: outside viewers never write). The game-over screen says so.
 - The game-over screen shows the score, the run stats, a personal-best flag, a name field with Post score, and the top 10 (your row highlighted). The title screen shows your best and the online top five.
+
+## THE TITLE SCREEN (attract mode)
+
+User direction: "I need a more immersive opening screen."
+
+- **Camera tour** (`src/render/titlecam.js`): the menu sits over a slow loop of four shots of the city, 8.5 s each, cut through black, each with a location card in the bottom letterbox bar:
+  - a low dolly down a nearby street, named after a business on it;
+  - a slow orbit around your character;
+  - a side-on two-shot: a few Vipers loitering in the foreground (`spawnLoiterers`: no AI, no attacks) with you beyond them;
+  - a crane up toward the landmark tower.
+  Every camera position is checked against the world and has fallbacks. A target inside a solid, like the tower, is tested short of the solid.
+- **Layout**: letterbox bars, a dark falloff from the left, the BROKE logo and the menu bottom-left (Hit the streets / Character / Be the President / How to play), and the street-legends top five and your best in a card top-right. On phones it's centred low, with the board under the top bar.
+- **Splash**: the first time, only the logo and "Click to enter" show. That click starts the city's sound, which browsers only allow after a gesture.
+- **Leaving**: choosing anything cuts to black, and the game fades up from black.

@@ -50,6 +50,39 @@ class Crew extends Enemy {
     g.crewBarkT = g.time + 3 + g.rng.next() * 3;
     super.bark(line);
   }
+  // Loitering (the title screen's backdrop): standing around on the corner, no AI, no attacks.
+  update(dt) {
+    if (!this.loiter) { super.update(dt); return; }
+    this.spawnT += dt;
+    this.telegraph = 0;
+    this.yaw = this.loiter.yaw;
+    this.moveTo(dt, null);
+  }
+}
+
+// A few of the crew hanging out down the street from the player, in a loose ring facing each other (one watching the
+// player). For the title screen. Returns where they stand, or null when there's no open ground in view.
+export function spawnLoiterers(g, n = 3) {
+  const P = g.player.pos, w = g.world;
+  for (const turn of [0, 0.6, -0.6, 1.3, -1.3, Math.PI]) {
+    const a = g.player.yaw + turn;
+    for (const d of [16, 12, 20, 9]) {
+      const x = P.x - Math.sin(a) * d, z = P.z - Math.cos(a) * d;
+      const y = w.groundBelow(x, P.y + 3, z, 0.4, 8);
+      if (!Number.isFinite(y) || Math.abs(y - P.y) > 1 || !w.segmentClear({ x: P.x, y: P.y + 1.5, z: P.z }, { x, y: y + 1.5, z })) continue;
+      const spots = Array.from({ length: n }, (_, i) => { const t = (i / n) * Math.PI * 2 + 0.4; return { x: x + Math.cos(t) * 1.3, z: z + Math.sin(t) * 1.3 }; });
+      if (!spots.every((s) => w.fits(s.x, y + 0.05, s.z, 0.5, 1.9))) continue;
+      spots.forEach((s, i) => {
+        const e = g.spawnEnemy(['gunman', 'bruiser', 'gunman', 'heavy'][i % 4], { x: s.x, y: y + 0.05, z: s.z });
+        if (!e) return;
+        // The first one watches the player; the rest face the middle of the group.
+        e.loiter = { yaw: i === 0 ? Math.atan2(-(P.x - s.x), -(P.z - s.z)) : Math.atan2(-(x - s.x), -(z - s.z)) };
+        e.yaw = e.loiter.yaw;
+      });
+      return { x, z };
+    }
+  }
+  return null;
 }
 
 export class Gunman extends Crew {

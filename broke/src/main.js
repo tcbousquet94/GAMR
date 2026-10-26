@@ -30,6 +30,8 @@ import { FlyCam } from './debug/flycam.js';
 import { buildDebugOverlay } from './render/debugOverlay.js';
 import { buildClosedShops } from './render/kit/closedShops.js';
 import { localBest, saveLocal } from './net/leaderboard.js';
+import { TitleCam } from './render/titlecam.js';
+import { spawnLoiterers } from './sim/enemies/gang.js';
 
 const params = new URLSearchParams(location.search);
 const canvas = document.getElementById('game');
@@ -91,6 +93,7 @@ const screens = new Screens(document.getElementById('screens'), {
   map: () => showMap(),
   mapBack: () => (app.mapFromPlay ? resume() : pause()),
   title: () => showTitle(),
+  enter: () => audio.start(), // the title's "click to enter": the first gesture, so the city's sound can start
 });
 app.fly = new FlyCam(input);
 
@@ -142,6 +145,7 @@ export function startRun(seed, opts = {}) {
   if (CLASSIC) g.player.camBase = CAM.classic;
   if (params.get('god') === '1' || opts.god) g.godMode = true;
   if (app.fly?.active) app.fly.toggle(view);
+  if (endTitle()) curtain();
   view.load(g);
   attachMayor(g);
   if (g.mayor) {
@@ -247,6 +251,15 @@ function frame(now) {
     app.acc += dt;
     while (app.acc >= DT) { g.step(); app.acc -= DT; }
   }
+  if (app.titleCam && app.state === 'title') {
+    // The title tour: advance the shot, and the cut-to-black and location card it shows over the menu.
+    const T = app.titleCam;
+    T.update(dt);
+    const fade = document.getElementById('t-fade'), cap = document.getElementById('t-cap');
+    if (fade) fade.style.opacity = T.fade.toFixed(3);
+    if (cap && cap.textContent !== T.caption) cap.textContent = T.caption;
+    if (cap) cap.style.opacity = T.fade > 0.2 ? 0 : 1;
+  }
   view.render(dt);
   app.onFrame?.();
   hud.flying = app.fly.active; // the leader is parked while the camera roams: no "you are here" prompt
@@ -291,7 +304,29 @@ function showTitle() {
   hud.bind(g, PC, touch);
   hud.setVisible(false);
   app.state = 'title';
+  // Attract mode: a cinematic tour of the city behind the menu, with a few of the Vipers hanging out down the street.
+  if (!CLASSIC && g.turf) {
+    const crew = TURF ? spawnLoiterers(g) : null;
+    app.titleCam = new TitleCam(g, { crew, name: look?.name });
+    view.camOverride = () => app.titleCam.pose();
+  }
   screens.show('title', { survivor: PC, seed: app.seed, creator: TURF || TOWN, town: TOWN, modes: !HERO && !CLASSIC });
+}
+
+// Leaving the title: the tour stops and the camera returns to the player.
+function endTitle() {
+  if (!app.titleCam) return false;
+  app.titleCam = null;
+  view.camOverride = null;
+  return true;
+}
+
+// Fade up from black (after the title's cut to black).
+function curtain() {
+  let c = document.getElementById('curtain');
+  if (!c) { c = document.createElement('div'); c.id = 'curtain'; c.style.cssText = 'position:fixed;inset:0;background:#07060a;pointer-events:none;z-index:40;transition:opacity 1.1s ease-out'; document.body.appendChild(c); }
+  c.style.transition = 'none'; c.style.opacity = '1';
+  requestAnimationFrame(() => requestAnimationFrame(() => { c.style.transition = 'opacity 1.1s ease-out'; c.style.opacity = '0'; }));
 }
 
 async function switchMode(m) {
@@ -304,6 +339,7 @@ async function switchMode(m) {
 
 // Character creator (turf war): edits the look with a live turntable preview of the model.
 function showCreator() {
+  endTitle();
   app.state = 'title';
   screens.show('creator', { look });
 }

@@ -56,66 +56,90 @@ export class Screens {
     this.root.querySelector('#s-start').onclick = () => this.h.start(this.root.querySelector('#s-seed').value.trim() || String(seed));
   }
 
-  // Title for the turf war played as your own character: who you are, how the gun works, and the creator.
+  // The title screen: the menu over the city's attract mode (a cinematic camera tour, see render/titlecam.js), framed
+  // by letterbox bars with a location card for each shot. The first time, a "click to enter" splash (it also starts
+  // the sound, which browsers only allow after a click). Turf war and President share the layout; the copy differs.
   gunTitle({ survivor, seed, creator, town, modes }) {
-    const sw = hex(survivor.accent ?? 0x8a6a44);
-    if (town) return this.mayorTitle({ survivor, creator, modes });
-    this.root.innerHTML = `
-      <div class="title-wrap">
-        <h1>BROKE</h1>
-        <p class="tagline">Two crews. One city. Every block counts.</p>
-        <div class="lore">
-          <div class="lore-head"><span class="swatch" style="background:${sw}"></span><div><b>${esc(survivor.name)}</b><span>${esc(survivor.role)}</span></div></div>
-          <p>${esc(survivor.lore)}</p>
-          <ul>
-            <li><b>The Vipers want your streets</b> They come in waves: gunmen, bruisers, then heavies. Last as long as you can.</li>
-            <li><b>Right mouse · Aim</b> Hold to raise the revolver. Left click fires: one click, one shot.</li>
-            <li><b>High score</b> How many you drop before you go down. Clearing a wave heals you a little.</li>
-            <li><b>Power-ups</b> The fallen drop them: medkit, armor, double damage, rapid fire, adrenaline.</li>
-          </ul>
-        </div>
-        <div class="board-mini" id="s-board">${localBest() ? `<p>Your best: <b>${localBest().score}</b> kills · wave ${localBest().wave}</p>` : ''}</div>
-        <button class="primary-btn" id="s-start">Start</button>
-        ${creator ? '<button id="s-create">Edit character</button>' : ''}
-        ${modes ? '<button id="s-mayor">Be the President</button>' : ''}
-        <div class="seed-row"><label>Seed <input id="s-seed" value="${seed}" spellcheck="false"></label></div>
-        <p class="controls">WASD move · Mouse look · Shift sprint · Space jump · M town map · Esc pause</p>
-      </div>`;
-    if (this.root.querySelector('#s-mayor')) this.root.querySelector('#s-mayor').onclick = () => this.h.mode('town');
-    // The online top five, when this page has a board.
-    const board = this.root.querySelector('#s-board'), shown = this.current;
-    topScores(5).then((rows) => { if (rows?.length && this.current === shown && board.isConnected) board.insertAdjacentHTML('beforeend', `<ol>${rows.map((r) => `<li${r.me ? ' class="me"' : ''}><span>${esc(r.tag)}</span><b>${r.score} kills</b></li>`).join('')}</ol>`); });
-    this.root.querySelector('#s-start').onclick = () => this.h.start(this.root.querySelector('#s-seed').value.trim() || String(seed));
-    const c = this.root.querySelector('#s-create');
-    if (c) c.onclick = () => this.h.creator();
+    const board = `<p class="t-best">${localBest() ? `Your best <b>${localBest().score}</b> kills · wave ${localBest().wave}` : 'No runs yet'}</p>`;
+    if (town) {
+      return this.cinematic({
+        tagline: 'The country needs a president. It got you.',
+        start: 'Take office', onStart: () => this.h.start('palmetto'),
+        items: [creator && ['s-create', 'Character', () => this.h.creator()], modes && ['s-turf', 'Play the turf war', () => this.h.mode('turf')]],
+        how: `<b>President ${esc(survivor.name)}</b><span>The White House, Palmetto Bay</span>
+          <p>Five neighbourhoods, a few hundred shops and two gangs who were here first. Set the taxes, fund the police, the street sweepers, the parks and the small shops. Every week the books settle and the city answers: safer streets and open shops, or boarded windows and angry residents.</p>
+          <ul><li><b>C · Oval Office</b> The budget, every neighbourhood's scores, and last week's report.</li>
+          <li><b>Walk the streets</b> See what your choices did: closed shops are boarded up.</li>
+          <li><b>Right mouse / click / R</b> The revolver still works. Some problems need a personal touch.</li></ul>
+          <p class="keys">WASD move · Mouse look · Shift sprint · Space jump · C Oval Office · M map · Esc pause</p>`,
+      });
+    }
+    return this.cinematic({
+      tagline: 'Two crews. One city. Every block counts.',
+      start: 'Hit the streets', onStart: () => this.h.start(this.root.querySelector('#s-seed')?.value.trim() || String(seed)),
+      items: [creator && ['s-create', 'Character', () => this.h.creator()], modes && ['s-mayor', 'Be the President', () => this.h.mode('town')]],
+      board,
+      seed,
+      how: `<b>${esc(survivor.name)}</b><span>${esc(survivor.role)}</span>
+        <p>${esc(survivor.lore)}</p>
+        <ul><li><b>The Vipers want your streets</b> They come in waves: gunmen, bruisers, then heavies. Last as long as you can.</li>
+        <li><b>Right mouse · Aim</b> Hold to raise the revolver. Left click fires: one click, one shot. R reloads.</li>
+        <li><b>High score</b> How many you drop before you go down. Clearing a wave heals you a little.</li>
+        <li><b>Power-ups</b> The fallen drop them: medkit, armor, double damage, rapid fire, adrenaline.</li></ul>
+        <p class="keys">WASD move · Mouse look · Shift sprint · Space jump · M town map · Esc pause</p>`,
+    });
   }
 
-  // Title for the mayor game: Palmetto Bay, City Hall, what you manage.
-  mayorTitle({ survivor, creator, modes }) {
+  cinematic({ tagline, start, onStart, items, how, board = '', seed = null }) {
+    const extra = items.filter(Boolean);
     this.root.innerHTML = `
-      <div class="title-wrap">
-        <h1>BROKE</h1>
-        <p class="tagline">The country needs a president. It got you.</p>
-        <div class="lore">
-          <div class="lore-head"><span class="swatch" style="background:#d8b030"></span><div><b>President ${esc(survivor.name)}</b><span>The White House, Palmetto Bay</span></div></div>
-          <p>Five neighbourhoods, a few hundred shops and two gangs who were here first. Set the taxes, fund the police, the street sweepers, the parks and the small shops. Every week the books settle and the city answers: safer streets and open shops, or boarded windows and angry residents.</p>
-          <ul>
-            <li><b>C · Oval Office</b> The budget, every neighbourhood's scores, and last week's report.</li>
-            <li><b>Walk the streets</b> See what your choices did: closed shops are boarded up.</li>
-            <li><b>Right mouse / click / R</b> The revolver still works. Some problems need a personal touch.</li>
-          </ul>
+      <div class="cine${this.entered ? ' entered' : ''}">
+        <div class="t-shade"></div>
+        <div class="bar top"></div>
+        <div class="bar bottom"><span class="t-cap" id="t-cap"></span></div>
+        <div class="t-splash">
+          <h1 class="logo">BROKE</h1>
+          <p class="t-tag">${esc(tagline)}</p>
+          <button class="t-press" id="t-enter">Click to enter</button>
         </div>
-        <button class="primary-btn" id="s-start">Take office</button>
-        ${creator ? '<button id="s-create">Edit character</button>' : ''}
-        ${modes ? '<button id="s-turf">Play the turf war instead</button>' : ''}
-        <p class="controls">WASD move · Mouse look · Shift sprint · Space jump · C Oval Office · M map · Esc pause</p>
+        <div class="ti-menu">
+          <h1 class="logo">BROKE</h1>
+          <p class="t-tag">${esc(tagline)}</p>
+          <nav>
+            <button class="m-item main" id="s-start">${esc(start)}</button>
+            ${extra.map(([id, label]) => `<button class="m-item" id="${id}">${esc(label)}</button>`).join('')}
+            <button class="m-item" id="s-how">How to play</button>
+          </nav>
+          ${seed != null ? `<label class="t-seed">Seed <input id="s-seed" value="${esc(seed)}" spellcheck="false"></label>` : ''}
+        </div>
+        ${board ? `<aside class="t-board" id="s-board"><h2>Street legends</h2><ol><li class="empty">Loading…</li></ol>${board}</aside>` : ''}
+        <div class="t-how" id="t-how" hidden><div class="t-how-card">${how}<button id="t-how-close">Back</button></div></div>
+        <div class="t-fade" id="t-fade"></div>
       </div>`;
-    this.root.querySelector('#s-start').onclick = () => this.h.start('palmetto');
-    const c = this.root.querySelector('#s-create');
-    if (c) c.onclick = () => this.h.creator();
-    const t = this.root.querySelector('#s-turf');
-    if (t) t.onclick = () => this.h.mode('turf');
+    const $ = (q) => this.root.querySelector(q), shown = this.current;
+    const go = (fn) => () => { $('.cine').classList.add('leaving'); setTimeout(fn, 450); };
+    $('#s-start').onclick = go(onStart);
+    for (const [id, , fn] of extra) $(`#${id}`).onclick = go(fn);
+    $('#s-how').onclick = () => { $('#t-how').hidden = false; };
+    $('#t-how-close').onclick = () => { $('#t-how').hidden = true; };
+    const enter = () => {
+      if (this.entered || this.current !== shown) return;
+      this.entered = true;
+      $('.cine').classList.add('entered');
+      this.h.enter?.();
+      removeEventListener('keydown', onKey);
+    };
+    const onKey = (e) => { if (!e.repeat && e.code !== 'F12') enter(); };
+    if (!this.entered) { $('#t-enter').onclick = enter; $('.t-splash').onclick = enter; addEventListener('keydown', onKey); }
+    if (board) {
+      topScores(5).then((rows) => {
+        const ol = this.current === shown && $('#s-board ol');
+        if (!ol) return;
+        ol.innerHTML = rows?.length ? rows.map((r, i) => `<li${r.me ? ' class="me"' : ''}><i>${i + 1}</i><span>${esc(r.tag)}</span><b>${r.score}</b></li>`).join('') : `<li class="empty">${rows ? 'Nobody yet. Be the first.' : 'The online board lives in the published game.'}</li>`;
+      });
+    }
   }
+
 
   // Character creator: a live preview on the left, the choices on the right. Done saves; Cancel keeps the old look.
   creator({ look }) {

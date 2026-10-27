@@ -4,8 +4,8 @@
 // action shots every couple of seconds (over the shoulder, low and in front, a reverse from behind the enemy, a side
 // track, a high wide), a slow-motion close-up on every kill, and an explosion in the middle of it. Letterbox bars, a
 // hard grade, and the title card at the end. control() feeds the player's input in place of the keyboard; update()
-// runs the camera, the staged people and props, and the overlay. Reads the game; the explosion is the one thing it
-// does to the fight.
+// runs the camera, the staged people and props, and the overlay. What it does to the game: moves him to an open
+// junction for the fight, holds the Vipers back until the fight cuts in, and sets off the explosion.
 
 import * as THREE from 'three';
 import { RigType, rootMatrix } from './rig.js';
@@ -62,6 +62,7 @@ export class ActionMontage {
     view.scene.add(this.props);
     this.puppets = [];
     this.buildSets(look);
+    this.moveToStreet();
     // The cut: held moments first, then the fight with the explosion in the middle, then the title.
     this.segs = [
       this.grave && { kind: 'grave', dur: 4.5, night: 0.55, grade: 'grayscale(0.55) contrast(1.15) brightness(0.9)' },
@@ -80,7 +81,7 @@ export class ActionMontage {
     if (!document.getElementById('m-style')) { const st = document.createElement('style'); st.id = 'm-style'; st.textContent = CSS; document.head.appendChild(st); }
     const el = (this.el = document.createElement('div'));
     el.id = 'montage';
-    el.innerHTML = `<div class="m-bar top"></div><div class="m-bar bot"></div><div class="m-sub"></div><div class="m-white"></div><div class="m-card">${title}${tagline ? `<small>${tagline}</small>` : ''}</div><div class="m-fade"></div><button class="m-skip">Skip ›</button>`;
+    el.innerHTML = `<div class="m-bar top"></div><div class="m-bar bot"></div><div class="m-sub"></div><div class="m-white"></div><div class="m-fade"></div><div class="m-card">${title}${tagline ? `<small>${tagline}</small>` : ''}</div><button class="m-skip">Skip ›</button>`;
     document.body.appendChild(el);
     this.$ = { fade: el.querySelector('.m-fade'), white: el.querySelector('.m-white'), card: el.querySelector('.m-card'), sub: el.querySelector('.m-sub') };
     el.querySelector('.m-skip').onclick = () => this.finish();
@@ -175,6 +176,22 @@ export class ActionMontage {
       this.props.add(mesh);
       this.car = { mesh, a, dir, y: gy(a.x, a.z) - 0.12, L: road.L };
     }
+  }
+
+  // The fight plays out in the open: he starts in the middle of a four-way junction near the centre of town (the
+  // run begins in a container yard, too tight for the cameras); the Vipers spawn around him from there.
+  moveToStreet() {
+    const g = this.g, T = g.turf, w = g.world;
+    const L = T?.landmarks?.[0], c = L ? { x: L.x, z: L.z } : { x: g.player.pos.x, z: g.player.pos.z };
+    const junction = (T?.roads.intersections || []).filter((I) => I.degree >= 4)
+      .sort((a, b) => Math.hypot(a.x - c.x, a.z - c.z) - Math.hypot(b.x - c.x, b.z - c.z))
+      .find((I) => w.fits(I.x, 0.2, I.z, 0.6, 1.9));
+    if (!junction) return;
+    const y = w.groundBelow(junction.x, 3, junction.z, 0.3, 10);
+    const P = g.player;
+    Object.assign(P.body.pos, { x: junction.x, y: (Number.isFinite(y) ? y : 0) + 0.05, z: junction.z });
+    P.body.vel = { x: 0, y: 0, z: 0 };
+    P.lastSafe = { ...P.body.pos };
   }
 
   // ---- autopilot -------------------------------------------------------------------------------------------------

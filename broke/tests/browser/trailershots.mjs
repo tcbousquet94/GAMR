@@ -11,13 +11,13 @@ let errs = [];
 try {
   const { browser, page, errors } = await openGame(srv.url, `mode=turf&seed=${seed}&trailer=1&shot=1&quality=low`, { width: 800, height: 450 });
   await page.waitForFunction(() => window.__montage?.(), null, { timeout: 300000 });
-  let n = 0, last = '', lastT = -9;
+  let n = 0, last = '', lastT = -9, lastSi = -1;
   for (let i = 0; i < 900; i++) {
-    const s = await page.evaluate(() => { const m = window.__montage?.(); return m ? { kind: m.seg?.kind, t: m.t, segT: m.segT, kills: window.__broke.game.arcade?.kills } : null; });
+    const s = await page.evaluate(() => { const m = window.__montage?.(); return m ? { kind: m.seg?.kind, si: m.si, t: m.t, segT: m.segT, kills: window.__broke.game.arcade?.kills } : null; });
     if (!s) break;
-    const midStaged = s.kind !== 'combat' && s.kind !== last && s.segT > 1.2;
+    const midStaged = s.kind !== 'combat' && s.si !== lastSi && s.segT > 1.2;
     if (midStaged || (s.kind === 'combat' && s.t - lastT > 2.5) || (s.kind === 'boom' && s.segT > 1.2 && last !== 'boom')) {
-      n++; last = s.kind; lastT = s.t;
+      n++; last = s.kind; lastT = s.t; lastSi = s.si;
       await page.screenshot({ path: `${OUT}${String(n).padStart(2, '0')}-${s.kind}.png`, timeout: 180000 });
       console.log(n, JSON.stringify(s));
     }

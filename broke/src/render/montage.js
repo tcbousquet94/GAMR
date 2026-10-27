@@ -16,6 +16,7 @@ import { humanPose } from './models/humanoid.js';
 import { Batch } from './kit/batch.js';
 import { car as buildCar } from './kit/street.js';
 import { kitMaterials } from './kit/materials.js';
+import { TitleCam } from './titlecam.js';
 
 const yawTo = (dx, dz) => Math.atan2(-dx, -dz);
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -30,6 +31,7 @@ const CSS = `
 #montage .m-card small{font:italic 500 clamp(14px,2vw,22px)/1.4 'Cormorant Garamond',Georgia,serif;letter-spacing:.12em;margin-top:.6em;opacity:.8}
 #montage .m-sub{position:absolute;left:8%;right:8%;bottom:12vh;text-align:center;color:#f2ece0;font:500 clamp(17px,2.6vw,28px)/1.3 'Cormorant Garamond',Georgia,serif;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .35s}
 #montage .m-sub b{font-variant:small-caps;letter-spacing:.06em;color:#d8c8a8;margin-right:.4em}
+#montage .m-cap{position:absolute;left:4%;bottom:calc(10vh + 16px);color:#f2ece0;font:600 clamp(13px,1.6vw,18px)/1 'Cormorant Garamond',Georgia,serif;letter-spacing:.32em;text-transform:uppercase;text-shadow:0 1px 4px #000;opacity:0;transition:opacity .6s}
 #montage .m-skip{position:absolute;right:18px;bottom:calc(10vh + 12px);pointer-events:auto;background:rgba(0,0,0,.45);color:#f2ece0;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:8px 16px;font:600 15px 'Cormorant Garamond',Georgia,serif;letter-spacing:.08em;cursor:pointer}
 `;
 const GRADE = 'contrast(1.18) saturate(0.82) brightness(0.95)';
@@ -64,10 +66,17 @@ export class ActionMontage {
     this.buildSets(look);
     this.moveToStreet();
     // The cut: held moments first, then the fight with the explosion in the middle, then the title.
+    const E = this.establishing();
     this.segs = [
+      E.skyline && { kind: 'est', dur: 4, night: 0.3, ...E.skyline },
+      E.flyover && { kind: 'est', dur: 4, night: 0.3, ...E.flyover },
+      E.white && { kind: 'est', dur: 3.5, night: 0.4, ...E.white },
       this.grave && { kind: 'grave', dur: 4.5, night: 0.55, grade: 'grayscale(0.55) contrast(1.15) brightness(0.9)' },
+      E.street && { kind: 'est', dur: 3, night: 0.85, ...E.street },
       this.porch && { kind: 'porch', dur: 5, night: 1, sub: (t) => (t > 1.2 ? '<b>Visitor</b> One last job, Walt.' : '') },
+      E.nightSky && { kind: 'est', dur: 3.5, night: 1, ...E.nightSky },
       this.car && { kind: 'car', dur: 4, night: 0.35 },
+      E.junction && { kind: 'est', dur: 3, ...E.junction },
       { kind: 'combat', dur: 9, flash: 0.35 },
       { kind: 'boom', dur: 3.6 },
       { kind: 'combat', dur: 8 },
@@ -81,9 +90,9 @@ export class ActionMontage {
     if (!document.getElementById('m-style')) { const st = document.createElement('style'); st.id = 'm-style'; st.textContent = CSS; document.head.appendChild(st); }
     const el = (this.el = document.createElement('div'));
     el.id = 'montage';
-    el.innerHTML = `<div class="m-bar top"></div><div class="m-bar bot"></div><div class="m-sub"></div><div class="m-white"></div><div class="m-fade"></div><div class="m-card">${title}${tagline ? `<small>${tagline}</small>` : ''}</div><button class="m-skip">Skip ›</button>`;
+    el.innerHTML = `<div class="m-bar top"></div><div class="m-bar bot"></div><div class="m-sub"></div><div class="m-cap"></div><div class="m-white"></div><div class="m-fade"></div><div class="m-card">${title}${tagline ? `<small>${tagline}</small>` : ''}</div><button class="m-skip">Skip ›</button>`;
     document.body.appendChild(el);
-    this.$ = { fade: el.querySelector('.m-fade'), white: el.querySelector('.m-white'), card: el.querySelector('.m-card'), sub: el.querySelector('.m-sub') };
+    this.$ = { fade: el.querySelector('.m-fade'), white: el.querySelector('.m-white'), card: el.querySelector('.m-card'), sub: el.querySelector('.m-sub'), cap: el.querySelector('.m-cap') };
     el.querySelector('.m-skip').onclick = () => this.finish();
     this.key = (e) => { if (e.code === 'Escape' || e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); this.finish(); } };
     addEventListener('keydown', this.key, true);
@@ -100,6 +109,34 @@ export class ActionMontage {
     const p = { rig, at, scale: Math.max(0.88, Math.min(1.08, (spec.height || 1.8) / 1.8)) };
     this.puppets.push(p);
     return p;
+  }
+
+  // Establishing shots: the city before the people. The title camera's skyline crane and street dolly (both checked
+  // for a clear view), a flyover of the rooftops toward downtown, the White House, the night skyline, and a high look
+  // down on the junction where the fight will be. Each carries a location caption.
+  establishing() {
+    const g = this.g, T = g.turf, w = g.world, tc = new TitleCam(g), out = {};
+    const name = T?.district?.name || g.city.district?.name || '';
+    const sky = tc.skyline(), street = tc.street();
+    if (sky) out.skyline = { cam: (k) => sky.at(k), caption: sky.caption };
+    if (street) out.street = { cam: (k) => street.at(k), caption: street.caption };
+    const L = T?.landmarks?.[0];
+    if (L) {
+      const a = { x: L.x - 150, y: 95, z: L.z + 120 }, b = { x: L.x - 60, y: 80, z: L.z + 60 };
+      out.flyover = { caption: name, cam: (k) => ({ pos: { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, z: a.z + (b.z - a.z) * k }, target: { x: L.x, y: L.height * 0.45, z: L.z } }) };
+      const n0 = { x: L.x + 110, y: 30, z: L.z - 90 };
+      out.nightSky = { caption: `${name} \u00b7 After dark`, cam: (k) => ({ pos: { x: n0.x - k * 12, y: n0.y + k * 6, z: n0.z + k * 8 }, target: { x: L.x, y: L.height * 0.6, z: L.z } }) };
+    }
+    const c = g.city.civic;
+    if (c) {
+      const z0 = c.z - 80, hit = w.raycast(c.x + 10.5, 6, z0, 0, 0, 1, 120);
+      const F = hit < 120 && Math.abs(z0 + hit - (c.z - 12)) < 8 ? z0 + hit : c.z - 12;
+      out.white = { caption: 'The White House', cam: (k) => ({ pos: { x: c.x + 34 - k * 12, y: 20 - k * 10, z: F - 62 + k * 18 }, target: { x: c.x, y: 6, z: F - 4 } }) };
+    }
+    // High over the junction where the fight will happen (he's been moved there already), craning down.
+    const P = g.player.pos;
+    out.junction = { caption: `${name} \u00b7 Noon`, cam: (k) => ({ pos: { x: P.x + 26 - k * 8, y: P.y + 34 - k * 14, z: P.z + 22 - k * 6 }, target: { x: P.x, y: P.y + 1, z: P.z } }) };
+    return out;
   }
 
   buildSets(look) {
@@ -270,7 +307,8 @@ export class ActionMontage {
   low() {
     const { P, f, r } = this.basis(), f0 = { ...f }, r0 = { ...r };
     if (!this.clear({ x: P.x + f0.x * 3.2 + r0.x * 1.1, y: P.y + 0.55, z: P.z + f0.z * 3.2 + r0.z * 1.1 }, { x: P.x, y: P.y + 1.5, z: P.z })) return null;
-    return { dur: 1.8, at: (k) => { const Q = this.g.player.pos; return { pos: { x: Q.x + f0.x * (3.2 - k * 0.5) + r0.x * 1.1, y: Q.y + 0.55, z: Q.z + f0.z * (3.2 - k * 0.5) + r0.z * 1.1 }, target: { x: Q.x, y: Q.y + 1.45, z: Q.z } }; } };
+    const pos = { x: P.x + f0.x * 3.4 + r0.x * 1.1, y: P.y + 0.55, z: P.z + f0.z * 3.4 + r0.z * 1.1 }; // locked off
+    return { dur: 1.8, at: () => { const Q = this.g.player.pos; return { pos, target: { x: Q.x, y: Q.y + 1.45, z: Q.z } }; } };
   }
   reverse() {
     const e = this.target;
@@ -279,18 +317,20 @@ export class ActionMontage {
     const at = () => { const q = e.center(); return { x: q.x - ux * 1.7 + uz * 0.7, y: q.y + 0.75, z: q.z - uz * 1.7 - ux * 0.7 }; };
     const you = () => { const Q = this.g.player.pos; return { x: Q.x, y: Q.y + 1.3, z: Q.z }; };
     if (!this.clear(at(), you())) return null;
-    let last = at();
-    return { dur: 1.7, at: () => { if (e.alive) last = at(); return { pos: last, target: you() }; } };
+    const pos = at(); // locked off behind his shoulder
+    return { dur: 1.7, at: () => ({ pos, target: you() }) };
   }
   side() {
     const { P, r } = this.basis(), s = Math.sin(this.t) > 0 ? 1 : -1, r0 = { x: r.x * s, z: r.z * s };
     if (!this.clear({ x: P.x + r0.x * 5, y: P.y + 1.3, z: P.z + r0.z * 5 }, { x: P.x, y: P.y + 1.3, z: P.z })) return null;
-    return { dur: 2.0, at: () => { const Q = this.g.player.pos; return { pos: { x: Q.x + r0.x * 5, y: Q.y + 1.3, z: Q.z + r0.z * 5 }, target: { x: Q.x, y: Q.y + 1.25, z: Q.z } }; } };
+    const pos = { x: P.x + r0.x * 6, y: P.y + 1.3, z: P.z + r0.z * 6 }; // locked off, panning with him
+    return { dur: 2.0, at: () => { const Q = this.g.player.pos; return { pos, target: { x: Q.x, y: Q.y + 1.25, z: Q.z } }; } };
   }
   wide() {
     const { P, f, r } = this.basis(), f0 = { ...f }, r0 = { ...r };
     if (!this.clear({ x: P.x - f0.x * 9 + r0.x * 7, y: P.y + 9, z: P.z - f0.z * 9 + r0.z * 7 }, { x: P.x, y: P.y + 1, z: P.z })) return null;
-    return { dur: 2.4, at: (k) => { const Q = this.g.player.pos, A = this.aimPoint(); return { pos: { x: Q.x - f0.x * 9 + r0.x * 7, y: Q.y + 9 - k * 3, z: Q.z - f0.z * 9 + r0.z * 7 }, target: { x: (Q.x + A.x) / 2, y: Q.y + 1, z: (Q.z + A.z) / 2 } }; } };
+    const base = { x: P.x - f0.x * 9 + r0.x * 7, y: P.y + 9, z: P.z - f0.z * 9 + r0.z * 7 }; // a slow crane down, not following
+    return { dur: 2.4, at: (k) => { const Q = this.g.player.pos; return { pos: { ...base, y: base.y - k * 2 }, target: { x: Q.x, y: Q.y + 1, z: Q.z } }; } };
   }
   killShot(k) {
     const P = this.g.player.pos, dx = k.x - P.x, dz = k.z - P.z, l = Math.hypot(dx, dz) || 1;
@@ -349,6 +389,7 @@ export class ActionMontage {
   }
 
   staged(s, k) {
+    if (s.kind === 'est') return s.cam(k * k * (3 - 2 * k)); // eased in and out
     if (s.kind === 'grave') { const G = this.grave; return { pos: { x: G.x + 3.6 - k * 1.0, y: G.y + 1.7 - k * 0.2, z: G.z - 5.6 + k * 1.2 }, target: { x: G.x + 0.2, y: G.y + 1.05, z: G.z - 1.2 } }; }
     if (s.kind === 'porch') {
       const { walt, vis, d, side } = this.porch;
@@ -393,6 +434,14 @@ export class ActionMontage {
       if (this.shotT >= this.shot.dur || (this.killQueue && !this.shot.kill && this.shotT > 0.5)) this.cut();
       this.cam = this.shot.at(Math.min(1, this.shotT / this.shot.dur));
     } else if (s.kind !== 'title') this.cam = this.staged(s, k);
+    // Smooth the camera within a shot (snap on a cut): no jitter from his steps, strafes or aim corrections.
+    const shotKey = s.kind === 'combat' ? this.shot : s;
+    if (this.cam && this.smooth && this.smoothKey === shotKey) {
+      const a = 1 - Math.exp(-dt * 5), b = 1 - Math.exp(-dt * 7), sm = this.smooth, c = this.cam;
+      for (const ax of ['x', 'y', 'z']) { sm.pos[ax] += (c.pos[ax] - sm.pos[ax]) * a; sm.target[ax] += (c.target[ax] - sm.target[ax]) * b; }
+      this.cam = { pos: { ...sm.pos }, target: { ...sm.target } };
+    } else if (this.cam) this.smooth = { pos: { ...this.cam.pos }, target: { ...this.cam.target } };
+    this.smoothKey = shotKey;
     // The staged people.
     const m4 = new THREE.Matrix4();
     for (const p of this.puppets) {
@@ -414,6 +463,9 @@ export class ActionMontage {
     const sub = typeof s.sub === 'function' ? s.sub(this.segT) : '';
     if (this.$.sub.dataset.h !== sub) { this.$.sub.dataset.h = sub; this.$.sub.innerHTML = sub; }
     this.$.sub.style.opacity = sub ? 1 : 0;
+    const cap = s.caption || '';
+    if (this.$.cap.textContent !== cap) this.$.cap.textContent = cap;
+    this.$.cap.style.opacity = cap && this.segT > 0.4 && this.segT < s.dur - 0.4 ? 1 : 0;
     this.white = Math.max(0, this.white - dt * 2.5);
     if (this.fire && this.fire.t < 0.12) this.white = Math.max(this.white, 0.7);
     this.$.white.style.opacity = this.white.toFixed(3);

@@ -139,7 +139,7 @@ export class Fx {
   }
 
   number(pos, text, cls) {
-    if (!this.layer) return;
+    if (!this.layer || this.quiet) return; // quiet: the trailer hides damage numbers and shouts
     const el = document.createElement('div');
     el.className = `dmg ${cls || ''}`;
     el.textContent = text;
@@ -149,7 +149,7 @@ export class Fx {
   }
 
   bark(d) {
-    if (!this.layer) return;
+    if (!this.layer || this.quiet) return;
     const e = this.game.enemies.find((x) => x.id === d.id);
     if (!e) return;
     const P = this.game.player.pos;

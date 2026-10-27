@@ -60,6 +60,7 @@ export class ActionMontage {
     this.walkAway = null; // the explosion beat: he walks off, the blast behind him
     this.off = game.events.on('kill', (d) => { if (d.pos && !this.killQueue && this.seg?.kind === 'combat') this.killQueue = { ...d.pos }; });
     this.nightWas = view.night || 0;
+    if (view.fx) view.fx.quiet = true; // no damage numbers or shout bubbles in the trailer
     this.props = new THREE.Group();
     view.scene.add(this.props);
     this.puppets = [];
@@ -295,14 +296,14 @@ export class ActionMontage {
     this.shot = this.ots();
   }
   ots() {
-    return { dur: 2.2, at: () => {
+    return (this.otsShot = { dur: 2.2, at: () => {
       const { P, f, r } = this.basis(), head = { x: P.x, y: P.y + 1.7, z: P.z };
       const want = { x: P.x + r.x * 0.62 - f.x * 1.7, y: P.y + 1.78, z: P.z + r.z * 0.62 - f.z * 1.7 };
       // Like the play camera: pulled in when a wall is behind him.
       const dx = want.x - head.x, dy = want.y - head.y, dz = want.z - head.z, l = Math.hypot(dx, dy, dz);
       const t = Math.min(l, this.g.world.raycast(head.x, head.y, head.z, dx / l, dy / l, dz / l, l) - 0.25);
       return { pos: { x: head.x + (dx / l) * Math.max(0.3, t), y: head.y + (dy / l) * Math.max(0.3, t), z: head.z + (dz / l) * Math.max(0.3, t) }, target: this.aimPoint() };
-    } };
+    } });
   }
   low() {
     const { P, f, r } = this.basis(), f0 = { ...f }, r0 = { ...r };
@@ -431,7 +432,11 @@ export class ActionMontage {
     }
     if (s.kind === 'combat') {
       this.shotT += dt;
-      if (this.shotT >= this.shot.dur || (this.killQueue && !this.shot.kill && this.shotT > 0.5)) this.cut();
+      // Cut on time, on a kill, or when someone walks into the lens of a locked-off camera.
+      const c0 = this.cam?.pos, P = this.g.player.pos;
+      const blocked = c0 && this.shotT > 0.3 && (this.g.enemies.some((e) => e.alive && Math.hypot(e.pos.x - c0.x, e.pos.z - c0.z) < 1.8 && Math.abs(e.pos.y + 1 - c0.y) < 1.6)
+        || (this.shot !== this.otsShot && Math.hypot(P.x - c0.x, P.z - c0.z) < 1.4));
+      if (this.shotT >= this.shot.dur || blocked || (this.killQueue && !this.shot.kill && this.shotT > 0.5)) this.cut();
       this.cam = this.shot.at(Math.min(1, this.shotT / this.shot.dur));
     } else if (s.kind !== 'title') this.cam = this.staged(s, k);
     // Smooth the camera within a shot (snap on a cut): no jitter from his steps, strafes or aim corrections.
@@ -483,6 +488,7 @@ export class ActionMontage {
     for (const p of this.puppets) for (const m of p.rig.meshes) { this.view.scene?.remove(m); m.geometry.dispose(); }
     this.view.scene?.remove(this.props);
     this.view.camOverride = null;
+    if (this.view.fx) this.view.fx.quiet = false;
     this.view.setNight?.(this.nightWas);
     if (this.canvas) this.canvas.style.filter = '';
     this.el.remove();

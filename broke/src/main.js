@@ -31,8 +31,7 @@ import { buildDebugOverlay } from './render/debugOverlay.js';
 import { buildClosedShops } from './render/kit/closedShops.js';
 import { localBest, saveLocal } from './net/leaderboard.js';
 import { TitleCam } from './render/titlecam.js';
-import { Cutscene } from './render/cutscene/cutscene.js';
-import { inauguration } from './render/cutscene/inauguration.js';
+import { ActionMontage, SUIT } from './render/montage.js';
 import { spawnLoiterers } from './sim/enemies/gang.js';
 
 const params = new URLSearchParams(location.search);
@@ -86,7 +85,7 @@ const screens = new Screens(document.getElementById('screens'), {
   sens: (v) => { input.sens = v; },
   aimAssist: (on) => { aimAssist.enabled = on; },
   creator: () => showCreator(),
-  story: () => startStory(),
+  trailer: () => startTrailer(),
   creatorDone: (l) => { if (l) { look = l; saveLook(l); PC = makeCustomHero(l); } showTitle(); },
   // Switch between the turf war and the mayor game in place: no navigation (the page may live in a viewer that
   // can't load another address).
@@ -182,15 +181,6 @@ export function startRun(seed, opts = {}) {
   screens.show(null);
   hud.setVisible(!HERO);
   if (HERO) heroCaption(g.city.district.name);
-  // Story mode picks up where the opening left Walt: across the street from the White House, at night.
-  if (opts.story) {
-    const s = opts.story, P = g.player;
-    Object.assign(P.body.pos, { x: s.x, y: s.y, z: s.z });
-    P.lastSafe = { x: s.x, y: s.y + 0.1, z: s.z };
-    P.yaw = s.yaw; input.yaw = s.yaw;
-    view.setNight(0.85);
-    hud.flashPrompt('Chapter one \u00b7 The Detail', 'Someone opened that door. Find out who.');
-  }
   input.lock();
   return g;
 }
@@ -259,7 +249,7 @@ function frame(now) {
       // Free-fly: the leader stands still (empty control) while the camera roams.
       if (app.fly.active) app.fly.update(dt);
       if (!app.fly.active && !app.held) aimAssist.update(dt, g);
-      while (app.acc >= DT && n < 8) { g.step(app.fly.active ? { yaw: g.player.yaw, pitch: g.player.pitch } : app.held ? { ...app.held, yaw: g.player.yaw, pitch: g.player.pitch } : input.sample()); app.acc -= DT; n++; }
+      while (app.acc >= DT && n < 8) { g.step(app.montage ? app.montage.control() : app.fly.active ? { yaw: g.player.yaw, pitch: g.player.pitch } : app.held ? { ...app.held, yaw: g.player.yaw, pitch: g.player.pitch } : input.sample()); app.acc -= DT; n++; }
       if (n === 8) app.acc = 0;
     }
   } else if (app.state !== 'playing' && g.state !== 'won') {
@@ -276,7 +266,7 @@ function frame(now) {
     if (cap && cap.textContent !== T.caption) cap.textContent = T.caption;
     if (cap) cap.style.opacity = T.fade > 0.2 ? 0 : 1;
   }
-  if (app.cutscene) app.cutscene.update(dt);
+  if (app.montage) app.montage.update(dt);
   view.render(dt);
   app.onFrame?.();
   hud.flying = app.fly.active; // the leader is parked while the camera roams: no "you are here" prompt
@@ -312,25 +302,23 @@ function spawnPractice(g) {
   hud.flashPrompt(n ? 'Practice targets' : 'No room out front', n ? `${n} hostile${n > 1 ? 's' : ''} ahead. Right mouse to aim, click to fire, R to reload.` : 'Face an open street and press G again.');
 }
 
-// Story mode (BROKE: The Detail): the opening cutscene on the title's city, then play picks up at night across the
-// street from the White House. With no White House on this seed, it goes straight to play.
-function startStory() {
+// The trailer: a street fight played on autopilot in a black suit, cut live into an action montage (render/montage.js),
+// then a fresh run starts with you in control.
+function startTrailer() {
   audio.start();
-  const scene = app.game ? inauguration(app.game, { look, audio }) : null;
-  if (!scene) { startRun(app.seed); return; }
-  endTitle();
-  screens.show(null);
+  const saved = PC;
+  PC = makeCustomHero({ ...look, outfit: SUIT });
+  const g = startRun(app.seed, { trailer: true });
+  PC = saved;
+  g.godMode = true;
   hud.setVisible(false);
   touch.setVisible(false);
-  app.state = 'cutscene';
-  if (params.has('shot')) window.__cutscene = () => app.cutscene; // screenshot tests jump to a shot (seek)
-  app.cutscene = new Cutscene(view, scene, {
-    onDone: () => {
-      app.cutscene = null;
-      startRun(app.seed, { story: scene.spawn });
-      curtain();
-    },
+  if (params.has('shot')) window.__montage = () => app.montage; // screenshot tests
+  app.montage = new ActionMontage(g, view, {
+    look: { ...look, outfit: SUIT }, title: 'BROKE', tagline: 'One last job.',
+    onDone: () => { app.montage = null; startRun(app.seed); curtain(); },
   });
+  app.montage.onTitle = () => audio.boom();
 }
 
 // Title screen over a live city backdrop (rebuilt after the creator so the backdrop shows your character).
@@ -384,8 +372,8 @@ function showCreator() {
 
 installDebug(app, { startRun });
 (TOWN ? loadTownMap() : Promise.resolve()).then(() => {
-  if (HERO || params.get('autostart') === '1' || params.has('bot') || (params.has('shot') && params.get('story') !== '1')) { startRun(app.seed); return; }
+  if (HERO || params.get('autostart') === '1' || params.has('bot') || (params.has('shot') && params.get('trailer') !== '1')) { startRun(app.seed); return; }
   showTitle();
-  if (params.get('story') === '1') startStory();
+  if (params.get('trailer') === '1') startTrailer();
 });
 requestAnimationFrame(frame);

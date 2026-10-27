@@ -12,7 +12,7 @@ try {
   const { browser, page, errors } = await openGame(srv.url, `mode=turf&seed=${seed}&trailer=1&shot=1&quality=low`, { width: 800, height: 450 });
   await page.waitForFunction(() => window.__montage?.(), null, { timeout: 300000 });
   let n = 0, last = '', lastT = -9;
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 900; i++) {
     const s = await page.evaluate(() => { const m = window.__montage?.(); return m ? { kind: m.seg?.kind, t: m.t, segT: m.segT, kills: window.__broke.game.arcade?.kills } : null; });
     if (!s) break;
     const midStaged = s.kind !== 'combat' && s.kind !== last && s.segT > 1.2;

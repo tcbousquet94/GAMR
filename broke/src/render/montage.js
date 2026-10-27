@@ -195,6 +195,9 @@ export class ActionMontage {
     this.tick++;
     const input = { moveX: 0, moveZ: 0, yaw: this.yaw, pitch: this.pitch, sprint: false, aim: false, primary: false, reload: false };
     if (p.gun && p.gun.ammo < 2) input.reload = true;
+    // Before the fight cuts in he holds still (the staged shots are elsewhere and the Vipers are on their way).
+    const k = this.seg?.kind;
+    if (k !== 'combat' && k !== 'boom') return input;
     // The explosion beat: a slow walk away from it, no looking back.
     if (this.walkAway) { this.pitch *= 0.9; input.yaw = this.yaw = this.walkAway.yaw; input.pitch = this.pitch; input.moveZ = 0.42; return input; }
     if (!this.target?.alive || this.tick % 30 === 0) this.target = this.pickTarget();
@@ -344,6 +347,14 @@ export class ActionMontage {
     let s = this.seg;
     if (this.segT >= s.dur) { this.nextSeg(); s = this.seg; if (!s) return; }
     const k = Math.min(1, this.segT / s.dur);
+    // The Vipers: held back through the opening shots, sent (a bigger wave) when the car shot starts so they arrive
+    // as the fight cuts in, then no long breaks between waves.
+    const A = this.g.arcade;
+    if (A) {
+      const fightIdx = this.segs.findIndex((q) => q.kind === 'car' || q.kind === 'combat');
+      if (this.si < fightIdx && A.phase === 'break') A.timer = Math.max(A.timer, 5);
+      else if (A.phase === 'break') { if (A.wave < 2) A.wave = 2; A.timer = Math.min(A.timer, 0.8); }
+    }
     if (s.kind === 'combat') {
       this.shotT += dt;
       if (this.shotT >= this.shot.dur || (this.killQueue && !this.shot.kill && this.shotT > 0.5)) this.cut();

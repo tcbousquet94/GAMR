@@ -87,7 +87,7 @@ export class Screens {
     return this.cinematic({
       tagline: 'Two crews. One city. Every block counts.',
       start: 'Hit the streets', onStart: () => this.h.start(this.root.querySelector('#s-seed')?.value.trim() || String(seed)),
-      items: [creator && ['s-create', 'Character', () => this.h.creator()], modes && ['s-mayor', 'Be the President', () => this.h.mode('town')]],
+      items: [['s-story', 'Story \u00b7 The Detail', () => this.h.story()], creator && ['s-create', 'Character', () => this.h.creator()], modes && ['s-mayor', 'Be the President', () => this.h.mode('town')]],
       board,
       seed,
       how: `<b>${esc(survivor.name)}</b><span>${esc(survivor.role)}</span>

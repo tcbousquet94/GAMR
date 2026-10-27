@@ -220,18 +220,22 @@ export class ActionMontage {
     if (!this.target?.alive || this.tick % 30 === 0) this.target = this.pickTarget();
     const e = this.target;
     if (!e) { input.moveZ = 0.4; return input; }
-    const c = e.center(), dx = c.x - P.x, dz = c.z - P.z, d = Math.hypot(dx, dz);
-    const wantYaw = yawTo(dx, dz), wantPitch = Math.atan2(c.y - (P.y + 1.55), d);
-    this.yaw = wrap(this.yaw + wrap(wantYaw - this.yaw) * 0.16);
-    this.pitch += (wantPitch - this.pitch) * 0.16;
-    const lined = Math.abs(wrap(wantYaw - this.yaw)) < 0.07;
+    // Aim from where the gun actually fires: over the right shoulder (Player.aim), not the middle of the body.
+    const c = e.center(), o = { x: P.x + Math.cos(this.yaw) * 0.7, y: P.y + 1.65, z: P.z - Math.sin(this.yaw) * 0.7 };
+    const dx = c.x - o.x, dz = c.z - o.z, d = Math.hypot(dx, dz);
+    const wantYaw = yawTo(dx, dz), wantPitch = Math.atan2(c.y - o.y, d);
+    this.yaw = wrap(this.yaw + wrap(wantYaw - this.yaw) * 0.2);
+    this.pitch += (wantPitch - this.pitch) * 0.2;
+    const lined = Math.abs(wrap(wantYaw - this.yaw)) < 0.02 && Math.abs(wantPitch - this.pitch) < 0.03;
     const seen = d < 40 && g.world.segmentClear({ x: P.x, y: P.y + 1.6, z: P.z }, c);
     input.yaw = this.yaw; input.pitch = this.pitch;
     if (seen && d < 32) {
       input.aim = true;
       input.primary = lined && this.tick % 2 === 0; // click per shot: press, release
-      input.moveX = Math.sin(this.t * 0.9) > 0 ? 0.6 : -0.6; // strafe while shooting
-      input.moveZ = d > 16 ? 0.5 : d < 7 ? -0.6 : 0;
+      // Mostly planted while he shoots (moving widens the spread); a side-step now and then.
+      const step = Math.sin(this.t * 0.7);
+      input.moveX = Math.abs(step) > 0.85 ? Math.sign(step) * 0.6 : 0;
+      input.moveZ = d > 20 ? 0.5 : d < 6 ? -0.6 : 0;
     } else { input.moveZ = 1; input.sprint = true; }
     return input;
   }
@@ -254,7 +258,14 @@ export class ActionMontage {
     this.shot = this.ots();
   }
   ots() {
-    return { dur: 2.2, at: () => { const { P, f, r } = this.basis(); return { pos: { x: P.x + r.x * 0.62 - f.x * 1.7, y: P.y + 1.78, z: P.z + r.z * 0.62 - f.z * 1.7 }, target: this.aimPoint() }; } };
+    return { dur: 2.2, at: () => {
+      const { P, f, r } = this.basis(), head = { x: P.x, y: P.y + 1.7, z: P.z };
+      const want = { x: P.x + r.x * 0.62 - f.x * 1.7, y: P.y + 1.78, z: P.z + r.z * 0.62 - f.z * 1.7 };
+      // Like the play camera: pulled in when a wall is behind him.
+      const dx = want.x - head.x, dy = want.y - head.y, dz = want.z - head.z, l = Math.hypot(dx, dy, dz);
+      const t = Math.min(l, this.g.world.raycast(head.x, head.y, head.z, dx / l, dy / l, dz / l, l) - 0.25);
+      return { pos: { x: head.x + (dx / l) * Math.max(0.3, t), y: head.y + (dy / l) * Math.max(0.3, t), z: head.z + (dz / l) * Math.max(0.3, t) }, target: this.aimPoint() };
+    } };
   }
   low() {
     const { P, f, r } = this.basis(), f0 = { ...f }, r0 = { ...r };
@@ -290,14 +301,19 @@ export class ActionMontage {
     return null;
   }
 
-  // The explosion: a blast where the Vipers are thickest (or just behind him), and he walks toward the camera.
+  // The explosion: he turns his back on the fight and walks off down the clearest stretch of street; the blast goes
+  // up 8 m behind him (taking any Vipers near it).
   startBoom() {
-    const g = this.g, P = g.player.pos, { f } = this.basis();
-    const near = g.enemies.filter((e) => e.alive && Math.hypot(e.pos.x - P.x, e.pos.z - P.z) < 30);
-    const at = near.length ? near.reduce((a, e) => ({ x: a.x + e.pos.x / near.length, y: P.y, z: a.z + e.pos.z / near.length }), { x: 0, y: 0, z: 0 }) : { x: P.x - f.x * 8, y: P.y, z: P.z - f.z * 8 };
-    // He turns his back on it.
-    const away = { x: P.x - at.x, z: P.z - at.z }, l = Math.hypot(away.x, away.z) || 1;
-    this.walkAway = { yaw: yawTo(away.x / l, away.z / l), at, dir: { x: away.x / l, z: away.z / l }, fired: false };
+    const g = this.g, P = g.player.pos, w = g.world;
+    let best = null;
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2, dir = { x: Math.sin(a), z: Math.cos(a) };
+      const ahead = w.raycast(P.x, P.y + 1.2, P.z, dir.x, 0, dir.z, 25), behind = w.raycast(P.x, P.y + 1.2, P.z, -dir.x, 0, -dir.z, 12);
+      const score = Math.min(ahead, 25) + Math.min(behind, 12);
+      if (!best || score > best.score) best = { score, dir };
+    }
+    const dir = best.dir;
+    this.walkAway = { yaw: yawTo(dir.x, dir.z), dir, at: { x: P.x - dir.x * 8, y: P.y, z: P.z - dir.z * 8 }, fired: false };
   }
   detonate() {
     const g = this.g, B = this.walkAway, at = B.at;
@@ -306,7 +322,7 @@ export class ActionMontage {
     for (const e of g.enemies) {
       if (!e.alive) continue;
       const dx = e.pos.x - at.x, dz = e.pos.z - at.z, d = Math.hypot(dx, dz);
-      if (d < 7) g.combat.hitEnemy(e, { damage: 400, proc: 1, source: 'explosion', pos: e.center(), knock: { x: (dx / (d || 1)) * 14, y: 9, z: (dz / (d || 1)) * 14 } });
+      if (d < 9) g.combat.hitEnemy(e, { damage: 400, proc: 1, source: 'explosion', pos: e.center(), knock: { x: (dx / (d || 1)) * 14, y: 9, z: (dz / (d || 1)) * 14 } });
     }
     // A fireball and a flash of light over the game's own burst and shockwave.
     const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0.95, depthWrite: false }));
@@ -348,11 +364,11 @@ export class ActionMontage {
       return { pos: { x: p.x - C.dir.x * 16 + C.dir.z * 4, y: C.y + 17 - k * 3, z: p.z - C.dir.z * 16 - C.dir.x * 4 }, target: { x: p.x + C.dir.x * 6, y: C.y, z: p.z + C.dir.z * 6 } };
     }
     if (s.kind === 'boom') {
-      // In front of him, low: he walks toward us, the blast going up behind him.
-      const P = this.g.player.pos, W = this.walkAway, a = { x: P.x + W.dir.x * 5.5 + W.dir.z * 0.8, y: P.y + 1.1, z: P.z + W.dir.z * 5.5 - W.dir.x * 0.8 };
-      if (!W.fired && this.segT > 0.5) this.detonate();
-      this.boomCam = this.boomCam && k > 0 ? this.boomCam : a;
-      return { pos: { x: this.boomCam.x + (a.x - this.boomCam.x) * 0.02, y: a.y, z: this.boomCam.z + (a.z - this.boomCam.z) * 0.02 }, target: { x: P.x, y: P.y + 1.5, z: P.z } };
+      // In front of him and a little to the side, moving back with him: he walks toward us, the blast behind him.
+      const P = this.g.player.pos, W = this.walkAway, side = { x: W.dir.z, z: -W.dir.x };
+      if (!W.fired && this.segT > 0.6) this.detonate();
+      const pos = { x: P.x + W.dir.x * 6 + side.x * 1.4, y: P.y + 1.35, z: P.z + W.dir.z * 6 + side.z * 1.4 };
+      return { pos, target: { x: P.x - W.dir.x * 2, y: P.y + 1.7, z: P.z - W.dir.z * 2 } };
     }
     return this.cam;
   }

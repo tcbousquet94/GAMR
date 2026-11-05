@@ -425,10 +425,9 @@ ol.board li.empty { display: block; text-align: center; color: var(--dim); font-
 }
 @media (prefers-reduced-motion: reduce) { .m-item, .ti-menu { transition: none; } }
 /* ---- The opening: like the start of a film -----------------------------------------------------------------------
-   Before the click: black and "Click to begin". After (.run), one timeline (seconds; screens.js OPENING matches):
-   0.6-4.2 the studio card (designXR studios: the mark draws on, the fire glows, the name fades up); 4.6-8.4 the
-   production credit over black; 8.8 the black lifts onto the city over 1.6 s; 10.4 the title lands; 11.4 the tagline;
-   14.4 the menu (.done fades the opening away). */
+   After the studio card (the loading screen, #boot below): black and "Click to begin". After (.run), one timeline
+   (seconds; screens.js OPENING matches): 0.8-4.6 the production credit over black; 5.0 the black lifts onto the city
+   over 1.6 s; 6.6 the title lands; 7.6 the tagline; 10.6 the menu (.done fades the opening away). */
 .t-grain { position: absolute; inset: -50%; pointer-events: none; opacity: 0.07; mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   animation: grain 0.9s steps(6) infinite; }
@@ -440,29 +439,17 @@ ol.board li.empty { display: block; text-align: center; color: var(--dim); font-
   font-size: clamp(14px, 1.8vw, 18px); font-weight: 500; letter-spacing: 0.5em; margin-right: -0.5em; text-transform: uppercase; color: var(--dim); animation: breathe 2.4s ease-in-out infinite; }
 .t-begin:hover, .t-begin:focus-visible { background: none; color: var(--ink); }
 @keyframes breathe { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
-.t-open.run .t-begin { animation: none; opacity: 0; transition: opacity 0.4s; pointer-events: none; }
-.t-c0, .t-c1, .t-ttl { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; text-align: center; padding: 0 24px; opacity: 0; pointer-events: none; }
+.t-open:not(.ready) .t-begin, .t-open.run .t-begin { animation: none; opacity: 0; transition: opacity 0.4s; pointer-events: none; } /* hidden under the studio card, and once it runs */
+.t-c1, .t-ttl { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; text-align: center; padding: 0 24px; opacity: 0; pointer-events: none; }
 .t-c1 { gap: 14px; }
 .t-c1 b { font-size: clamp(30px, 4.6vw, 52px); font-weight: 500; letter-spacing: 0.22em; margin-right: -0.22em; text-transform: uppercase; color: var(--ink); }
 .t-c1 span { font-size: clamp(12px, 1.4vw, 15px); letter-spacing: 0.6em; margin-right: -0.6em; text-transform: uppercase; color: var(--faint); }
 .t-ttl .logo { font-size: clamp(90px, 19vw, 230px); }
 .t-ttl .t-tag { opacity: 0; }
-.t-c0 { gap: 22px; color: #ffaa00; }
-.t-c0 .mark { width: clamp(170px, 30vmin, 280px); height: auto; overflow: visible; }
-.t-c0 .mark path { stroke-dasharray: 1; stroke-dashoffset: 1; }
-.t-c0 p { margin: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: clamp(22px, 3.2vw, 34px); font-weight: 300; letter-spacing: 0.12em; color: var(--ink); opacity: 0; }
-.t-c0 p span { color: var(--faint); font-weight: 300; }
-.t-open.run .t-c0 { animation: card 3.6s ease-in-out 0.6s both; }
-.t-open.run .t-c0 .mark path { animation: draw 1.5s cubic-bezier(.5,0,.3,1) 0.8s forwards; }
-.t-open.run .t-c0 .mark .fire { animation: draw 1.2s cubic-bezier(.5,0,.3,1) 1.5s forwards, glow 1.6s ease-in-out 2.6s 1; }
-.t-open.run .t-c0 p { animation: fadein 1s ease-out 2.1s both; }
-.t-open.run .t-c1 { animation: c1 3.8s ease-in-out 4.6s both; }
-.t-open.run .t-black { animation: lift 1.6s ease-in-out 8.8s both; }
-.t-open.run .t-ttl { animation: slam 1.1s cubic-bezier(.15,.8,.25,1) 10.4s both; }
-.t-open.run .t-ttl .t-tag { animation: fadein 1.2s ease-out 11.4s both; }
-@keyframes card { 0% { opacity: 0; } 8% { opacity: 1; } 82% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes draw { to { stroke-dashoffset: 0; } }
-@keyframes glow { 0%, 100% { filter: none; } 50% { filter: drop-shadow(0 0 10px rgba(255, 170, 0, 0.85)); } }
+.t-open.run .t-c1 { animation: c1 3.8s ease-in-out 0.8s both; }
+.t-open.run .t-black { animation: lift 1.6s ease-in-out 5s both; }
+.t-open.run .t-ttl { animation: slam 1.1s cubic-bezier(.15,.8,.25,1) 6.6s both; }
+.t-open.run .t-ttl .t-tag { animation: fadein 1.2s ease-out 7.6s both; }
 @keyframes c1 { 0% { opacity: 0; letter-spacing: 0.3em; } 30% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes lift { from { opacity: 1; } to { opacity: 0; } }
 @keyframes slam { 0% { opacity: 0; transform: scale(1.22); letter-spacing: 0.3em; } 40% { opacity: 1; } 100% { opacity: 1; transform: scale(1); } }
@@ -470,3 +457,20 @@ ol.board li.empty { display: block; text-align: center; color: var(--dim); font-
 @media (prefers-reduced-motion: reduce) { .t-grain { animation: none; } .t-begin { animation: none; opacity: 1; } }
 @media (pointer: coarse) { .t-grain { display: none; } } /* a full-screen blended layer over the 3D view costs phones too much */
 .cine:not(.entered) .ti-menu, .cine:not(.entered) .t-board { visibility: hidden; } /* nothing of the menu shows through the opening */
+
+/* ---- The studio card: the first screen, over the loading (ui/studio.js) ------------------------------------------
+   Opacity and transform only, so it keeps animating while the city is built: the mark rises in, the fire's glow
+   breathes, the name fades up. The resting state is the finished card (the entrances fill backwards), so if the
+   page is too busy to start them it still shows. .out lifts it; .failed turns it into the load-error report. */
+#boot { position: fixed; inset: 0; z-index: 50; display: grid; place-content: center; justify-items: center; gap: 24px; padding: 16px; text-align: center; background: #07060a; color: var(--ink); transition: opacity 0.8s ease-in-out; }
+#boot.out { opacity: 0; pointer-events: none; }
+#boot .s-mark { position: relative; width: clamp(170px, 30vmin, 280px); color: #ffaa00; animation: s-in 1.2s cubic-bezier(.2,.7,.2,1) 0.25s backwards; }
+#boot .s-mark svg { display: block; width: 100%; height: auto; overflow: visible; }
+#boot .s-glow { position: absolute; inset: 0; filter: blur(9px); opacity: 0; animation: s-glow 2.6s ease-in-out 1.2s infinite; }
+#boot p { margin: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: clamp(22px, 3.2vw, 34px); font-weight: 300; letter-spacing: 0.12em; animation: s-text 1s ease-out 1.1s backwards; }
+#boot p span { color: var(--faint); }
+@keyframes s-in { from { opacity: 0; transform: translateY(10px) scale(0.94); } to { opacity: 1; transform: none; } }
+@keyframes s-glow { 0%, 100% { opacity: 0; } 50% { opacity: 0.9; } }
+@keyframes s-text { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+#boot.failed { display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1b1020; font: 600 20px Georgia, serif; }
+@media (prefers-reduced-motion: reduce) { #boot .s-mark, #boot p { animation-duration: 0.01s; } #boot .s-glow { animation: none; } }

@@ -32,6 +32,7 @@ import { buildClosedShops } from './render/kit/closedShops.js';
 import { localBest, saveLocal } from './net/leaderboard.js';
 import { TitleCam } from './render/titlecam.js';
 import { spawnLoiterers } from './sim/enemies/gang.js';
+import { STUDIO_BOOT } from './ui/studio.js';
 
 const params = new URLSearchParams(location.search);
 const canvas = document.getElementById('game');
@@ -93,10 +94,11 @@ const screens = new Screens(document.getElementById('screens'), {
   map: () => showMap(),
   mapBack: () => (app.mapFromPlay ? resume() : pause()),
   title: () => showTitle(),
+  ready: () => app.bootDone, // the title's opening starts once the studio card has lifted
   enter: () => audio.start(), // the title's "click to begin": the first gesture, so the city's sound can start
   // The film-style opening: the drone, and the tour starting over on its first shot, held long enough to carry the
   // two cards and the menu's arrival; then the boom as the title lands.
-  opening: () => { audio.opening(); app.titleCam?.restart(20); },
+  opening: () => { audio.opening(); app.titleCam?.restart(16); },
   boom: () => audio.boom(),
 });
 app.fly = new FlyCam(input);
@@ -349,8 +351,23 @@ function showCreator() {
 }
 
 installDebug(app, { startRun });
+// The studio card (designXR studios) is the first screen and covers the loading. The published page carries it in its
+// HTML; in dev it goes up here. It lifts once the game is ready and it has been up long enough to read (not at all for
+// bots and screenshots); the title's opening waits for it (app.bootDone).
+if (!document.getElementById('boot')) document.body.insertAdjacentHTML('beforeend', STUDIO_BOOT);
+const AUTO = HERO || params.get('autostart') === '1' || params.has('bot') || params.has('shot');
+let bootDone;
+app.bootDone = new Promise((r) => { bootDone = r; });
+function liftBoot() {
+  const b = document.getElementById('boot');
+  if (!b || b.classList.contains('failed')) { bootDone(); return; }
+  setTimeout(() => {
+    b.classList.add('out');
+    setTimeout(() => { b.remove(); bootDone(); }, 800);
+  }, AUTO ? 0 : Math.max(0, 4300 - performance.now()));
+}
 (TOWN ? loadTownMap() : Promise.resolve()).then(() => {
-  if (HERO || params.get('autostart') === '1' || params.has('bot') || params.has('shot')) { startRun(app.seed); return; }
-  showTitle();
+  if (AUTO) startRun(app.seed); else showTitle();
+  liftBoot();
 });
 requestAnimationFrame(frame);
